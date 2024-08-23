@@ -16,7 +16,9 @@ Including another URLconf
 
 from django.contrib import admin
 from django.urls import path
+from django.urls import path, include  # Asegúrate de importar include
 
 urlpatterns = [
     path("admin/", admin.site.urls),
+    path('conteo/', include('conteo.urls')),  # Incluye las URLs de la aplicación conteo
 ]

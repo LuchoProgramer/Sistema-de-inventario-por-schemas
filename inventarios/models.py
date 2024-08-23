@@ -1,7 +1,12 @@
 from django.db import models
 from sucursales.models import Sucursal
 
-#Modelo Producto
+class Categoria(models.Model):
+    nombre = models.CharField(max_length=200, unique=True)
+    descripcion = models.TextField(null=True, blank=True)
+
+    def __str__(self):
+        return self.nombre
 
 class Producto(models.Model):
     nombre = models.CharField(max_length=200, unique=True)
@@ -9,6 +14,7 @@ class Producto(models.Model):
     precio_compra = models.DecimalField(max_digits=10, decimal_places=2)
     precio_venta = models.DecimalField(max_digits=10, decimal_places=2)
     unidad_medida = models.CharField(max_length=50)
+    categoria = models.ForeignKey(Categoria, on_delete=models.SET_NULL, null=True, blank=True)
 
     def __str__(self):
         return self.nombre
@@ -16,8 +22,6 @@ class Producto(models.Model):
     def calcular_margen(self):
         return self.precio_venta - self.precio_compra
 
-
-#Modelo Inventarios
 class Inventario(models.Model):
     producto = models.ForeignKey(Producto, on_delete=models.CASCADE)
     sucursal = models.ForeignKey(Sucursal, on_delete=models.CASCADE)
@@ -28,8 +32,6 @@ class Inventario(models.Model):
 
     def __str__(self):
         return f"{self.producto.nombre} - {self.cantidad} unidades en {self.sucursal.nombre}"
-
-#Modelo Compra
 
 class Compra(models.Model):
     sucursal = models.ForeignKey(Sucursal, on_delete=models.CASCADE, limit_choices_to={'es_matriz': True})
@@ -55,9 +57,6 @@ class Compra(models.Model):
         )
 
         super(Compra, self).save(*args, **kwargs)
-
-
-#Modelo Transferencia
 
 class Transferencia(models.Model):
     sucursal_origen = models.ForeignKey(Sucursal, on_delete=models.CASCADE, related_name='transferencias_salida', limit_choices_to={'es_matriz': True})
@@ -100,7 +99,6 @@ class Transferencia(models.Model):
 
         super(Transferencia, self).save(*args, **kwargs)
 
-#Movimiento Inventario
 class MovimientoInventario(models.Model):
     TIPOS_MOVIMIENTO = [
         ('COMPRA', 'Compra'),
