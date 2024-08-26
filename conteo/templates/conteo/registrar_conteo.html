@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Registrar Conteo</title>
+    {% load static %}
+    <link rel="stylesheet" href="{% static 'css/bootstrap.min.css' %}">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+</head>
+<body>
+    <div class="container">
+        <h2>Registrar Conteo Diario</h2>
+        <form id="conteo-form" method="post">
+            {% csrf_token %}
+            <div class="form-group">
+                <label for="sucursal">Sucursal:</label>
+                <input type="text" name="sucursal" class="form-control" placeholder="Ingrese la sucursal" required>
+            </div>
+
+            <div class="form-group">
+                <label for="categoria">Filtrar por Categoría:</label>
+                {{ form.categoria }}
+            </div>
+
+            <h3>Productos:</h3>
+            <div id="productos-list">
+                {% for item in productos_con_campos %}
+                    <div class="form-check product-item" data-categoria="{{ item.producto.categoria_id }}">
+                        {{ item.producto_field }} {{ item.producto.nombre }}
+                    </div>
+                    <div class="form-group product-item" data-categoria="{{ item.producto.categoria_id }}">
+                        {{ item.cantidad_field }}
+                    </div>
+                {% endfor %}
+            </div>
+            
+            <button type="submit" class="btn btn-primary">Guardar Conteo</button>
+        </form>
+    </div>
+
+    <script>
+        $(document).ready(function() {
+            $('#categoria-select').change(function() {
+                var categoriaId = $(this).val();
+                if (categoriaId === "") {
+                    $('.product-item').show();
+                } else {
+                    $('.product-item').hide();
+                    $('.product-item[data-categoria="' + categoriaId + '"]').show();
+                }
+            });
+
+            $('#conteo-form').on('submit', function(event) {
+                var isValid = true;
+                $('.product-item').each(function() {
+                    var checkbox = $(this).find('input[type="checkbox"]');
+                    var cantidad = $(this).find('input[type="number"]');
+                    if (checkbox.length && !checkbox.is(':checked')) {
+                        isValid = false;
+                        $(this).find('input[type="checkbox"]').parent().addClass('error');
+                    } else {
+                        $(this).find('input[type="checkbox"]').parent().removeClass('error');
+                    }
+
+                    if (cantidad.length && !cantidad.val()) {
+                        isValid = false;
+                        cantidad.addClass('error');
+                    } else {
+                        cantidad.removeClass('error');
+                    }
+                });
+
+                if (!isValid) {
+                    event.preventDefault();
+                    alert('Por favor, completa todos los productos antes de continuar.');
+                }
+            });
+        });
+    </script>
+
+    <style>
+        .error {
+            border: 2px solid red;
+        }
+    </style>
+</body>
+</html>

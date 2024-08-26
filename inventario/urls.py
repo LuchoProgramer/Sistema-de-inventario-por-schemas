@@ -20,5 +20,6 @@ from django.urls import path, include  # Asegúrate de importar include
 
 urlpatterns = [
     path("admin/", admin.site.urls),
-    path('conteo/', include('conteo.urls')),  # Incluye las URLs de la aplicación conteo
+    path('empleados/', include('empleados.urls')),
+    path('conteo/', include('conteo.urls')),
 ]

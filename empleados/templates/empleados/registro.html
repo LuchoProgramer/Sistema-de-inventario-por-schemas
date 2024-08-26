@@ -1,0 +1,15 @@
+<!-- empleados/templates/empleados/registro.html -->
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Registro de Empleado</title>
+</head>
+<body>
+    <h2>Registrar Nuevo Empleado</h2>
+    <form method="post">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <button type="submit">Registrar</button>
+    </form>
+</body>
+</html>

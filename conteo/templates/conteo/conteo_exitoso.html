@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Conteo Exitoso</title>
+    {% load static %}
+    <link rel="stylesheet" href="{% static 'css/bootstrap.min.css' %}">
+</head>
+<body>
+    <div class="container">
+        <h2>¡Conteo realizado con éxito!</h2>
+        <p>El conteo se ha registrado y el informe ha sido enviado por correo electrónico.</p>
+        <a href="{% url 'registrar_conteo' %}" class="btn btn-primary">Realizar otro conteo</a>
+    </div>
+</body>
+</html>

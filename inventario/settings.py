@@ -124,7 +124,15 @@ USE_TZ = True
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/4.1/howto/static-files/
 
-STATIC_URL = "static/"
+STATIC_URL = '/static/'
+
+# Este ajuste le dice a Django dónde buscar archivos estáticos adicionales
+STATICFILES_DIRS = [
+    BASE_DIR / "static",  # Aquí define la carpeta estática en la raíz del proyecto
+]
+
+# Para producción, define STATIC_ROOT. Aquí es donde Django almacenará todos los archivos estáticos recopilados.
+STATIC_ROOT = BASE_DIR / "staticfiles"
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/4.1/ref/settings/#default-auto-field
@@ -139,3 +147,11 @@ EMAIL_PORT = 587
 EMAIL_USE_TLS = True
 EMAIL_HOST_USER = 'luchoviteri1990@gmail.com'
 EMAIL_HOST_PASSWORD = 'ytjriexvpwadrjtd'
+
+# Configuración de Celery
+CELERY_BROKER_URL = 'redis://localhost:6379/0'  # URL del broker de Redis
+CELERY_RESULT_BACKEND = 'redis://localhost:6379/0'  # Backend opcional para almacenar los resultados de las tareas
+CELERY_ACCEPT_CONTENT = ['json']  # Aceptar solo formatos de contenido JSON
+CELERY_TASK_SERIALIZER = 'json'  # Serializador de tareas
+CELERY_RESULT_SERIALIZER = 'json'  # Serializador de resultados
+CELERY_TIMEZONE = 'UTC'  # Ajusta según tu zona horaria, si es necesario

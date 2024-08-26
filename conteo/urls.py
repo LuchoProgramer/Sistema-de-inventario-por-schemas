@@ -1,7 +1,8 @@
-# conteo/urls.py
 from django.urls import path
-from .views import enviar_conteo
+from . import views
 
 urlpatterns = [
-    path('enviar-conteo/', enviar_conteo, name='enviar_conteo'),
+    path('registrar/', views.registrar_conteo, name='registrar_conteo'),
+    path('exitoso/', views.conteo_exitoso, name='conteo_exitoso'),
+    path('incompleto/', views.conteo_incompleto, name='conteo_incompleto'),
 ]
