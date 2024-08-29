@@ -1,7 +1,8 @@
-<!-- empleados/templates/empleados/login.html -->
 <!DOCTYPE html>
-<html>
+<html lang="es">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Iniciar Sesión</title>
 </head>
 <body>
@@ -11,5 +12,6 @@
         {{ form.as_p }}
         <button type="submit">Iniciar Sesión</button>
     </form>
+    <p>¿No tienes una cuenta? <a href="{% url 'registro' %}">Regístrate aquí</a>.</p>
 </body>
 </html>

@@ -1,0 +1,25 @@
+<!-- templates/mi_aplicacion/base.html -->
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    {% load static %}  <!-- Cargar el tag static aquí -->
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Mi Aplicación de Inventario{% endblock %}</title>
+    <link rel="stylesheet" href="{% static 'styles.css' %}"> <!-- Usando static para incluir el archivo CSS -->
+</head>
+<body>
+    <header>
+        <h1>Mi Aplicación de Inventario</h1>
+        <!-- Aquí puedes agregar un menú de navegación si es necesario -->
+    </header>
+    <main>
+        {% block content %}
+        <!-- Contenido específico de cada página irá aquí -->
+        {% endblock %}
+    </main>
+    <footer>
+        <p>&copy; 2024 Mi Empresa</p>
+    </footer>
+</body>
+</html>

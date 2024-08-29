@@ -1,5 +1,6 @@
-from django.db import models
+from django.db import models, transaction
 from sucursales.models import Sucursal
+from django.core.exceptions import ValidationError
 
 class Categoria(models.Model):
     nombre = models.CharField(max_length=200, unique=True)
@@ -23,31 +24,63 @@ class Producto(models.Model):
     def calcular_margen(self):
         return self.precio_venta - self.precio_compra
 
+    def clean(self):
+        if self.precio_compra <= 0:
+            raise ValidationError("El precio de compra debe ser mayor que cero.")
+        if self.precio_venta <= 0:
+            raise ValidationError("El precio de venta debe ser mayor que cero.")
+        if self.precio_venta <= self.precio_compra:
+            raise ValidationError("El precio de venta debe ser mayor que el precio de compra.")
+
 class Inventario(models.Model):
     producto = models.ForeignKey(Producto, on_delete=models.CASCADE)
     sucursal = models.ForeignKey(Sucursal, on_delete=models.CASCADE)
-    cantidad = models.IntegerField(default=0)
-    
+    cantidad = models.IntegerField()
+
     class Meta:
         unique_together = ('producto', 'sucursal')
 
     def __str__(self):
-        return f"{self.producto.nombre} - {self.cantidad} unidades en {self.sucursal.nombre}"
+        return f'{self.producto.nombre} - {self.cantidad} unidades en {self.sucursal.nombre}'
+
+    def clean(self):
+        if self.cantidad < 0:
+            raise ValidationError("La cantidad en inventario no puede ser negativa.")
 
 class Compra(models.Model):
-    sucursal = models.ForeignKey(Sucursal, on_delete=models.CASCADE, limit_choices_to={'es_matriz': True})
+    sucursal = models.ForeignKey(Sucursal, on_delete=models.CASCADE)
     producto = models.ForeignKey(Producto, on_delete=models.CASCADE)
     cantidad = models.IntegerField()
+    precio_unitario = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)  # Permitir que sea nulo inicialmente
     fecha = models.DateTimeField(auto_now_add=True)
 
+    def clean(self):
+        # Validar que la cantidad sea un número positivo
+        if self.cantidad <= 0:
+            raise ValidationError('La cantidad debe ser mayor que cero.')
+
+        # Si el precio_unitario es None, establece un valor predeterminado antes de la validación
+        if self.precio_unitario is None:
+            self.precio_unitario = self.producto.precio_compra
+
+        # Verificar que el precio unitario sea un valor positivo
+        if self.precio_unitario <= 0:
+            raise ValidationError('El precio unitario debe ser mayor que cero.')
+
+    @transaction.atomic
     def save(self, *args, **kwargs):
-        # Crear o actualizar el registro de inventario
+        # Ejecutar validaciones antes de guardar
+        self.full_clean()  # Esto ejecuta el método clean automáticamente
+
+        # Actualizar el inventario
         inventario, created = Inventario.objects.get_or_create(
+            sucursal=self.sucursal,
             producto=self.producto,
-            sucursal=self.sucursal
+            defaults={'cantidad': self.cantidad}
         )
-        inventario.cantidad += self.cantidad
-        inventario.save()
+        if not created:
+            inventario.cantidad += self.cantidad
+            inventario.save()
 
         # Registrar el movimiento de compra
         MovimientoInventario.objects.create(
@@ -58,6 +91,9 @@ class Compra(models.Model):
         )
 
         super(Compra, self).save(*args, **kwargs)
+
+    def __str__(self):
+        return f"Compra de {self.cantidad} {self.producto.unidad_medida} de {self.producto.nombre} para {self.sucursal.nombre}"
 
 class Transferencia(models.Model):
     sucursal_origen = models.ForeignKey(Sucursal, on_delete=models.CASCADE, related_name='transferencias_salida', limit_choices_to={'es_matriz': True})

@@ -58,15 +58,15 @@ ROOT_URLCONF = "inventario.urls"
 
 TEMPLATES = [
     {
-        "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [],
-        "APP_DIRS": True,
-        "OPTIONS": {
-            "context_processors": [
-                "django.template.context_processors.debug",
-                "django.template.context_processors.request",
-                "django.contrib.auth.context_processors.auth",
-                "django.contrib.messages.context_processors.messages",
+        'BACKEND': 'django.template.backends.django.DjangoTemplates',
+        'DIRS': [BASE_DIR / 'templates'],  # Le indicamos a Django que busque aquí las plantillas
+        'APP_DIRS': True,
+        'OPTIONS': {
+            'context_processors': [
+                'django.template.context_processors.debug',
+                'django.template.context_processors.request',
+                'django.contrib.auth.context_processors.auth',
+                'django.contrib.messages.context_processors.messages',
             ],
         },
     },
@@ -155,3 +155,8 @@ CELERY_ACCEPT_CONTENT = ['json']  # Aceptar solo formatos de contenido JSON
 CELERY_TASK_SERIALIZER = 'json'  # Serializador de tareas
 CELERY_RESULT_SERIALIZER = 'json'  # Serializador de resultados
 CELERY_TIMEZONE = 'UTC'  # Ajusta según tu zona horaria, si es necesario
+
+
+LOGIN_URL = '/empleados/dashboard/'
+LOGIN_REDIRECT_URL = '/empleados/dashboard/'
+LOGOUT_REDIRECT_URL = '/accounts/login/'

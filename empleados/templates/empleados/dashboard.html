@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard</title>
+</head>
+<body>
+    <h1>Bienvenido al Dashboard</h1>
+    <p>Usuario: {{ request.user.username }}</p>
+
+    <h2>Acciones Disponibles</h2>
+    <ul>
+        <li><a href="{% url 'registro' %}">Agregar Nuevo Empleado</a></li>
+        <li><a href="#">Ver Inventarios (Próximamente)</a></li>
+        <li><a href="#">Gestionar Ventas (Próximamente)</a></li>
+    </ul>
+
+    <!-- Formulario de Logout -->
+    <form id="logout-form" action="{% url 'logout' %}" method="POST">
+        {% csrf_token %}
+        <button type="submit">Cerrar Sesión</button>
+    </form>
+</body>
+</html>

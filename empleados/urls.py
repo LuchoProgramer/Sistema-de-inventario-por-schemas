@@ -2,9 +2,11 @@
 
 from django.urls import path
 from django.contrib.auth.views import LoginView
-from .views import registrar_empleado
+from .views import registrar_empleado, dashboard, usuario_creado_exitosamente
 
 urlpatterns = [
     path('registro/', registrar_empleado, name='registro'),
-    path('login/', LoginView.as_view(template_name='empleados/login.html'), name='login'),
+    path('login/', LoginView.as_view(), name='login'),
+    path('dashboard/', dashboard, name='dashboard'),
+    path('usuario-creado/', usuario_creado_exitosamente, name='usuario_creado_exitosamente'),
 ]

@@ -3,15 +3,17 @@
 from django import forms
 from django.contrib.auth.models import User, Group
 from .models import Empleado
+from sucursales.models import Sucursal
 
 class RegistroEmpleadoForm(forms.ModelForm):
     username = forms.CharField(max_length=150, label='Nombre de Usuario')
     password = forms.CharField(widget=forms.PasswordInput, label='Contraseña')
     grupo = forms.ChoiceField(choices=[('Empleado', 'Empleado'), ('Administrador', 'Administrador')], label='Rol')
+    sucursales = forms.ModelMultipleChoiceField(queryset=Sucursal.objects.all(), label='Sucursales')  # Cambiado a ModelMultipleChoiceField
 
     class Meta:
         model = Empleado
-        fields = ['nombre', 'sucursal']
+        fields = ['nombre', 'sucursales']
 
     def save(self, commit=True):
         # Crear el usuario
@@ -20,11 +22,10 @@ class RegistroEmpleadoForm(forms.ModelForm):
             password=self.cleaned_data['password']
         )
 
-        # Crear el empleado
+        # Crear el empleado sin guardar aún (commit=False)
         empleado = Empleado(
             usuario=user,
             nombre=self.cleaned_data['nombre'],
-            sucursal=self.cleaned_data['sucursal'],
         )
 
         # Asignar grupo
@@ -34,6 +35,9 @@ class RegistroEmpleadoForm(forms.ModelForm):
 
         if commit:
             user.save()
+            empleado.save()
+            # Asignar las sucursales seleccionadas
+            empleado.sucursales.set(self.cleaned_data['sucursales'])
             empleado.save()
 
         return empleado
