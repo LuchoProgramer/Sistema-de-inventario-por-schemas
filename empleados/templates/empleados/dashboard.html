@@ -16,6 +16,14 @@
         <li><a href="#">Gestionar Ventas (Próximamente)</a></li>
     </ul>
 
+    <h2>Selecciona tu Sucursal para Iniciar el Turno</h2>
+    <form method="post">
+        {% csrf_token %}
+        {{ form.sucursal.label_tag }}  <!-- Renderiza la etiqueta del campo -->
+        {{ form.sucursal }}            <!-- Renderiza el campo select del formulario -->
+        <button type="submit">Iniciar Turno</button>
+    </form>
+
     <!-- Formulario de Logout -->
     <form id="logout-form" action="{% url 'logout' %}" method="POST">
         {% csrf_token %}

@@ -1,7 +1,7 @@
 from django.db import models, transaction
 from django.contrib.auth.models import User, Group
-from django.core.exceptions import ValidationError
 from sucursales.models import Sucursal
+
 
 class Empleado(models.Model):
     GRUPOS_OPCIONES = [
@@ -17,7 +17,6 @@ class Empleado(models.Model):
     def __str__(self):
         return self.nombre
 
-
     @transaction.atomic
     def save(self, *args, **kwargs):
         # Validar los datos antes de guardar
@@ -32,3 +31,12 @@ class Empleado(models.Model):
 
     class Meta:
         pass
+
+class RegistroTurno(models.Model):
+    empleado = models.ForeignKey(Empleado, on_delete=models.CASCADE)
+    sucursal = models.ForeignKey(Sucursal, on_delete=models.CASCADE)
+    inicio_turno = models.DateTimeField()
+    fin_turno = models.DateTimeField(null=True, blank=True)
+
+    def __str__(self):
+        return f"Turno de {self.empleado.nombre} en {self.sucursal.nombre} - Inicio: {self.inicio_turno}"

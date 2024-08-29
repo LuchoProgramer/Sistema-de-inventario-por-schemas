@@ -2,8 +2,9 @@
 
 from django import forms
 from django.contrib.auth.models import User, Group
-from .models import Empleado
+from .models import Empleado, RegistroTurno
 from sucursales.models import Sucursal
+
 
 class RegistroEmpleadoForm(forms.ModelForm):
     username = forms.CharField(max_length=150, label='Nombre de Usuario')
@@ -41,3 +42,14 @@ class RegistroEmpleadoForm(forms.ModelForm):
             empleado.save()
 
         return empleado
+
+class RegistroTurnoForm(forms.ModelForm):
+    class Meta:
+        model = RegistroTurno
+        fields = ['sucursal']
+
+    def __init__(self, *args, **kwargs):
+        empleado = kwargs.pop('empleado', None)
+        super().__init__(*args, **kwargs)
+        if empleado:
+            self.fields['sucursal'].queryset = empleado.sucursales.all()
