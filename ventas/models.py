@@ -4,9 +4,11 @@ from sucursales.models import Sucursal
 from django.contrib.auth.models import User  # Asumiendo que los empleados están basados en el modelo User
 from django.db.models import Sum
 from django.core.exceptions import ValidationError
+from empleados.models import RegistroTurno
 
 
 class Venta(models.Model):
+    turno = models.ForeignKey(RegistroTurno, on_delete=models.CASCADE, related_name='ventas')
     sucursal = models.ForeignKey(Sucursal, on_delete=models.CASCADE)
     empleado = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
     producto = models.ForeignKey(Producto, on_delete=models.CASCADE)
@@ -145,3 +147,15 @@ class CierreCaja(models.Model):
             errores.append(f"Discrepancia en transferencias: {total_ventas_transferencia} esperado, {self.transferencia_total} registrado.")
 
         return errores or "Los montos coinciden."
+
+class Carrito(models.Model):
+    turno = models.ForeignKey(RegistroTurno, on_delete=models.CASCADE, related_name='carritos')
+    producto = models.ForeignKey(Producto, on_delete=models.CASCADE)
+    cantidad = models.PositiveIntegerField(default=1)
+    agregado_el = models.DateTimeField(auto_now_add=True)
+
+    def subtotal(self):
+        return self.producto.precio_venta * self.cantidad
+
+    def __str__(self):
+        return f"{self.cantidad} x {self.producto.nombre} (en {self.turno.sucursal.nombre})"

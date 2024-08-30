@@ -1,0 +1,14 @@
+<!-- templates/ventas/registrar_venta.html -->
+
+<h1>Registrar Venta</h1>
+<form method="post">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <label for="metodo_pago">Método de Pago:</label>
+    <select name="metodo_pago" id="metodo_pago">
+        <option value="Efectivo">Efectivo</option>
+        <option value="Tarjeta">Tarjeta</option>
+        <option value="Transferencia">Transferencia</option>
+    </select>
+    <button type="submit">Registrar Venta</button>
+</form>

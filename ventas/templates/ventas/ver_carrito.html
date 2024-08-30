@@ -1,0 +1,24 @@
+<!-- ventas/templates/ventas/ver_carrito.html -->
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Carrito de Ventas</title>
+</head>
+<body>
+    <h1>Carrito de Ventas</h1>
+    <ul>
+        {% for item in carrito_items %}
+            <li>{{ item.cantidad }} x {{ item.producto.nombre }} - {{ item.subtotal }} {{ item.producto.moneda }}</li>
+        {% endfor %}
+    </ul>
+    <p>Total: {{ total }} 
+        {% if carrito_items %}
+            {{ carrito_items.0.producto.moneda }}
+        {% endif %}
+    </p>
+    <a href="{% url 'ventas:finalizar_venta' %}">Finalizar Venta</a>
+</body>
+</html>

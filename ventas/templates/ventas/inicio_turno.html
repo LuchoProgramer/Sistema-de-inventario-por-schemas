@@ -1,0 +1,27 @@
+<!-- ventas/templates/ventas/inicio_turno.html -->
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Inicio de Turno</title>
+</head>
+<body>
+    <h1>Turno Iniciado en {{ turno.sucursal.nombre }}</h1>
+    
+    <h2>Productos Disponibles</h2>
+    <ul>
+        {% for producto in productos %}
+            <li>
+                {{ producto.nombre }} - {{ producto.precio }} {{ producto.moneda }}
+                <a href="{% url 'ventas:agregar_al_carrito' producto.id %}">Agregar al Carrito</a>
+            </li>
+        {% endfor %}
+    </ul>
+
+    <h3>Carrito de Ventas</h3>
+    <a href="{% url 'ventas:ver_carrito' %}">Ver Carrito</a>
+
+</body>
+</html>

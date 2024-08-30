@@ -1,5 +1,6 @@
 from django.contrib import admin
 from .models import Venta, NotaVenta, CierreCaja
+from .models import RegistroTurno
 
 class VentaAdmin(admin.ModelAdmin):
     list_display = ['producto', 'sucursal', 'empleado', 'cantidad', 'precio_unitario', 'total_venta', 'metodo_pago', 'fecha']
@@ -19,3 +20,12 @@ class CierreCajaAdmin(admin.ModelAdmin):
 admin.site.register(Venta, VentaAdmin)
 admin.site.register(NotaVenta, NotaVentaAdmin)
 admin.site.register(CierreCaja, CierreCajaAdmin)
+
+
+
+@admin.register(RegistroTurno)
+class RegistroTurnoAdmin(admin.ModelAdmin):
+    list_display = ['empleado', 'sucursal', 'inicio_turno', 'fin_turno']
+    list_filter = ['empleado', 'sucursal', 'inicio_turno']
+    search_fields = ['empleado__nombre', 'sucursal__nombre']
+

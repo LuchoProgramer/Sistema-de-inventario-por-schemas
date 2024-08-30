@@ -1,8 +1,14 @@
 # ventas/urls.py
 
 from django.urls import path
-from . import views
+from .views import registrar_venta, inicio_turno, agregar_al_carrito, ver_carrito, finalizar_venta
+
+app_name = 'ventas'  # Define el namespace
 
 urlpatterns = [
-    path('crear/', views.crear_venta, name='crear_venta'),
+    path('registrar/', registrar_venta, name='registrar_venta'),
+    path('inicio_turno/', inicio_turno, name='inicio_turno'),
+    path('agregar/<int:producto_id>/', agregar_al_carrito, name='agregar_al_carrito'),
+    path('carrito/', ver_carrito, name='ver_carrito'),
+    path('finalizar/', finalizar_venta, name='finalizar_venta'),
 ]

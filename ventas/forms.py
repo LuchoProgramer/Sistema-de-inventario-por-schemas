@@ -1,9 +1,10 @@
-# forms.py (si es necesario actualizar)
+# forms.py
+
 from django import forms
-from .models import Sucursal, Producto
+from .models import Producto
+from inventarios.models import Inventario
 
 class SeleccionVentaForm(forms.Form):
-    sucursal = forms.ModelChoiceField(queryset=Sucursal.objects.all(), label="Sucursal")
     producto = forms.ModelChoiceField(queryset=Producto.objects.none(), label="Producto")
     cantidad = forms.IntegerField(min_value=1, label="Cantidad")
     
@@ -16,13 +17,14 @@ class SeleccionVentaForm(forms.Form):
     def clean(self):
         cleaned_data = super().clean()
         producto = cleaned_data.get("producto")
-        sucursal = cleaned_data.get("sucursal")
         cantidad = cleaned_data.get("cantidad")
+        sucursal_id = self.initial.get('sucursal_id')
 
-        if producto and sucursal and cantidad:
+        if producto and sucursal_id and cantidad:
             try:
-                inventario = producto.inventario_set.get(sucursal=sucursal)
+                inventario = producto.inventario_set.get(sucursal_id=sucursal_id)
                 if cantidad > inventario.cantidad:
                     raise forms.ValidationError(f"No hay suficiente stock. Disponible: {inventario.cantidad} unidades.")
             except Inventario.DoesNotExist:
                 raise forms.ValidationError("No hay inventario disponible para este producto en la sucursal seleccionada.")
+
