@@ -63,49 +63,6 @@ class Venta(models.Model):
         return f"Venta de {self.producto.nombre} en {self.sucursal.nombre} - {self.cantidad} unidades - Total: {self.total_venta}"
 
 
-#Nota de Venta Factura
-class NotaVenta(models.Model):
-    TIPO_DOCUMENTO = [
-        ('NOTA', 'Nota de Venta'),
-        ('FACTURA', 'Factura'),
-    ]
-
-    numero_documento = models.CharField(max_length=20, unique=True)
-    tipo_documento = models.CharField(max_length=7, choices=TIPO_DOCUMENTO)
-    fecha_emision = models.DateTimeField(auto_now_add=True)
-    monto_total = models.DecimalField(max_digits=10, decimal_places=2, editable=False, default=0)
-    cliente_nombre = models.CharField(max_length=200, null=True, blank=True, default='Consumidor Final')
-    cliente_ci_ruc = models.CharField(max_length=13, null=True, blank=True)
-    cliente_direccion = models.CharField(max_length=255, null=True, blank=True)
-
-    @transaction.atomic
-    def save(self, *args, **kwargs):
-        # Calcular el monto total de la venta antes de guardar
-        if self.pk:
-            self.monto_total = sum(venta.total_venta for venta in self.ventas.all())
-
-        # Validar que los campos requeridos estén completos si es una factura
-        if self.tipo_documento == 'FACTURA':
-            if not self.cliente_nombre or not self.cliente_ci_ruc or not self.cliente_direccion:
-                raise ValueError("Los campos del cliente son obligatorios para una factura.")
-        else:
-            # Para notas de venta, se asegura que el cliente sea "Consumidor Final" si no se dan detalles
-            if not self.cliente_nombre:
-                self.cliente_nombre = "Consumidor Final"
-
-        # Guardar la nota de venta en una transacción
-        super(NotaVenta, self).save(*args, **kwargs)
-
-        # Actualizar el monto total después de guardar, si es necesario
-        if not self.pk:
-            self.monto_total = sum(venta.total_venta for venta in self.ventas.all())
-            super(NotaVenta, self).save(*args, **kwargs)
-
-    def __str__(self):
-        return f"{self.tipo_documento} {self.numero_documento} - Total: {self.monto_total}"
-
-
-
 #Cierra de caja
 class CierreCaja(models.Model):
     empleado = models.ForeignKey(User, on_delete=models.CASCADE)
