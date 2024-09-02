@@ -17,12 +17,22 @@ class Producto(models.Model):
     unidad_medida = models.CharField(max_length=50)
     categoria = models.ForeignKey(Categoria, on_delete=models.SET_NULL, null=True, blank=True)
     sucursal = models.ForeignKey(Sucursal, on_delete=models.CASCADE, null=True, blank=True)
+    codigo_producto = models.CharField(max_length=50, unique=True, null=True, blank=True)  # Nuevo campo para código de producto
+    impuesto = models.ForeignKey('facturacion.Impuesto', on_delete=models.SET_NULL, null=True, blank=True)  # Usar string para evitar importación directa
 
     def __str__(self):
         return self.nombre
 
     def calcular_margen(self):
         return self.precio_venta - self.precio_compra
+
+    def calcular_precio_final(self):
+        """
+        Calcula el precio final del producto, incluyendo impuestos si están aplicados.
+        """
+        if self.impuesto:
+            return self.precio_venta * (1 + self.impuesto.porcentaje / 100)
+        return self.precio_venta
 
     def clean(self):
         if self.precio_compra <= 0:

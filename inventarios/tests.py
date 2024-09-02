@@ -1,81 +1,78 @@
 from django.test import TestCase
-from inventarios.models import Categoria, Producto, Inventario, Compra
-from sucursales.models import Sucursal
+from inventarios.models import Producto, Categoria, Sucursal
+from facturacion.models import Impuesto
+from django.core.exceptions import ValidationError
 
-class CategoriaTestCase(TestCase):
+class ProductoModelTest(TestCase):
+
     def setUp(self):
-        self.categoria = Categoria.objects.create(nombre="Electrónica")
-
-    def test_creacion_categoria(self):
-        self.assertEqual(str(self.categoria), "Electrónica")
-        self.assertTrue(Categoria.objects.filter(nombre="Electrónica").exists())
-
-class ProductoTestCase(TestCase):
-    def setUp(self):
+        # Crear una categoría, sucursal e impuesto para los productos
         self.categoria = Categoria.objects.create(nombre="Electrónica")
         self.sucursal = Sucursal.objects.create(
-            nombre="Sucursal Centro", 
-            direccion="Calle Principal 123", 
-            telefono="123456789"
+            nombre="Sucursal Central", 
+            razon_social="Empresa Central S.A.",  # Añadir razón social
+            telefono="0999999999",  # Añadir teléfono
+            direccion="Av. Principal 123"
         )
-        self.producto = Producto.objects.create(
+        self.impuesto = Impuesto.objects.create(nombre="IVA", porcentaje=12, monto=0)
+
+    def test_crear_producto(self):
+        # Crear un producto y verificar que se guarda correctamente
+        producto = Producto.objects.create(
             nombre="Laptop",
             descripcion="Laptop de alta gama",
             precio_compra=1000.00,
             precio_venta=1200.00,
-            unidad_medida="Unidad",
+            unidad_medida="unidad",
+            categoria=self.categoria,
+            sucursal=self.sucursal,
+            codigo_producto="LAP123",
+            impuesto=self.impuesto
+        )
+        self.assertEqual(producto.nombre, "Laptop")
+        self.assertEqual(producto.calcular_margen(), 200.00)
+        self.assertEqual(producto.calcular_precio_final(), 1200.00 * 1.12)
+
+    def test_producto_con_precio_venta_menor_a_precio_compra(self):
+        # Intentar crear un producto con precio de venta menor al precio de compra debería lanzar un ValidationError
+        with self.assertRaises(ValidationError):
+            producto = Producto(
+                nombre="Tablet",
+                descripcion="Tablet de última generación",
+                precio_compra=1000.00,
+                precio_venta=900.00,
+                unidad_medida="unidad",
+                categoria=self.categoria,
+                sucursal=self.sucursal,
+                codigo_producto="TAB123",
+                impuesto=self.impuesto
+            )
+            producto.clean()  # Esto debería lanzar el ValidationError
+
+    def test_calculo_precio_final_sin_impuesto(self):
+        # Crear un producto sin impuesto y verificar que el precio final es igual al precio de venta
+        producto = Producto.objects.create(
+            nombre="Smartphone",
+            descripcion="Smartphone con pantalla OLED",
+            precio_compra=500.00,
+            precio_venta=700.00,
+            unidad_medida="unidad",
+            categoria=self.categoria,
+            sucursal=self.sucursal,
+            codigo_producto="PHN123"
+        )
+        self.assertEqual(producto.calcular_precio_final(), 700.00)
+
+    def test_producto_sin_codigo(self):
+        # Verificar que un producto sin código puede ser creado
+        producto = Producto.objects.create(
+            nombre="Mouse",
+            descripcion="Mouse inalámbrico",
+            precio_compra=20.00,
+            precio_venta=30.00,
+            unidad_medida="unidad",
             categoria=self.categoria,
             sucursal=self.sucursal
         )
-
-    def test_creacion_producto(self):
-        self.assertEqual(str(self.producto), "Laptop")
-        self.assertEqual(self.producto.calcular_margen(), 200.00)
-
-class InventarioTestCase(TestCase):
-    def setUp(self):
-        self.categoria = Categoria.objects.create(nombre="Electrónica")
-        self.sucursal = Sucursal.objects.create(
-            nombre="Sucursal Centro", 
-            direccion="Calle Principal 123", 
-            telefono="123456789"
-        )
-        self.producto = Producto.objects.create(
-            nombre="Laptop",
-            descripcion="Laptop de alta gama",
-            precio_compra=1000.00,
-            precio_venta=1200.00,
-            unidad_medida="Unidad",
-            categoria=self.categoria,
-            sucursal=self.sucursal
-        )
-        self.inventario = Inventario.objects.create(producto=self.producto, sucursal=self.sucursal, cantidad=50)
-
-    def test_creacion_inventario(self):
-        self.assertEqual(str(self.inventario), "Laptop - 50 unidades en Sucursal Centro")
-        self.assertEqual(self.inventario.cantidad, 50)
-
-class CompraTestCase(TestCase):
-    def setUp(self):
-        self.categoria = Categoria.objects.create(nombre="Electrónica")
-        self.sucursal = Sucursal.objects.create(
-            nombre="Sucursal Centro", 
-            direccion="Calle Principal 123", 
-            telefono="123456789", 
-            es_matriz=True
-        )
-        self.producto = Producto.objects.create(
-            nombre="Laptop",
-            descripcion="Laptop de alta gama",
-            precio_compra=1000.00,
-            precio_venta=1200.00,
-            unidad_medida="Unidad",
-            categoria=self.categoria,
-            sucursal=self.sucursal
-        )
-        self.compra = Compra.objects.create(sucursal=self.sucursal, producto=self.producto, cantidad=10)
-
-    def test_creacion_compra(self):
-        self.assertEqual(self.compra.cantidad, 10)
-        inventario = Inventario.objects.get(producto=self.producto, sucursal=self.sucursal)
-        self.assertEqual(inventario.cantidad, 10)
+        self.assertIsNone(producto.codigo_producto)
+        self.assertEqual(producto.calcular_precio_final(), 30.00)

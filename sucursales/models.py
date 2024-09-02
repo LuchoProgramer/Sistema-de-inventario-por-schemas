@@ -3,7 +3,7 @@ from django.core.exceptions import ValidationError
 
 class Sucursal(models.Model):
     nombre = models.CharField(max_length=200, unique=True)
-    razon_social = models.CharField(max_length=200, unique=True,)
+    razon_social = models.CharField(max_length=200, unique=True)
     ruc = models.CharField(max_length=13, unique=True, blank=True, null=True)
     direccion = models.TextField()
     telefono = models.CharField(max_length=20)
