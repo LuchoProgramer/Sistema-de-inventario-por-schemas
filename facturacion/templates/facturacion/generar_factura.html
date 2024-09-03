@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Generar Factura</title>
+    <!-- Bootstrap CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container mt-5">
+        <h1 class="mb-4">Generar Factura</h1>
+        <form method="post">
+            {% csrf_token %}
+
+            <!-- Selección de cliente existente -->
+            <div class="mb-3">
+                <label for="cliente" class="form-label">Seleccionar Cliente</label>
+                <select id="cliente" name="cliente_id" class="form-select">
+                    <option value="">--- Seleccionar Cliente ---</option>
+                    {% for cliente in clientes %}
+                        <option value="{{ cliente.id }}">{{ cliente.razon_social }} - {{ cliente.identificacion }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Opción para registrar nuevo cliente -->
+            <div class="form-check mb-3">
+                <input class="form-check-input" type="checkbox" id="nuevo_cliente_check">
+                <label class="form-check-label" for="nuevo_cliente_check">
+                    Registrar nuevo cliente
+                </label>
+            </div>
+
+            <!-- Formulario de nuevo cliente -->
+            <div id="nuevo_cliente_form" style="display: none;">
+                <div class="mb-3">
+                    <label for="tipo_identificacion" class="form-label">Tipo de Identificación</label>
+                    <select id="tipo_identificacion" name="tipo_identificacion" class="form-select">
+                        <option value="04">RUC</option>
+                        <option value="05">Cédula</option>
+                        <option value="06">Pasaporte</option>
+                        <option value="07">Consumidor Final</option>
+                    </select>
+                </div>
+
+                <div class="mb-3">
+                    <label for="identificacion" class="form-label">Identificación</label>
+                    <input type="text" id="identificacion" name="identificacion" class="form-control">
+                </div>
+
+                <div class="mb-3">
+                    <label for="razon_social" class="form-label">Razón Social</label>
+                    <input type="text" id="razon_social" name="razon_social" class="form-control">
+                </div>
+
+                <div class="mb-3">
+                    <label for="direccion" class="form-label">Dirección</label>
+                    <input type="text" id="direccion" name="direccion" class="form-control">
+                </div>
+
+                <div class="mb-3">
+                    <label for="telefono" class="form-label">Teléfono</label>
+                    <input type="text" id="telefono" name="telefono" class="form-control">
+                </div>
+
+                <div class="mb-3">
+                    <label for="email" class="form-label">Correo Electrónico</label>
+                    <input type="email" id="email" name="email" class="form-control">
+                </div>
+            </div>
+
+            <!-- Observaciones -->
+            <div class="mb-3">
+                <label for="observaciones" class="form-label">Observaciones</label>
+                <textarea id="observaciones" name="observaciones" class="form-control"></textarea>
+            </div>
+
+            <button type="submit" class="btn btn-primary">Generar Factura</button>
+        </form>
+    </div>
+
+    <!-- Bootstrap JS -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+
+    <!-- Script para mostrar/ocultar formulario de nuevo cliente -->
+    <script>
+        document.getElementById('nuevo_cliente_check').addEventListener('change', function() {
+            var nuevoClienteForm = document.getElementById('nuevo_cliente_form');
+            nuevoClienteForm.style.display = this.checked ? 'block' : 'none';
+
+            // Si el formulario de nuevo cliente se muestra, deselecciona cualquier cliente existente
+            if (this.checked) {
+                document.getElementById('cliente').value = "";
+            }
+        });
+
+        // Al cambiar la selección del cliente existente, oculta el formulario de nuevo cliente
+        document.getElementById('cliente').addEventListener('change', function() {
+            var nuevoClienteCheck = document.getElementById('nuevo_cliente_check');
+            var nuevoClienteForm = document.getElementById('nuevo_cliente_form');
+            if (this.value) {
+                nuevoClienteCheck.checked = false;
+                nuevoClienteForm.style.display = 'none';
+            }
+        });
+    </script>
+</body>
+</html>

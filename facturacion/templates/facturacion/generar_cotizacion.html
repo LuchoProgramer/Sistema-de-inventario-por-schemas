@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Generar Cotización</title>
+</head>
+<body>
+    <h1>Generar Cotización</h1>
+    <form method="post">
+        {% csrf_token %}
+        <label for="cliente">Cliente:</label>
+        <select name="cliente_id" id="cliente">
+            {% for cliente in clientes %}
+                <option value="{{ cliente.id }}">{{ cliente.razon_social }}</option>
+            {% endfor %}
+        </select>
+        
+        <label for="observaciones">Observaciones:</label>
+        <textarea name="observaciones" id="observaciones"></textarea>
+        
+        <button type="submit">Generar Cotización</button>
+    </form>
+</body>
+</html>

@@ -6,19 +6,31 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Carrito de Ventas</title>
+    <!-- Incluye Bootstrap si no lo has hecho -->
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css">
 </head>
 <body>
-    <h1>Carrito de Ventas</h1>
-    <ul>
-        {% for item in carrito_items %}
-            <li>{{ item.cantidad }} x {{ item.producto.nombre }} - {{ item.subtotal }} {{ item.producto.moneda }}</li>
-        {% endfor %}
-    </ul>
-    <p>Total: {{ total }} 
-        {% if carrito_items %}
-            {{ carrito_items.0.producto.moneda }}
-        {% endif %}
-    </p>
-    <a href="{% url 'ventas:finalizar_venta' %}">Finalizar Venta</a>
+    <div class="container mt-4">
+        <h1>Carrito de Ventas</h1>
+        <ul class="list-group mb-3">
+            {% for item in carrito_items %}
+                <li class="list-group-item d-flex justify-content-between align-items-center">
+                    {{ item.cantidad }} x {{ item.producto.nombre }} 
+                    <span>{{ item.subtotal }} {{ item.producto.moneda }}</span>
+                </li>
+            {% endfor %}
+        </ul>
+        <p class="font-weight-bold">Total: {{ total }} 
+            {% if carrito_items %}
+                {{ carrito_items.0.producto.moneda }}
+            {% endif %}
+        </p>
+        
+        <div class="d-flex justify-content-between">
+            <a href="{% url 'facturacion:generar_cotizacion' %}" class="btn btn-primary">Generar Cotización</a>
+            <a href="{% url 'facturacion:generar_comprobante_pago' %}" class="btn btn-success">Comprobante de Pago</a>
+            <a href="{% url 'facturacion:generar_factura' %}" class="btn btn-success">Generar Factura</a>
+        </div>
+    </div>
 </body>
 </html>

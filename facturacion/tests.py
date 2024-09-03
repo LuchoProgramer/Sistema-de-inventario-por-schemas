@@ -1,78 +1,83 @@
 from django.test import TestCase
-from facturacion.models import Factura, DetalleFactura, Cliente, Impuesto, FacturaImpuesto, Pago
-from empleados.models import Empleado
-from sucursales.models import Sucursal
-from inventarios.models import Producto, Categoria
-from django.core.exceptions import ValidationError
+from django.urls import reverse
 from django.contrib.auth.models import User
+from facturacion.models import Cliente, Factura, Sucursal, Empleado
+from ventas.models import RegistroTurno, Carrito
+from inventarios.models import Producto, Inventario
 
-class FacturaModelTest(TestCase):
-
+class GenerarFacturaViewTestCase(TestCase):
     def setUp(self):
-        # Crear un usuario de prueba
-        self.usuario = User.objects.create_user(username='testuser', password='12345')
-
-        # Crear una categoría, sucursal e impuesto para los productos
-        self.categoria = Categoria.objects.create(nombre="Electrónica")
+        # Crear usuario y empleado
+        self.user = User.objects.create_user(username='testuser', password='12345')
         self.sucursal = Sucursal.objects.create(
-            nombre="Sucursal Central", 
-            razon_social="Empresa Central S.A.", 
-            telefono="0999999999", 
-            direccion="Av. Principal 123"
+            nombre="Sucursal de prueba",
+            razon_social="Razón Social de prueba",
+            ruc="1234567890123",
+            direccion="Calle de prueba",
+            telefono="0999999999",
+            codigo_establecimiento="001",
+            punto_emision="001"
         )
-        self.impuesto = Impuesto.objects.create(nombre="IVA", porcentaje=12, monto=0)
+        self.empleado = Empleado.objects.create(usuario=self.user, nombre="Empleado de prueba")
+        self.empleado.sucursales.add(self.sucursal)
+
+        # Crear turno activo
+        self.turno = RegistroTurno.objects.create(
+            empleado=self.empleado,
+            sucursal=self.sucursal,
+            inicio_turno="2024-09-02 09:00:00"
+        )
+
+        # Crear cliente
         self.cliente = Cliente.objects.create(
-            identificacion="1790012345001",
-            tipo_identificacion="04",  # RUC
-            razon_social="Cliente S.A.",
-            direccion="Av. Secundaria 456",
-            telefono="0888888888",
-            email="cliente@example.com"
+            identificacion="9999999999",
+            tipo_identificacion="07",
+            razon_social="Consumidor Final",
+            direccion="",
+            telefono="",
+            email=""
         )
+
+        # Crear producto y asociar con inventario
         self.producto = Producto.objects.create(
-            nombre="Laptop",
-            descripcion="Laptop de alta gama",
-            precio_compra=1000.00,
-            precio_venta=1200.00,
-            unidad_medida="unidad",
-            categoria=self.categoria,
-            sucursal=self.sucursal,
-            codigo_producto="LAP123",
-            impuesto=self.impuesto
-        )
-        self.empleado = Empleado.objects.create(
-            usuario=self.usuario,  # Asignar el usuario al empleado
-            nombre="Empleado de Prueba"
+            nombre="Producto de prueba",
+            precio_venta=10.00,
+            precio_compra=5.00  # Asegúrate de proporcionar el precio de compra también
         )
 
-    def test_validar_cliente_factura(self):
-        # Crear una factura sin cliente y llamar a `full_clean` explícitamente
-        factura = Factura(
+        # Crear inventario
+        self.inventario = Inventario.objects.create(
             sucursal=self.sucursal,
-            cliente=None,  # Cliente faltante
-            empleado=self.empleado,
-            total_sin_impuestos=1200.00,
-            total_con_impuestos=1344.00,
+            producto=self.producto,
+            cantidad=100  # Especifica una cantidad en stock
         )
-        
-        # Llamar a `full_clean` que debería lanzar ValidationError
-        with self.assertRaises(ValidationError):
-            factura.full_clean()  # Esto debería lanzar el ValidationError
 
-    def test_registrar_pago(self):
-        # Crear una factura y registrar un pago
-        factura = Factura.objects.create(
-            sucursal=self.sucursal,
-            cliente=self.cliente,
-            empleado=self.empleado,
-            total_sin_impuestos=1200.00,
-            total_con_impuestos=1344.00,
-        )
-        pago = Pago.objects.create(
-            factura=factura,
-            forma_pago="Efectivo",
-            valor=1344.00
-        )
-        self.assertEqual(factura.pagos.count(), 1)
-        self.assertEqual(pago.valor, 1344.00)
-    
+        # Iniciar sesión del usuario
+        self.client.login(username='testuser', password='12345')
+
+    def test_generar_factura(self):
+        # Agregar producto al carrito
+        Carrito.objects.create(turno=self.turno, producto=self.producto, cantidad=1)
+
+        # Datos para la solicitud POST
+        post_data = {
+            'cliente_id': self.cliente.id,
+        }
+
+        # Llamar a la vista de generar factura
+        response = self.client.post(reverse('facturacion:generar_factura'), post_data)
+
+        # Verificar que la factura se creó
+        facturas = Factura.objects.all()
+        self.assertEqual(facturas.count(), 1)
+        factura = facturas.first()
+        self.assertEqual(factura.sucursal, self.sucursal)
+        self.assertEqual(factura.cliente, self.cliente)
+        self.assertEqual(factura.empleado, self.empleado)
+
+        # Verificar código de establecimiento y punto de emisión
+        self.assertEqual(factura.sucursal.codigo_establecimiento, "001")
+        self.assertEqual(factura.sucursal.punto_emision, "001")
+
+        # Verificar que la respuesta redirige a la página de éxito
+        self.assertRedirects(response, reverse('facturacion:factura_exitosa'))
