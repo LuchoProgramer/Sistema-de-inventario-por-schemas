@@ -5,7 +5,13 @@ from inventarios.models import Inventario, MovimientoInventario
 from django.core.exceptions import ValidationError
 from .utils.xml_generator import generar_xml_para_sri
 from .utils.clave_acceso import generar_clave_acceso
+from django.utils import timezone
 
+def generar_numero_autorizacion():
+    # Genera un número de autorización único basado en el timestamp actual
+    timestamp = timezone.now().strftime('%Y%m%d%H%M%S%f')  # Incluye microsegundos para mayor unicidad
+    numero_autorizacion = f'{timestamp}'
+    return numero_autorizacion
 
 def crear_factura(cliente, sucursal, empleado, carrito_items):
     print("Llamando a crear_factura...")
@@ -14,17 +20,17 @@ def crear_factura(cliente, sucursal, empleado, carrito_items):
 
     try:
         with transaction.atomic():
+            # Generar un número de autorización único
+            numero_autorizacion = generar_numero_autorizacion()
             factura = Factura.objects.create(
                 sucursal=sucursal,
                 cliente=cliente,
                 empleado=empleado,
+                numero_autorizacion=numero_autorizacion,
                 total_sin_impuestos=total_sin_impuestos,
                 total_con_impuestos=total_con_impuestos,
                 estado='EN_PROCESO'
             )
-
-            factura.numero_autorizacion = '000000001'  # O genera uno según tu lógica
-            factura.save()
 
             # Verificación de la factura creada
             factura.refresh_from_db()

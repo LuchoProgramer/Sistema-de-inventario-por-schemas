@@ -1,16 +1,19 @@
 from django.shortcuts import render, redirect
 from .models import Factura, Cotizacion, Cliente, ComprobantePago, DetalleFactura
-from django.http import HttpResponse
+from django.http import HttpResponse, FileResponse
 from ventas.utils import obtener_carrito
 from empleados.models import RegistroTurno
 from django.utils import timezone
 from django.core.exceptions import ValidationError
 from .utils.xml_generator import generar_xml_para_sri
-from inventarios.models import Producto, Inventario, MovimientoInventario
+from inventarios.models import Inventario, MovimientoInventario
 from django.db import transaction
 from decimal import Decimal
 from .services import crear_factura
 from sucursales.models import Sucursal
+import os
+from django.conf import settings
+from .pdf.factura_pdf import generar_pdf_factura
 
  
 def generar_cotizacion(request):
@@ -36,8 +39,9 @@ def generar_cotizacion(request):
 
     return render(request, 'facturacion/generar_cotizacion.html')
 
+
 def generar_factura(request):
-    print("Vista generar_factura llamada")  # Esto debería aparecer en los logs
+    print("Vista generar_factura llamada")
     if request.method == 'POST':
         empleado = request.user.empleado
         turno_activo = RegistroTurno.objects.filter(empleado=empleado, fin_turno__isnull=True).first()
@@ -67,13 +71,26 @@ def generar_factura(request):
         try:
             factura = crear_factura(cliente, sucursal, request.user.empleado, carrito_items)
             print("Factura creada:", factura)
-            return redirect('facturacion:factura_exitosa')
+
+            # Aquí generamos el PDF
+            nombre_archivo = f"factura_{factura.numero_autorizacion}.pdf"
+            ruta_pdf = os.path.join(settings.MEDIA_ROOT, nombre_archivo)
+            generar_pdf_factura(factura, ruta_pdf)  # Suponiendo que la función guarda el archivo en ruta_pdf
+
+            # Ofrecer el PDF como descarga
+            with open(ruta_pdf, 'rb') as pdf_file:
+                response = HttpResponse(pdf_file.read(), content_type='application/pdf')
+                response['Content-Disposition'] = f'inline; filename="{nombre_archivo}"'
+                return response
+
+            # O, si prefieres, redirigir a la vista de éxito (comentar la línea de redirección si se muestra el PDF)
+            # return redirect('facturacion:factura_exitosa')
+            
         except ValidationError as e:
             print("Error al crear la factura:", e)
             return render(request, 'facturacion/generar_factura.html', {'errors': e.messages, 'clientes': Cliente.objects.all()})
 
     return render(request, 'facturacion/generar_factura.html', {'clientes': Cliente.objects.all()})
-
 
 
 def generar_comprobante_pago(request):

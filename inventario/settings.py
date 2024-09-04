@@ -161,3 +161,12 @@ CELERY_TIMEZONE = 'UTC'  # Ajusta según tu zona horaria, si es necesario
 LOGIN_URL = '/empleados/dashboard/'
 LOGIN_REDIRECT_URL = '/empleados/dashboard/'
 LOGOUT_REDIRECT_URL = '/accounts/login/'
+
+
+import os
+
+# La URL que se usará para acceder a los archivos multimedia en tu aplicación.
+MEDIA_URL = '/media/'
+
+# La ruta absoluta en el sistema de archivos donde se guardarán los archivos cargados por los usuarios.
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
