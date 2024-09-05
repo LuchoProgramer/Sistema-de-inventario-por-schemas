@@ -10,8 +10,18 @@
 <body>
     <div class="container mt-5">
         <h1 class="mb-4">Generar Factura</h1>
-        <!-- El atributo target="_blank" abre el resultado en una nueva pestaña -->
-        <form method="post" target="_blank">
+
+        <!-- Mensajes de error, si existen -->
+        {% if messages %}
+            {% for message in messages %}
+                <div class="alert alert-{{ message.tags }}" role="alert">
+                    {{ message }}
+                </div>
+            {% endfor %}
+        {% endif %}
+        
+        <!-- Formulario para generar la factura -->
+        <form method="post">
             {% csrf_token %}
 
             <!-- Selección de cliente existente -->
@@ -88,10 +98,21 @@
     <!-- Script para mostrar/ocultar formulario de nuevo cliente -->
     <script>
         document.addEventListener('DOMContentLoaded', function() {
+            const nuevoClienteCheck = document.getElementById('nuevo_cliente_check');
+            const nuevoClienteForm = document.getElementById('nuevo_cliente_form');
+
+            nuevoClienteCheck.addEventListener('change', function() {
+                if (this.checked) {
+                    nuevoClienteForm.style.display = 'block';
+                } else {
+                    nuevoClienteForm.style.display = 'none';
+                }
+            });
+
             const form = document.querySelector('form');
             form.addEventListener('submit', function(event) {
                 event.preventDefault();
-    
+
                 fetch(form.action, {
                     method: 'POST',
                     body: new FormData(form),
@@ -101,10 +122,23 @@
                 })
                 .then(response => response.json())
                 .then(data => {
-                    if (data.pdf_url && data.redirect_url) {
+                    // Eliminar mensajes de error previos
+                    const previousAlert = document.querySelector('.alert');
+                    if (previousAlert) {
+                        previousAlert.remove();
+                    }
+
+                    if (data.error) {
+                        // Muestra un mensaje de error en el formulario
+                        const errorAlert = document.createElement('div');
+                        errorAlert.className = 'alert alert-danger';
+                        errorAlert.role = 'alert';
+                        errorAlert.innerText = data.error;
+                        form.prepend(errorAlert);
+                    } else if (data.pdf_url && data.redirect_url) {
                         // Abrir el PDF en una nueva pestaña
                         window.open(data.pdf_url, '_blank');
-    
+
                         // Redirigir a la página de inicio de turno
                         window.location.href = data.redirect_url;
                     }

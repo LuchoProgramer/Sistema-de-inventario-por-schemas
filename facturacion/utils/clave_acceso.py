@@ -7,19 +7,12 @@ def generar_clave_acceso(fecha_emision, tipo_comprobante, ruc, ambiente, estab, 
     if fecha_emision is None:
         raise ValueError("La fecha de emisión no puede ser None")
     
-    # Formatear la fecha de emisión si es un objeto datetime
+    # Formatear la fecha de emisión sin microsegundos
     if isinstance(fecha_emision, datetime.datetime):
-        fecha_emision = fecha_emision.strftime('%d%m%Y')
+        fecha_emision = fecha_emision.strftime('%d%m%Y')  # Solo día, mes y año sin microsegundos
     
     # Verifica que todos los componentes sean cadenas y no None
     if None in [tipo_comprobante, ruc, ambiente, estab, pto_emi, secuencial, tipo_emision]:
-        print("tipo_comprobante:", tipo_comprobante)
-        print("ruc:", ruc)
-        print("ambiente:", ambiente)
-        print("estab:", estab)
-        print("pto_emi:", pto_emi)
-        print("secuencial:", secuencial)
-        print("tipo_emision:", tipo_emision)
         raise ValueError("Uno de los componentes para generar la clave de acceso es None")
 
     # Asegurarse de que todos los valores sean cadenas
@@ -28,7 +21,10 @@ def generar_clave_acceso(fecha_emision, tipo_comprobante, ruc, ambiente, estab, 
     ambiente = str(ambiente)
     estab = str(estab)
     pto_emi = str(pto_emi)
-    secuencial = str(secuencial)
+    
+    # Asegurar que el secuencial tenga 9 dígitos
+    secuencial = str(secuencial).zfill(9)  # Asegura que el secuencial tenga 9 dígitos
+    
     tipo_emision = str(tipo_emision)
 
     # Generar un código numérico aleatorio de 8 dígitos
@@ -52,5 +48,9 @@ def generar_clave_acceso(fecha_emision, tipo_comprobante, ruc, ambiente, estab, 
 
     # Añadir el dígito verificador a la clave de acceso
     clave_acceso = clave_acceso_sin_dv + str(digito_verificador)
+
+    # Validar que la clave tiene exactamente 49 dígitos
+    if len(clave_acceso) != 49:
+        raise ValueError(f"La clave de acceso generada no tiene 49 dígitos: {clave_acceso}")
 
     return clave_acceso

@@ -7,26 +7,22 @@ from .utils.xml_generator import generar_xml_para_sri
 from .utils.clave_acceso import generar_clave_acceso
 from django.utils import timezone
 
-def generar_numero_autorizacion():
-    # Genera un número de autorización único basado en el timestamp actual
-    timestamp = timezone.now().strftime('%Y%m%d%H%M%S%f')  # Incluye microsegundos para mayor unicidad
-    numero_autorizacion = f'{timestamp}'
-    return numero_autorizacion
-
 def crear_factura(cliente, sucursal, empleado, carrito_items):
-    print("Llamando a crear_factura...")
     total_sin_impuestos = sum(item.subtotal() for item in carrito_items)
     total_con_impuestos = total_sin_impuestos * Decimal('1.12')  # Asumiendo 12% de IVA
 
     try:
         with transaction.atomic():
-            # Generar un número de autorización único
-            numero_autorizacion = generar_numero_autorizacion()
+            # Incrementar el secuencial de la sucursal ANTES de crear la factura
+            sucursal.incrementar_secuencial()
+            secuencial = sucursal.secuencial_actual.zfill(9)
+
+            # Crear la factura con el secuencial actual
             factura = Factura.objects.create(
                 sucursal=sucursal,
                 cliente=cliente,
                 empleado=empleado,
-                numero_autorizacion=numero_autorizacion,
+                numero_autorizacion=secuencial,  # Usar el secuencial de la sucursal como número de autorización
                 total_sin_impuestos=total_sin_impuestos,
                 total_con_impuestos=total_con_impuestos,
                 estado='EN_PROCESO'
@@ -34,12 +30,6 @@ def crear_factura(cliente, sucursal, empleado, carrito_items):
 
             # Verificación de la factura creada
             factura.refresh_from_db()
-            print(f"Fecha de emisión: {factura.fecha_emision}")  # Verifica la fecha de emisión
-            print(f"Sucursal: {factura.sucursal}")
-            print(f"Cliente: {factura.cliente}")
-            print(f"Empleado: {factura.empleado}")
-            print(f"Número de autorización: {factura.numero_autorizacion}")
-
             for item in carrito_items:
                 # Detalles adicionales de depuración
                 print(f"Producto: {item.producto.nombre}, Cantidad: {item.cantidad}")
@@ -81,10 +71,10 @@ def crear_factura(cliente, sucursal, empleado, carrito_items):
                 fecha_emision=factura.fecha_emision.strftime('%d%m%Y'),
                 tipo_comprobante='01',
                 ruc=sucursal.ruc,
-                ambiente='1',
+                ambiente='1',  # Asumiendo ambiente de pruebas
                 estab=estab,
                 pto_emi=pto_emi,
-                secuencial=factura.numero_autorizacion,
+                secuencial=secuencial,  # Pasar el secuencial de la sucursal
                 tipo_emision='1'
             )
 

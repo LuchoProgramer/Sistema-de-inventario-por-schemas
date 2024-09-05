@@ -16,6 +16,7 @@ from django.conf import settings
 from .pdf.factura_pdf import generar_pdf_factura
 from django.http import JsonResponse
 from django.urls import reverse
+from django.contrib import messages
 
 
  
@@ -49,7 +50,7 @@ def generar_factura(request):
         turno_activo = RegistroTurno.objects.filter(empleado=empleado, fin_turno__isnull=True).first()
 
         if not turno_activo:
-            return render(request, 'facturacion/error.html', {'message': 'No tienes un turno activo. Por favor inicia un turno.'})
+            return JsonResponse({'error': 'No tienes un turno activo. Por favor inicia un turno.'}, status=400)
 
         sucursal = turno_activo.sucursal
 
@@ -68,20 +69,27 @@ def generar_factura(request):
 
         carrito_items = obtener_carrito(request.user)
 
+        if not carrito_items.exists():
+            return JsonResponse({'error': 'El carrito está vacío. No se puede generar una factura.'}, status=400)
+
         try:
-            factura = crear_factura(cliente, sucursal, request.user.empleado, carrito_items)
+            with transaction.atomic():
+                factura = crear_factura(cliente, sucursal, request.user.empleado, carrito_items)
 
-            nombre_archivo = f"factura_{factura.numero_autorizacion}.pdf"
-            ruta_pdf = os.path.join(settings.MEDIA_ROOT, nombre_archivo)
-            generar_pdf_factura(factura, ruta_pdf)
+                nombre_archivo = f"factura_{factura.numero_autorizacion}.pdf"
+                ruta_pdf = os.path.join(settings.MEDIA_ROOT, nombre_archivo)
+                generar_pdf_factura(factura, ruta_pdf)
 
-            pdf_url = f"/media/{nombre_archivo}"
-            redirect_url = reverse('ventas:inicio_turno')
+                # Vaciar el carrito después de generar la factura
+                carrito_items.delete()
 
-            return JsonResponse({'pdf_url': pdf_url, 'redirect_url': redirect_url})
+                pdf_url = f"/media/{nombre_archivo}"
+                redirect_url = reverse('ventas:inicio_turno')
+
+                return JsonResponse({'pdf_url': pdf_url, 'redirect_url': redirect_url})
         
         except ValidationError as e:
-            return render(request, 'facturacion/generar_factura.html', {'errors': e.messages, 'clientes': Cliente.objects.all()})
+            return JsonResponse({'error': e.messages}, status=400)
 
     return render(request, 'facturacion/generar_factura.html', {'clientes': Cliente.objects.all()})
 
