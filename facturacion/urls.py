@@ -10,4 +10,5 @@ urlpatterns = [
     path('generar-comprobante-pago/', generar_comprobante_pago, name='generar_comprobante_pago'),
     path('error/', error_view, name='error'),
     path('factura_exitosa/', views.factura_exitosa, name='factura_exitosa'),
+    path('ver_pdf_factura/<str:numero_autorizacion>/', views.ver_pdf_factura, name='ver_pdf_factura'),
 ]

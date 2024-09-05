@@ -1,7 +1,7 @@
 from django.shortcuts import render, redirect
 from .models import Factura, Cotizacion, Cliente, ComprobantePago, DetalleFactura
 from django.http import HttpResponse, FileResponse
-from ventas.utils import obtener_carrito
+from ventas.utils import obtener_carrito, vaciar_carrito
 from empleados.models import RegistroTurno
 from django.utils import timezone
 from django.core.exceptions import ValidationError
@@ -14,6 +14,9 @@ from sucursales.models import Sucursal
 import os
 from django.conf import settings
 from .pdf.factura_pdf import generar_pdf_factura
+from django.http import JsonResponse
+from django.urls import reverse
+
 
  
 def generar_cotizacion(request):
@@ -41,13 +44,11 @@ def generar_cotizacion(request):
 
 
 def generar_factura(request):
-    print("Vista generar_factura llamada")
     if request.method == 'POST':
         empleado = request.user.empleado
         turno_activo = RegistroTurno.objects.filter(empleado=empleado, fin_turno__isnull=True).first()
 
         if not turno_activo:
-            print("No hay turno activo")
             return render(request, 'facturacion/error.html', {'message': 'No tienes un turno activo. Por favor inicia un turno.'})
 
         sucursal = turno_activo.sucursal
@@ -66,28 +67,20 @@ def generar_factura(request):
             )
 
         carrito_items = obtener_carrito(request.user)
-        print("Carrito obtenido:", carrito_items)
 
         try:
             factura = crear_factura(cliente, sucursal, request.user.empleado, carrito_items)
-            print("Factura creada:", factura)
 
-            # Aquí generamos el PDF
             nombre_archivo = f"factura_{factura.numero_autorizacion}.pdf"
             ruta_pdf = os.path.join(settings.MEDIA_ROOT, nombre_archivo)
-            generar_pdf_factura(factura, ruta_pdf)  # Suponiendo que la función guarda el archivo en ruta_pdf
+            generar_pdf_factura(factura, ruta_pdf)
 
-            # Ofrecer el PDF como descarga
-            with open(ruta_pdf, 'rb') as pdf_file:
-                response = HttpResponse(pdf_file.read(), content_type='application/pdf')
-                response['Content-Disposition'] = f'inline; filename="{nombre_archivo}"'
-                return response
+            pdf_url = f"/media/{nombre_archivo}"
+            redirect_url = reverse('ventas:inicio_turno')
 
-            # O, si prefieres, redirigir a la vista de éxito (comentar la línea de redirección si se muestra el PDF)
-            # return redirect('facturacion:factura_exitosa')
-            
+            return JsonResponse({'pdf_url': pdf_url, 'redirect_url': redirect_url})
+        
         except ValidationError as e:
-            print("Error al crear la factura:", e)
             return render(request, 'facturacion/generar_factura.html', {'errors': e.messages, 'clientes': Cliente.objects.all()})
 
     return render(request, 'facturacion/generar_factura.html', {'clientes': Cliente.objects.all()})
@@ -125,3 +118,10 @@ def factura_exitosa(request):
 
 def error_view(request, message):
     return render(request, 'facturacion/error.html', {'message': message})
+
+def ver_pdf_factura(request, numero_autorizacion):
+    ruta_pdf = os.path.join(settings.MEDIA_ROOT, f'factura_{numero_autorizacion}.pdf')
+    if os.path.exists(ruta_pdf):
+        return FileResponse(open(ruta_pdf, 'rb'), content_type='application/pdf')
+    else:
+        return HttpResponse("El PDF no se encuentra disponible.", status=404)
