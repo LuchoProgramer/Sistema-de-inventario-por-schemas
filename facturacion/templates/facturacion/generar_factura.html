@@ -19,11 +19,10 @@
                 </div>
             {% endfor %}
         {% endif %}
-        
-        <!-- Formulario para generar la factura -->
+
+        <!-- Combinar ambos formularios en uno solo -->
         <form method="post">
             {% csrf_token %}
-
             <!-- Selección de cliente existente -->
             <div class="mb-3">
                 <label for="cliente" class="form-label">Seleccionar Cliente</label>
@@ -82,12 +81,23 @@
                 </div>
             </div>
 
+            <!-- Formulario para seleccionar el método de pago -->
+            <div class="form-group mb-3">
+                <label for="metodo_pago">Método de Pago</label>
+                <select id="metodo_pago" name="metodo_pago" class="form-select">
+                    {% for codigo, nombre in form.fields.metodo_pago.choices %}
+                        <option value="{{ codigo }}">{{ nombre }} ({{ codigo }})</option>
+                    {% endfor %}
+                </select>
+            </div>
+
             <!-- Observaciones -->
             <div class="mb-3">
                 <label for="observaciones" class="form-label">Observaciones</label>
                 <textarea id="observaciones" name="observaciones" class="form-control"></textarea>
             </div>
 
+            <!-- Único botón para generar la factura -->
             <button type="submit" class="btn btn-primary">Generar Factura</button>
         </form>
     </div>

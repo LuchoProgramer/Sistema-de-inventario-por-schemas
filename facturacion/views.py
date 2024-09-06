@@ -1,5 +1,5 @@
 from django.shortcuts import render, redirect
-from .models import Factura, Cotizacion, Cliente, ComprobantePago, DetalleFactura
+from .models import Factura, Cotizacion, Cliente, ComprobantePago, DetalleFactura, Impuesto
 from django.http import HttpResponse, FileResponse
 from ventas.utils import obtener_carrito, vaciar_carrito
 from empleados.models import RegistroTurno
@@ -17,7 +17,7 @@ from .pdf.factura_pdf import generar_pdf_factura
 from django.http import JsonResponse
 from django.urls import reverse
 from django.contrib import messages
-
+from ventas.forms import MetodoPagoForm
 
  
 def generar_cotizacion(request):
@@ -55,57 +55,48 @@ def generar_factura(request):
         sucursal = turno_activo.sucursal
 
         cliente_id = request.POST.get('cliente_id')
-        if cliente_id:
-            cliente = Cliente.objects.get(id=cliente_id)
-        else:
-            cliente = Cliente.objects.create(
-                identificacion=request.POST.get('identificacion'),
-                tipo_identificacion=request.POST.get('tipo_identificacion'),
-                razon_social=request.POST.get('razon_social'),
-                direccion=request.POST.get('direccion'),
-                telefono=request.POST.get('telefono'),
-                email=request.POST.get('email')
-            )
+        cliente = Cliente.objects.get(id=cliente_id) if cliente_id else Cliente.objects.create(
+            identificacion=request.POST.get('identificacion'),
+            tipo_identificacion=request.POST.get('tipo_identificacion'),
+            razon_social=request.POST.get('razon_social'),
+            direccion=request.POST.get('direccion'),
+            telefono=request.POST.get('telefono'),
+            email=request.POST.get('email')
+        )
 
         carrito_items = obtener_carrito(request.user)
-
         if not carrito_items.exists():
             return JsonResponse({'error': 'El carrito está vacío. No se puede generar una factura.'}, status=400)
 
-        # Verificar que haya suficiente inventario para cada producto en el carrito
-        errores = []
-        for item in carrito_items:
-            inventario = Inventario.objects.filter(sucursal=sucursal, producto=item.producto).first()
-            if not inventario or inventario.cantidad < item.cantidad:
-                errores.append(f"No hay suficiente inventario para {item.producto.nombre}. Solo hay {inventario.cantidad if inventario else 0} unidades disponibles.")
+        form = MetodoPagoForm(request.POST)
+        if form.is_valid():
+            metodo_pago = form.cleaned_data['metodo_pago']  # Capturar el método de pago seleccionado
+
+            try:
+                with transaction.atomic():
+                    factura = crear_factura(cliente, sucursal, request.user.empleado, carrito_items, metodo_pago)
+
+                    nombre_archivo = f"factura_{factura.numero_autorizacion}.pdf"
+                    ruta_pdf = os.path.join(settings.MEDIA_ROOT, nombre_archivo)
+                    generar_pdf_factura(factura, ruta_pdf)
+
+                    carrito_items.delete()  # Vaciar el carrito después de generar la factura
+
+                    pdf_url = f"/media/{nombre_archivo}"
+                    redirect_url = reverse('ventas:inicio_turno')
+
+                    return JsonResponse({'pdf_url': pdf_url, 'redirect_url': redirect_url})
         
-        if errores:
-            # Si hay errores de inventario, devolver un mensaje con todos los errores encontrados
-            return JsonResponse({'error': errores}, status=400)
+            except ValidationError as e:
+                return JsonResponse({'error': e.messages}, status=400)
 
-        try:
-            with transaction.atomic():
-                # Crear la factura si no hubo errores de inventario
-                factura = crear_factura(cliente, sucursal, request.user.empleado, carrito_items)
+    else:
+        form = MetodoPagoForm()  # Mostrar el formulario de método de pago
 
-                nombre_archivo = f"factura_{factura.numero_autorizacion}.pdf"
-                ruta_pdf = os.path.join(settings.MEDIA_ROOT, nombre_archivo)
-                generar_pdf_factura(factura, ruta_pdf)
-
-                # Vaciar el carrito después de generar la factura
-                carrito_items.delete()
-
-                pdf_url = f"/media/{nombre_archivo}"
-                redirect_url = reverse('ventas:inicio_turno')
-
-                return JsonResponse({'pdf_url': pdf_url, 'redirect_url': redirect_url})
-        
-        except ValidationError as e:
-            return JsonResponse({'error': e.messages}, status=400)
-
-    return render(request, 'facturacion/generar_factura.html', {'clientes': Cliente.objects.all()})
-
-
+    return render(request, 'facturacion/generar_factura.html', {
+        'clientes': Cliente.objects.all(),
+        'form': form
+    })
 
 def generar_comprobante_pago(request):
     if request.method == 'POST':

@@ -28,3 +28,15 @@ class SeleccionVentaForm(forms.Form):
             except Inventario.DoesNotExist:
                 raise forms.ValidationError("No hay inventario disponible para este producto en la sucursal seleccionada.")
 
+class MetodoPagoForm(forms.Form):
+    METODOS_PAGO_SRI = [
+        ('01', 'Sin utilización del sistema financiero'),
+        ('15', 'Compensación de deudas'),
+        ('16', 'Tarjeta de débito'),
+        ('17', 'Dinero electrónico'),
+        ('18', 'Tarjeta prepago'),
+        ('19', 'Tarjeta de crédito'),
+        ('20', 'Otros con utilización del sistema financiero'),
+        ('21', 'Endoso de títulos'),
+    ]
+    metodo_pago = forms.ChoiceField(choices=METODOS_PAGO_SRI, label="Método de Pago")

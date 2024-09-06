@@ -89,7 +89,7 @@ def ver_carrito(request):
         total = sum(item.subtotal() for item in carrito_items)
         return render(request, 'ventas/ver_carrito.html', {'carrito_items': carrito_items, 'total': total})
     else:
-        return render(request, 'ventas/error.html', {'mensaje': 'No tienes un turno activo.'})
+        return render(request, 'ventas/error.html', {'mensaje': 'No tienes un turno activo.'})  
     
 @login_required
 def finalizar_venta(request):

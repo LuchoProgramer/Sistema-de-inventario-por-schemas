@@ -7,3 +7,4 @@ admin.site.register(DetalleFactura)
 admin.site.register(Pago)
 admin.site.register(Impuesto)
 admin.site.register(FacturaImpuesto)
+

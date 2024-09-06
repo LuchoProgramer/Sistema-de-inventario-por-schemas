@@ -8,7 +8,18 @@ from empleados.models import RegistroTurno
 
 
 class Venta(models.Model):
-    # Campos de tu modelo Venta
+    # Definir los métodos de pago según el SRI
+    METODOS_PAGO_SRI = [
+        ('01', 'Sin utilización del sistema financiero'),
+        ('15', 'Compensación de deudas'),
+        ('16', 'Tarjeta de débito'),
+        ('17', 'Dinero electrónico'),
+        ('18', 'Tarjeta prepago'),
+        ('19', 'Tarjeta de crédito'),
+        ('20', 'Otros con utilización del sistema financiero'),
+        ('21', 'Endoso de títulos'),
+    ]
+
     turno = models.ForeignKey(RegistroTurno, on_delete=models.CASCADE, related_name='ventas')
     sucursal = models.ForeignKey(Sucursal, on_delete=models.CASCADE)
     empleado = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
@@ -16,42 +27,41 @@ class Venta(models.Model):
     cantidad = models.IntegerField()
     precio_unitario = models.DecimalField(max_digits=10, decimal_places=2)
     total_venta = models.DecimalField(max_digits=10, decimal_places=2, editable=False)
-    metodo_pago = models.CharField(max_length=50, choices=[('Efectivo', 'Efectivo'), ('Tarjeta', 'Tarjeta'), ('Transferencia', 'Transferencia')])
+    # Cambiar el campo de método de pago para usar los códigos del SRI
+    metodo_pago = models.CharField(max_length=2, choices=METODOS_PAGO_SRI)
     fecha = models.DateTimeField(auto_now_add=True)
 
     def clean(self):
-        # Verificar que la cantidad sea positiva
+        # Verificar que la cantidad sea un número positivo
         if self.cantidad <= 0:
             raise ValidationError('La cantidad debe ser mayor que cero.')
 
-        # Verificar que el precio unitario sea positivo
+        # Verificar que el precio unitario sea un valor positivo
         if self.precio_unitario <= 0:
             raise ValidationError('El precio unitario debe ser mayor que cero.')
 
         # Asegurarse de que haya suficiente inventario
         try:
             inventario = Inventario.objects.get(sucursal=self.sucursal, producto=self.producto)
-            if inventario.cantidad <= 0:
-                raise ValidationError(f"No hay inventario disponible para el producto {self.producto.nombre}.")
             if inventario.cantidad < self.cantidad:
-                raise ValidationError(f"La cantidad solicitada excede el inventario disponible. Disponibilidad actual: {inventario.cantidad} unidades.")
+                raise ValidationError(f"No hay suficiente inventario para la venta. Disponibilidad actual: {inventario.cantidad} unidades.")
         except Inventario.DoesNotExist:
             raise ValidationError("El inventario no existe para este producto y sucursal.")
 
     @transaction.atomic
     def save(self, *args, **kwargs):
-        # Ejecutar validaciones antes de guardar
+        # Validar los datos antes de guardar
         self.full_clean()  # Esto ejecuta el método clean automáticamente
 
         # Calcular el total de la venta
         self.total_venta = self.cantidad * self.precio_unitario
 
-        # Actualizar inventario
+        # Obtener el inventario y verificar la disponibilidad
         inventario = Inventario.objects.select_for_update().get(sucursal=self.sucursal, producto=self.producto)
         inventario.cantidad -= self.cantidad
         inventario.save()
 
-        # Registrar movimiento de inventario
+        # Registrar el movimiento de inventario
         MovimientoInventario.objects.create(
             producto=self.producto,
             sucursal=self.sucursal,
@@ -59,6 +69,7 @@ class Venta(models.Model):
             cantidad=-self.cantidad
         )
 
+        # Guardar la venta
         super(Venta, self).save(*args, **kwargs)
 
     def __str__(self):
