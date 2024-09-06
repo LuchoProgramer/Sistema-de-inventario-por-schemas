@@ -1,5 +1,5 @@
 from django import forms
-from .models import Compra
+from .models import Compra, Producto
 
 class CompraForm(forms.ModelForm):
     class Meta:
@@ -11,3 +11,9 @@ class CompraForm(forms.ModelForm):
             'cantidad': forms.NumberInput(attrs={'class': 'form-control'}),
             'precio_unitario': forms.NumberInput(attrs={'class': 'form-control'}),
         }
+
+
+class ProductoForm(forms.ModelForm):
+    class Meta:
+        model = Producto
+        fields = ['nombre', 'descripcion', 'precio_compra', 'precio_venta', 'unidad_medida', 'categoria', 'sucursal', 'codigo_producto', 'impuesto', 'image']

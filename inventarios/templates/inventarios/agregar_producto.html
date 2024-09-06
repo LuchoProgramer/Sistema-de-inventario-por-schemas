@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agregar Producto</title>
+    <!-- Bootstrap para estilos -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container mt-5">
+        <h1 class="mb-4">Agregar Producto</h1>
+        
+        <!-- Formulario para agregar un producto -->
+        <form method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+            
+            <div class="mb-3">
+                <label for="nombre" class="form-label">Nombre del Producto</label>
+                {{ form.nombre }}
+            </div>
+            
+            <div class="mb-3">
+                <label for="descripcion" class="form-label">Descripción</label>
+                {{ form.descripcion }}
+            </div>
+            
+            <div class="mb-3">
+                <label for="precio_compra" class="form-label">Precio de Compra</label>
+                {{ form.precio_compra }}
+            </div>
+            
+            <div class="mb-3">
+                <label for="precio_venta" class="form-label">Precio de Venta</label>
+                {{ form.precio_venta }}
+            </div>
+            
+            <div class="mb-3">
+                <label for="unidad_medida" class="form-label">Unidad de Medida</label>
+                {{ form.unidad_medida }}
+            </div>
+            
+            <div class="mb-3">
+                <label for="categoria" class="form-label">Categoría</label>
+                {{ form.categoria }}
+            </div>
+            
+            <div class="mb-3">
+                <label for="sucursal" class="form-label">Sucursal</label>
+                {{ form.sucursal }}
+            </div>
+            
+            <div class="mb-3">
+                <label for="codigo_producto" class="form-label">Código de Producto</label>
+                {{ form.codigo_producto }}
+            </div>
+            
+            <div class="mb-3">
+                <label for="impuesto" class="form-label">Impuesto</label>
+                {{ form.impuesto }}
+            </div>
+            
+            <div class="mb-3">
+                <label for="image" class="form-label">Imagen del Producto</label>
+                {{ form.image }}
+            </div>
+
+            <!-- Botón para enviar el formulario -->
+            <button type="submit" class="btn btn-primary">Guardar Producto</button>
+        </form>
+    </div>
+
+    <!-- Bootstrap JS (opcional) -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

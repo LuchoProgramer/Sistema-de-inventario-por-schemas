@@ -17,8 +17,13 @@ class Producto(models.Model):
     unidad_medida = models.CharField(max_length=50)
     categoria = models.ForeignKey(Categoria, on_delete=models.SET_NULL, null=True, blank=True)
     sucursal = models.ForeignKey(Sucursal, on_delete=models.CASCADE, null=True, blank=True)
-    codigo_producto = models.CharField(max_length=50, unique=True, null=True, blank=True)  # Nuevo campo para código de producto
-    impuesto = models.ForeignKey('facturacion.Impuesto', on_delete=models.SET_NULL, null=True, blank=True)  # Usar string para evitar importación directa
+    codigo_producto = models.CharField(max_length=50, unique=True, null=True, blank=True)
+    impuesto = models.ForeignKey('facturacion.Impuesto', on_delete=models.SET_NULL, null=True, blank=True)
+    image = models.ImageField(upload_to='productos/', null=True, blank=True)  # Campo de imagen para productos
+    stock_minimo = models.IntegerField(default=0)
+    activo = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
         return self.nombre

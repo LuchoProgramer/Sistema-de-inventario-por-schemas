@@ -1,7 +1,7 @@
 from django.shortcuts import render, redirect
 from .models import Producto, Inventario, Sucursal, Compra
 from django.shortcuts import get_object_or_404
-from .forms import CompraForm
+from .forms import CompraForm, ProductoForm
 
 
 def seleccionar_sucursal(request):
@@ -91,3 +91,18 @@ def ver_compras(request):
     compras = Compra.objects.all().order_by('-fecha')  # Ordenar por fecha más reciente
     return render(request, 'inventarios/ver_compras.html', {'compras': compras})
 
+def agregar_producto(request):
+    if request.method == 'POST':
+        form = ProductoForm(request.POST, request.FILES)
+        if form.is_valid():
+            form.save()
+            return redirect('inventarios:lista_productos')  # Redirige a la lista de productos después de guardar
+    else:
+        form = ProductoForm()
+
+    return render(request, 'inventarios/agregar_producto.html', {'form': form})
+
+
+def lista_productos(request):
+    productos = Producto.objects.all()  # Obtén todos los productos
+    return render(request, 'inventarios/lista_productos.html', {'productos': productos})
