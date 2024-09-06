@@ -111,7 +111,7 @@ class Compra(models.Model):
         return f"Compra de {self.cantidad} {self.producto.unidad_medida} de {self.producto.nombre} para {self.sucursal.nombre}"
 
 class Transferencia(models.Model):
-    sucursal_origen = models.ForeignKey(Sucursal, on_delete=models.CASCADE, related_name='transferencias_salida', limit_choices_to={'es_matriz': True})
+    sucursal_origen = models.ForeignKey(Sucursal, on_delete=models.CASCADE, related_name='transferencias_salida')
     sucursal_destino = models.ForeignKey(Sucursal, on_delete=models.CASCADE, related_name='transferencias_entrada')
     producto = models.ForeignKey(Producto, on_delete=models.CASCADE)
     cantidad = models.IntegerField()

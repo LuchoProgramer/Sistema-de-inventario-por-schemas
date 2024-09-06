@@ -1,7 +1,7 @@
 from django.shortcuts import render, redirect
-from .models import Producto, Inventario, Sucursal, Compra
+from .models import Producto, Inventario, Sucursal, Compra, Categoria, Transferencia, MovimientoInventario
 from django.shortcuts import get_object_or_404
-from .forms import CompraForm, ProductoForm
+from .forms import CompraForm, ProductoForm, CategoriaForm, TransferenciaForm
 
 
 def seleccionar_sucursal(request):
@@ -106,3 +106,74 @@ def agregar_producto(request):
 def lista_productos(request):
     productos = Producto.objects.all()  # Obtén todos los productos
     return render(request, 'inventarios/lista_productos.html', {'productos': productos})
+
+
+def agregar_categoria(request):
+    if request.method == 'POST':
+        form = CategoriaForm(request.POST)
+        if form.is_valid():
+            form.save()
+            return redirect('inventarios:lista_categorias')  # Redirigir a la lista de categorías después de guardar
+    else:
+        form = CategoriaForm()
+    
+    return render(request, 'inventarios/agregar_categoria.html', {'form': form})
+
+
+
+def lista_categorias(request):
+    categorias = Categoria.objects.all()
+    return render(request, 'inventarios/lista_categorias.html', {'categorias': categorias})
+
+
+def productos_por_categoria(request, categoria_id):
+    categoria = Categoria.objects.get(id=categoria_id)
+    productos = Producto.objects.filter(categoria=categoria)  # Filtrar productos por categoría
+    return render(request, 'inventarios/productos_por_categoria.html', {'productos': productos, 'categoria': categoria})
+
+def ver_producto(request, producto_id):
+    producto = get_object_or_404(Producto, id=producto_id)
+    return render(request, 'inventarios/ver_producto.html', {'producto': producto})
+
+
+def editar_producto(request, producto_id):
+    producto = get_object_or_404(Producto, id=producto_id)
+    
+    if request.method == 'POST':
+        form = ProductoForm(request.POST, request.FILES, instance=producto)
+        if form.is_valid():
+            form.save()
+            return redirect('inventarios:lista_productos')
+    else:
+        form = ProductoForm(instance=producto)
+    
+    return render(request, 'inventarios/editar_producto.html', {'form': form, 'producto': producto})
+
+
+def crear_transferencia(request):
+    if request.method == 'POST':
+        form = TransferenciaForm(request.POST)
+        if form.is_valid():
+            # Obtener los datos del formulario
+            transferencia = form.save(commit=False)
+            
+            # Verificar si hay suficiente inventario en la sucursal de origen
+            inventario_origen = Inventario.objects.get(sucursal=transferencia.sucursal_origen, producto=transferencia.producto)
+            if inventario_origen.cantidad < transferencia.cantidad:
+                form.add_error('cantidad', 'No hay suficiente inventario en la sucursal de origen.')
+            else:
+                # Guardar la transferencia y actualizar inventarios
+                transferencia.save()  # Esto ejecuta el método save personalizado en el modelo Transferencia
+                return redirect('inventarios:lista_transferencias')  # Redirigir a una lista de transferencias o donde prefieras
+    else:
+        form = TransferenciaForm()
+
+    return render(request, 'inventarios/crear_transferencia.html', {'form': form})
+
+def lista_transferencias(request):
+    transferencias = Transferencia.objects.all()
+    return render(request, 'inventarios/lista_transferencias.html', {'transferencias': transferencias})
+
+def lista_movimientos_inventario(request):
+    movimientos = MovimientoInventario.objects.all().order_by('-fecha')  # Ordenados por fecha descendente
+    return render(request, 'inventarios/lista_movimientos_inventario.html', {'movimientos': movimientos})

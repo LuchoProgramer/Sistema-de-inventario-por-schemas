@@ -72,8 +72,20 @@ def generar_factura(request):
         if not carrito_items.exists():
             return JsonResponse({'error': 'El carrito está vacío. No se puede generar una factura.'}, status=400)
 
+        # Verificar que haya suficiente inventario para cada producto en el carrito
+        errores = []
+        for item in carrito_items:
+            inventario = Inventario.objects.filter(sucursal=sucursal, producto=item.producto).first()
+            if not inventario or inventario.cantidad < item.cantidad:
+                errores.append(f"No hay suficiente inventario para {item.producto.nombre}. Solo hay {inventario.cantidad if inventario else 0} unidades disponibles.")
+        
+        if errores:
+            # Si hay errores de inventario, devolver un mensaje con todos los errores encontrados
+            return JsonResponse({'error': errores}, status=400)
+
         try:
             with transaction.atomic():
+                # Crear la factura si no hubo errores de inventario
                 factura = crear_factura(cliente, sucursal, request.user.empleado, carrito_items)
 
                 nombre_archivo = f"factura_{factura.numero_autorizacion}.pdf"
@@ -92,6 +104,7 @@ def generar_factura(request):
             return JsonResponse({'error': e.messages}, status=400)
 
     return render(request, 'facturacion/generar_factura.html', {'clientes': Cliente.objects.all()})
+
 
 
 def generar_comprobante_pago(request):

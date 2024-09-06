@@ -8,6 +8,7 @@ from empleados.models import RegistroTurno
 
 
 class Venta(models.Model):
+    # Campos de tu modelo Venta
     turno = models.ForeignKey(RegistroTurno, on_delete=models.CASCADE, related_name='ventas')
     sucursal = models.ForeignKey(Sucursal, on_delete=models.CASCADE)
     empleado = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
@@ -19,36 +20,38 @@ class Venta(models.Model):
     fecha = models.DateTimeField(auto_now_add=True)
 
     def clean(self):
-        # Verificar que la cantidad sea un número positivo
+        # Verificar que la cantidad sea positiva
         if self.cantidad <= 0:
             raise ValidationError('La cantidad debe ser mayor que cero.')
 
-        # Verificar que el precio unitario sea un valor positivo
+        # Verificar que el precio unitario sea positivo
         if self.precio_unitario <= 0:
             raise ValidationError('El precio unitario debe ser mayor que cero.')
 
         # Asegurarse de que haya suficiente inventario
         try:
             inventario = Inventario.objects.get(sucursal=self.sucursal, producto=self.producto)
+            if inventario.cantidad <= 0:
+                raise ValidationError(f"No hay inventario disponible para el producto {self.producto.nombre}.")
             if inventario.cantidad < self.cantidad:
-                raise ValidationError(f"No hay suficiente inventario para la venta. Disponibilidad actual: {inventario.cantidad} unidades.")
+                raise ValidationError(f"La cantidad solicitada excede el inventario disponible. Disponibilidad actual: {inventario.cantidad} unidades.")
         except Inventario.DoesNotExist:
             raise ValidationError("El inventario no existe para este producto y sucursal.")
 
     @transaction.atomic
     def save(self, *args, **kwargs):
-        # Validar los datos antes de guardar
+        # Ejecutar validaciones antes de guardar
         self.full_clean()  # Esto ejecuta el método clean automáticamente
 
         # Calcular el total de la venta
         self.total_venta = self.cantidad * self.precio_unitario
 
-        # Obtener el inventario y verificar la disponibilidad
+        # Actualizar inventario
         inventario = Inventario.objects.select_for_update().get(sucursal=self.sucursal, producto=self.producto)
         inventario.cantidad -= self.cantidad
         inventario.save()
 
-        # Registrar el movimiento de inventario
+        # Registrar movimiento de inventario
         MovimientoInventario.objects.create(
             producto=self.producto,
             sucursal=self.sucursal,
@@ -56,7 +59,6 @@ class Venta(models.Model):
             cantidad=-self.cantidad
         )
 
-        # Guardar la venta
         super(Venta, self).save(*args, **kwargs)
 
     def __str__(self):

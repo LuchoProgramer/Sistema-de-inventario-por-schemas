@@ -22,21 +22,31 @@ def registrar_venta(request):
             producto = form.cleaned_data['producto']
             cantidad = form.cleaned_data['cantidad']
             precio_unitario = producto.precio
-            total_venta = cantidad * precio_unitario
 
-            venta = Venta.objects.create(
-                turno=turno_activo,
-                sucursal=turno_activo.sucursal,
-                empleado=empleado.usuario,
-                producto=producto,
-                cantidad=cantidad,
-                precio_unitario=precio_unitario,
-                total_venta=total_venta,
-                metodo_pago=request.POST.get('metodo_pago'),
-                fecha=timezone.now(),
-            )
+            # Verificar que hay suficiente inventario
+            inventario = producto.inventario_set.filter(sucursal=turno_activo.sucursal).first()
+            if inventario and inventario.cantidad >= cantidad:
+                total_venta = cantidad * precio_unitario
 
-            return redirect('dashboard')
+                venta = Venta.objects.create(
+                    turno=turno_activo,
+                    sucursal=turno_activo.sucursal,
+                    empleado=empleado.usuario,
+                    producto=producto,
+                    cantidad=cantidad,
+                    precio_unitario=precio_unitario,
+                    total_venta=total_venta,
+                    metodo_pago=request.POST.get('metodo_pago'),
+                    fecha=timezone.now(),
+                )
+
+                # Actualizar el inventario
+                inventario.cantidad -= cantidad
+                inventario.save()
+
+                return redirect('dashboard')
+            else:
+                form.add_error(None, f"No hay suficiente inventario disponible. Solo hay {inventario.cantidad} unidades.")
     else:
         form = SeleccionVentaForm(sucursal_id=turno_activo.sucursal.id)
 
@@ -76,11 +86,10 @@ def ver_carrito(request):
     
     if turno:
         carrito_items = Carrito.objects.filter(turno=turno)
-        total = sum(item.subtotal() for item in carrito_items)  # subtotal usa ahora precio_venta
+        total = sum(item.subtotal() for item in carrito_items)
         return render(request, 'ventas/ver_carrito.html', {'carrito_items': carrito_items, 'total': total})
     else:
         return render(request, 'ventas/error.html', {'mensaje': 'No tienes un turno activo.'})
-
     
 @login_required
 def finalizar_venta(request):
@@ -88,17 +97,32 @@ def finalizar_venta(request):
 
     if turno:
         carrito_items = Carrito.objects.filter(turno=turno)
+        errores = []
+
         for item in carrito_items:
-            Venta.objects.create(
-                turno=turno,
-                sucursal=turno.sucursal,
-                empleado=turno.empleado.usuario,
-                producto=item.producto,
-                cantidad=item.cantidad,
-                precio_unitario=item.producto.precio,
-                total_venta=item.subtotal(),
-                metodo_pago="Efectivo",  # Aquí podrías permitir elegir el método de pago
-            )
+            # Verificar inventario para cada producto
+            inventario = item.producto.inventario_set.filter(sucursal=turno.sucursal).first()
+            if inventario and inventario.cantidad >= item.cantidad:
+                # Registrar la venta
+                Venta.objects.create(
+                    turno=turno,
+                    sucursal=turno.sucursal,
+                    empleado=turno.empleado.usuario,
+                    producto=item.producto,
+                    cantidad=item.cantidad,
+                    precio_unitario=item.producto.precio,
+                    total_venta=item.subtotal(),
+                    metodo_pago="Efectivo",  # Aquí podrías permitir elegir el método de pago
+                )
+                # Actualizar el inventario
+                inventario.cantidad -= item.cantidad
+                inventario.save()
+            else:
+                errores.append(f"No hay suficiente inventario para {item.producto.nombre}. Solo hay {inventario.cantidad} unidades disponibles.")
+
+        if errores:
+            return render(request, 'ventas/ver_carrito.html', {'carrito_items': carrito_items, 'total': sum(item.subtotal() for item in carrito_items), 'errores': errores})
+
         carrito_items.delete()  # Vaciar el carrito después de completar la venta
         return redirect('ventas:inicio_turno')
     else:
