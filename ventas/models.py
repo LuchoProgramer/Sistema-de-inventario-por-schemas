@@ -8,18 +8,6 @@ from empleados.models import RegistroTurno
 
 
 class Venta(models.Model):
-    # Definir los métodos de pago según el SRI
-    METODOS_PAGO_SRI = [
-        ('01', 'Sin utilización del sistema financiero'),
-        ('15', 'Compensación de deudas'),
-        ('16', 'Tarjeta de débito'),
-        ('17', 'Dinero electrónico'),
-        ('18', 'Tarjeta prepago'),
-        ('19', 'Tarjeta de crédito'),
-        ('20', 'Otros con utilización del sistema financiero'),
-        ('21', 'Endoso de títulos'),
-    ]
-
     turno = models.ForeignKey(RegistroTurno, on_delete=models.CASCADE, related_name='ventas')
     sucursal = models.ForeignKey(Sucursal, on_delete=models.CASCADE)
     empleado = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
@@ -27,8 +15,7 @@ class Venta(models.Model):
     cantidad = models.IntegerField()
     precio_unitario = models.DecimalField(max_digits=10, decimal_places=2)
     total_venta = models.DecimalField(max_digits=10, decimal_places=2, editable=False)
-    # Cambiar el campo de método de pago para usar los códigos del SRI
-    metodo_pago = models.CharField(max_length=2, choices=METODOS_PAGO_SRI)
+    # Eliminar el campo método de pago, ya que será gestionado por el modelo Pago
     fecha = models.DateTimeField(auto_now_add=True)
 
     def clean(self):

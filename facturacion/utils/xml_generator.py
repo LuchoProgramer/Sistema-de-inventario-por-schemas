@@ -1,5 +1,6 @@
 from lxml import etree
 from .clave_acceso import generar_clave_acceso
+from facturacion.models import Impuesto
 
 
 def generar_xml_para_sri(factura):
@@ -46,10 +47,12 @@ def generar_xml_para_sri(factura):
     # Bloque totalConImpuestos
     total_con_impuestos = etree.SubElement(info_factura, 'totalConImpuestos')
     total_impuesto = etree.SubElement(total_con_impuestos, 'totalImpuesto')
-    etree.SubElement(total_impuesto, 'codigo').text = '2'
-    etree.SubElement(total_impuesto, 'codigoPorcentaje').text = '2'
+    # Obtener el IVA activo
+    iva = Impuesto.objects.filter(codigo_impuesto='2', activo=True).first()
+    etree.SubElement(total_impuesto, 'codigo').text = '2'  # Código del IVA
+    etree.SubElement(total_impuesto, 'codigoPorcentaje').text = str(iva.porcentaje)
     etree.SubElement(total_impuesto, 'baseImponible').text = str(factura.total_sin_impuestos)
-    etree.SubElement(total_impuesto, 'valor').text = str(factura.total_con_impuestos - factura.total_sin_impuestos)
+    etree.SubElement(total_impuesto, 'valor').text = str(factura.total_sin_impuestos * (iva.porcentaje / 100))
 
     etree.SubElement(info_factura, 'propina').text = '0.00'
     etree.SubElement(info_factura, 'importeTotal').text = str(factura.total_con_impuestos)

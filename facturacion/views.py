@@ -1,5 +1,5 @@
 from django.shortcuts import render, redirect
-from .models import Factura, Cotizacion, Cliente, ComprobantePago, DetalleFactura, Impuesto
+from .models import Factura, Cotizacion, Cliente, ComprobantePago, DetalleFactura, Impuesto, Pago   
 from django.http import HttpResponse, FileResponse
 from ventas.utils import obtener_carrito, vaciar_carrito
 from empleados.models import RegistroTurno
@@ -68,35 +68,57 @@ def generar_factura(request):
         if not carrito_items.exists():
             return JsonResponse({'error': 'El carrito está vacío. No se puede generar una factura.'}, status=400)
 
-        form = MetodoPagoForm(request.POST)
-        if form.is_valid():
-            metodo_pago = form.cleaned_data['metodo_pago']  # Capturar el método de pago seleccionado
+        # Capturamos los métodos de pago directamente desde el request.POST
+        metodos_pago = request.POST.getlist('metodos_pago')
+        montos_pago = request.POST.getlist('montos_pago')
 
-            try:
-                with transaction.atomic():
-                    factura = crear_factura(cliente, sucursal, request.user.empleado, carrito_items, metodo_pago)
+        # Definir descripciones para los métodos de pago
+        metodo_descripciones = {
+            '01': 'Efectivo',
+            '16': 'Tarjeta de Débito',
+            '19': 'Tarjeta de Crédito',
+            '20': 'Transferencias',  # Cambiado de "Otros" a "Transferencias"
+            '17': 'Dinero Electrónico'
+        }
 
-                    nombre_archivo = f"factura_{factura.numero_autorizacion}.pdf"
-                    ruta_pdf = os.path.join(settings.MEDIA_ROOT, nombre_archivo)
-                    generar_pdf_factura(factura, ruta_pdf)
+        try:
+            with transaction.atomic():
+                # Llamamos a crear_factura solo con los 4 argumentos correctos
+                factura = crear_factura(cliente, sucursal, empleado, carrito_items)
 
-                    carrito_items.delete()  # Vaciar el carrito después de generar la factura
+                # Asociamos los pagos con la factura
+                for metodo_pago, monto_pago in zip(metodos_pago, montos_pago):
+                    descripcion = metodo_descripciones.get(metodo_pago, 'Método de Pago Desconocido')
+                    Pago.objects.create(
+                        factura=factura,
+                        codigo_sri=metodo_pago,
+                        total=Decimal(monto_pago),
+                        descripcion=f"Pago con {descripcion}"
+                    )
 
-                    pdf_url = f"/media/{nombre_archivo}"
-                    redirect_url = reverse('ventas:inicio_turno')
+                # Generar PDF de la factura
+                nombre_archivo = f"factura_{factura.numero_autorizacion}.pdf"
+                ruta_pdf = os.path.join(settings.MEDIA_ROOT, nombre_archivo)
+                generar_pdf_factura(factura, ruta_pdf)
 
-                    return JsonResponse({'pdf_url': pdf_url, 'redirect_url': redirect_url})
-        
-            except ValidationError as e:
-                return JsonResponse({'error': e.messages}, status=400)
+                # Vaciar el carrito después de generar la factura
+                carrito_items.delete()
 
-    else:
-        form = MetodoPagoForm()  # Mostrar el formulario de método de pago
+                # URLs de respuesta
+                pdf_url = f"/media/{nombre_archivo}"
+                redirect_url = reverse('ventas:inicio_turno')
 
+                return JsonResponse({'pdf_url': pdf_url, 'redirect_url': redirect_url})
+
+        except ValidationError as e:
+            return JsonResponse({'error': e.messages}, status=400)
+
+    # En el caso de GET
     return render(request, 'facturacion/generar_factura.html', {
         'clientes': Cliente.objects.all(),
-        'form': form
     })
+
+
 
 def generar_comprobante_pago(request):
     if request.method == 'POST':

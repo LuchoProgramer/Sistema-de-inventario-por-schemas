@@ -144,28 +144,29 @@ class DetalleFactura(models.Model):
         return f'{self.producto.nombre} - {self.cantidad} unidades'
 
 
-
 class Pago(models.Model):
-    factura = models.ForeignKey(Factura, on_delete=models.CASCADE, related_name='pagos')
-    forma_pago = models.CharField(max_length=50)  # Método de pago (efectivo, tarjeta, etc.)
-    valor = models.DecimalField(max_digits=10, decimal_places=2)
-    fecha_pago = models.DateTimeField(auto_now_add=True)
+    # Definir los métodos de pago según el SRI
+    METODOS_PAGO_SRI = [
+        ('01', 'Sin utilización del sistema financiero'),
+        ('15', 'Compensación de deudas'),
+        ('16', 'Tarjeta de débito'),
+        ('17', 'Dinero electrónico'),
+        ('18', 'Tarjeta prepago'),
+        ('19', 'Tarjeta de crédito'),
+        ('20', 'Otros con utilización del sistema financiero'),
+        ('21', 'Endoso de títulos'),
+    ]
 
-    def clean(self):
-        # Validar que el valor del pago sea positivo
-        if self.valor <= 0:
-            raise ValidationError("El valor del pago debe ser mayor que cero.")
-        
-        # Validar que el valor del pago no exceda el saldo pendiente de la factura
-        total_pagado = sum(pago.valor for pago in self.factura.pagos.all())
-        if self.valor + total_pagado > self.factura.total_con_impuestos:
-            raise ValidationError("El valor del pago excede el saldo pendiente de la factura.")
-
-        super(Pago, self).clean()
+    factura = models.ForeignKey('Factura', on_delete=models.CASCADE, related_name="pagos")
+    codigo_sri = models.CharField(max_length=2, choices=METODOS_PAGO_SRI, default='01', help_text="Código del método de pago según el SRI")
+    descripcion = models.CharField(max_length=100, help_text="Descripción del método de pago", default='Sin descripción')
+    total = models.DecimalField(max_digits=10, decimal_places=2, help_text="Monto total del pago", default=0.00)
+    plazo = models.IntegerField(null=True, blank=True, help_text="Plazo de pago en días, si aplica", default=0)
+    unidad_tiempo = models.CharField(max_length=20, null=True, blank=True, help_text="Unidad de tiempo para el plazo, ej. días, meses", default='días')
+    fecha_pago = models.DateTimeField(auto_now_add=True)  # Mantener como en el modelo anterior
 
     def __str__(self):
-        return f'Pago de {self.valor} para {self.factura.numero_autorizacion}'
-    
+        return f"{self.descripcion} - {self.total} USD"
 
 
 from django.db import models
@@ -173,12 +174,11 @@ from django.db import models
 class Impuesto(models.Model):
     codigo_impuesto = models.CharField(max_length=2)  # Código SRI del impuesto (ej: '2' para IVA)
     nombre = models.CharField(max_length=100)
-    porcentaje = models.DecimalField(max_digits=5, decimal_places=2)  # Porcentaje del impuesto (ej: 12%)
-    monto = models.DecimalField(max_digits=10, decimal_places=2)  # Valor del impuesto aplicado
+    porcentaje = models.DecimalField(max_digits=5, decimal_places=2)  # Porcentaje del impuesto (ej: 15%)
+    activo = models.BooleanField(default=True)  # Para manejar qué impuesto está activo
 
     def __str__(self):
         return f'{self.nombre} - {self.porcentaje}%'
-
 
 class FacturaImpuesto(models.Model):
     factura = models.ForeignKey(Factura, on_delete=models.CASCADE, related_name='impuestos')

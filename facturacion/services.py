@@ -1,14 +1,24 @@
 from decimal import Decimal
-from .models import Factura, DetalleFactura
+from .models import Factura, DetalleFactura, Impuesto  # Asegúrate de importar el modelo Impuesto
 from inventarios.models import Inventario, MovimientoInventario
 from django.core.exceptions import ValidationError
 from .utils.xml_generator import generar_xml_para_sri
 from .utils.clave_acceso import generar_clave_acceso
 from django.db import transaction
 
-def crear_factura(cliente, sucursal, empleado, carrito_items, metodo_pago):
+def crear_factura(cliente, sucursal, empleado, carrito_items):
+    # Calcular el total sin impuestos
     total_sin_impuestos = sum(item.subtotal() for item in carrito_items)
-    total_con_impuestos = total_sin_impuestos * Decimal('1.12')  # Asumiendo 12% de IVA
+
+    # Obtener el IVA activo
+    iva = Impuesto.objects.filter(codigo_impuesto='2', activo=True).first()  # Código '2' para IVA
+
+    if not iva:
+        raise ValidationError("No se encontró un IVA activo en la base de datos")
+
+    # Calcular el valor del IVA y el total con impuestos
+    valor_iva = total_sin_impuestos * (iva.porcentaje / Decimal(100))
+    total_con_impuestos = total_sin_impuestos + valor_iva
 
     try:
         with transaction.atomic():
@@ -24,8 +34,8 @@ def crear_factura(cliente, sucursal, empleado, carrito_items, metodo_pago):
                 numero_autorizacion=secuencial,  # Usar el secuencial de la sucursal como número de autorización
                 total_sin_impuestos=total_sin_impuestos,
                 total_con_impuestos=total_con_impuestos,
-                estado='EN_PROCESO',
-                metodo_pago=metodo_pago  # Guardar el método de pago
+                estado='EN_PROCESO'
+                # método de pago eliminado
             )
 
             # Crear los detalles de la factura
@@ -37,7 +47,7 @@ def crear_factura(cliente, sucursal, empleado, carrito_items, metodo_pago):
                     precio_unitario=item.producto.precio_venta,
                     subtotal=item.subtotal(),
                     descuento=0,
-                    total=item.subtotal() * Decimal('1.12')
+                    total=item.subtotal() + (item.subtotal() * (iva.porcentaje / Decimal(100)))
                 )
 
                 # Actualizar inventario
