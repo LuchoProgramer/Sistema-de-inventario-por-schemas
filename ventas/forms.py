@@ -3,6 +3,19 @@
 from django import forms
 from .models import Producto
 from inventarios.models import Inventario
+from .models import CierreCaja
+
+class CierreCajaForm(forms.ModelForm):
+    class Meta:
+        model = CierreCaja
+        fields = ['efectivo_total', 'tarjeta_total', 'transferencia_total', 'salidas_caja']
+
+        widgets = {
+            'efectivo_total': forms.NumberInput(attrs={'class': 'form-control'}),
+            'tarjeta_total': forms.NumberInput(attrs={'class': 'form-control'}),
+            'transferencia_total': forms.NumberInput(attrs={'class': 'form-control'}),
+            'salidas_caja': forms.NumberInput(attrs={'class': 'form-control'}),
+        }
 
 class SeleccionVentaForm(forms.Form):
     producto = forms.ModelChoiceField(queryset=Producto.objects.none(), label="Producto")

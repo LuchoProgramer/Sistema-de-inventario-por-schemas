@@ -3,10 +3,11 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from empleados.models import RegistroTurno
-from .forms import SeleccionVentaForm
+from .forms import SeleccionVentaForm, CierreCajaForm
 from .models import Venta, Carrito
 from django.utils import timezone
 from inventarios.models import Producto
+from django.contrib import messages
 
 @login_required
 def registrar_venta(request):
@@ -127,3 +128,34 @@ def finalizar_venta(request):
         return redirect('ventas:inicio_turno')
     else:
         return render(request, 'ventas/error.html', {'mensaje': 'No tienes un turno activo.'})
+    
+
+def cerrar_turno(request):
+    empleado = request.user.empleado
+    turno_activo = RegistroTurno.objects.filter(empleado=empleado, fin_turno__isnull=True).first()
+
+    if not turno_activo:
+        messages.error(request, "No tienes un turno activo para cerrar.")
+        return redirect('ventas:inicio_turno')
+
+    if request.method == 'POST':
+        form = CierreCajaForm(request.POST)
+        if form.is_valid():
+            cierre_caja = form.save(commit=False)
+            cierre_caja.empleado = request.user
+            cierre_caja.sucursal = turno_activo.sucursal
+            cierre_caja.fecha_cierre = timezone.now()
+            cierre_caja.save()
+
+            # Marcar el turno como cerrado
+            turno_activo.fin_turno = timezone.now()
+            turno_activo.save()
+
+            messages.success(request, "Turno cerrado correctamente.")
+            return redirect('ventas:inicio_turno')
+        else:
+            messages.error(request, "Por favor, revisa los datos ingresados.")
+    else:
+        form = CierreCajaForm()
+
+    return render(request, 'ventas/cierre_caja.html', {'form': form, 'turno': turno_activo})

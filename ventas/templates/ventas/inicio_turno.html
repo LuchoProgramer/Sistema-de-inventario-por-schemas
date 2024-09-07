@@ -23,5 +23,12 @@
     <h3>Carrito de Ventas</h3>
     <a href="{% url 'ventas:ver_carrito' %}">Ver Carrito</a>
 
+    <!-- Botón para cerrar el turno -->
+    {% if turno %}
+    <form action="{% url 'ventas:cerrar_turno' %}" method="get">
+        <button type="submit" class="btn btn-danger">Cerrar Turno</button>
+    </form>
+    {% endif %} 
+
 </body>
 </html>
