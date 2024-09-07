@@ -82,6 +82,7 @@ class Factura(models.Model):
     total_con_impuestos = models.DecimalField(max_digits=10, decimal_places=2)
     estado = models.CharField(max_length=20, choices=ESTADOS_FACTURA, default='EN_PROCESO')
     estado_pago = models.CharField(max_length=20, choices=ESTADOS_PAGO, default='PENDIENTE')
+    valor_iva = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))
 
     def calcular_total_pagado(self):
         return sum(pago.valor for pago in self.pagos.all())
@@ -120,6 +121,7 @@ class DetalleFactura(models.Model):
     subtotal = models.DecimalField(max_digits=10, decimal_places=2)
     descuento = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     total = models.DecimalField(max_digits=10, decimal_places=2)
+    valor_iva = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))
 
     def clean(self):
         # Validación de cantidad

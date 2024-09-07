@@ -37,6 +37,9 @@ class RegistroTurno(models.Model):
     sucursal = models.ForeignKey(Sucursal, on_delete=models.CASCADE)
     inicio_turno = models.DateTimeField()
     fin_turno = models.DateTimeField(null=True, blank=True)
+    total_ventas = models.DecimalField(max_digits=10, decimal_places=2, default=0)  # Total de ventas
+    total_efectivo = models.DecimalField(max_digits=10, decimal_places=2, default=0)  # Efectivo recaudado
+    otros_metodos_pago = models.DecimalField(max_digits=10, decimal_places=2, default=0)  # Otros métodos de pago
 
     def __str__(self):
         return f"Turno de {self.empleado.nombre} en {self.sucursal.nombre} - Inicio: {self.inicio_turno}"

@@ -1,4 +1,4 @@
-from decimal import Decimal
+from decimal import Decimal, ROUND_HALF_UP
 from .models import Factura, DetalleFactura, Impuesto  # Asegúrate de importar el modelo Impuesto
 from inventarios.models import Inventario, MovimientoInventario
 from django.core.exceptions import ValidationError
@@ -7,18 +7,21 @@ from .utils.clave_acceso import generar_clave_acceso
 from django.db import transaction
 
 def crear_factura(cliente, sucursal, empleado, carrito_items):
-    # Calcular el total sin impuestos
-    total_sin_impuestos = sum(item.subtotal() for item in carrito_items)
-
     # Obtener el IVA activo
     iva = Impuesto.objects.filter(codigo_impuesto='2', activo=True).first()  # Código '2' para IVA
 
     if not iva:
         raise ValidationError("No se encontró un IVA activo en la base de datos")
 
-    # Calcular el valor del IVA y el total con impuestos
-    valor_iva = total_sin_impuestos * (iva.porcentaje / Decimal(100))
-    total_con_impuestos = total_sin_impuestos + valor_iva
+    # Calcular el total sin impuestos y redondear a 2 decimales
+    total_sin_impuestos = sum((item.subtotal() / (1 + (iva.porcentaje / Decimal(100)))).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP) for item in carrito_items)
+
+    # Calcular el valor del IVA y redondear a 2 decimales
+    valor_iva = sum(((item.subtotal() - (item.subtotal() / (1 + (iva.porcentaje / Decimal(100))))) for item in carrito_items))
+    valor_iva = Decimal(valor_iva).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+
+    # El total con impuestos sigue siendo el subtotal de los productos, redondeado a 2 decimales
+    total_con_impuestos = sum(item.subtotal().quantize(Decimal('0.01'), rounding=ROUND_HALF_UP) for item in carrito_items)
 
     try:
         with transaction.atomic():
@@ -31,30 +34,37 @@ def crear_factura(cliente, sucursal, empleado, carrito_items):
                 sucursal=sucursal,
                 cliente=cliente,
                 empleado=empleado,
-                numero_autorizacion=secuencial,  # Usar el secuencial de la sucursal como número de autorización
+                numero_autorizacion=secuencial,
                 total_sin_impuestos=total_sin_impuestos,
                 total_con_impuestos=total_con_impuestos,
+                valor_iva=valor_iva,  # Guardar el valor del IVA redondeado
                 estado='EN_PROCESO'
-                # método de pago eliminado
             )
 
             # Crear los detalles de la factura
             for item in carrito_items:
+                # Verificar si hay suficiente stock en el inventario
+                inventario = Inventario.objects.select_for_update().get(sucursal=sucursal, producto=item.producto)
+                if inventario.cantidad < item.cantidad:
+                    raise ValidationError(f"No hay suficiente stock para el producto: {item.producto.nombre}")
+
+                # Calcular el subtotal sin impuestos y el IVA por cada ítem
+                subtotal_sin_impuestos = (item.subtotal() / (1 + (iva.porcentaje / Decimal(100)))).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+                valor_iva_item = (item.subtotal() - subtotal_sin_impuestos).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+
+                # Crear detalle de factura
                 DetalleFactura.objects.create(
                     factura=factura,
                     producto=item.producto,
                     cantidad=item.cantidad,
                     precio_unitario=item.producto.precio_venta,
-                    subtotal=item.subtotal(),
+                    subtotal=subtotal_sin_impuestos,  # Guardar el subtotal sin IVA
                     descuento=0,
-                    total=item.subtotal() + (item.subtotal() * (iva.porcentaje / Decimal(100)))
+                    total=item.subtotal().quantize(Decimal('0.01'), rounding=ROUND_HALF_UP),  # El total sigue siendo el subtotal original que incluye IVA
+                    valor_iva=valor_iva_item  # Guardar el IVA redondeado a dos decimales
                 )
 
-                # Actualizar inventario
-                inventario = Inventario.objects.select_for_update().get(
-                    sucursal=sucursal,
-                    producto=item.producto
-                )
+                # Descontar stock del inventario
                 inventario.cantidad -= item.cantidad
                 inventario.save()
 
@@ -78,6 +88,7 @@ def crear_factura(cliente, sucursal, empleado, carrito_items):
                 tipo_emision='1'
             )
 
+            # Generar el XML para la factura
             xml_factura = generar_xml_para_sri(factura)
 
             return factura

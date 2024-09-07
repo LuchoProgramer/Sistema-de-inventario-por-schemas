@@ -5,6 +5,9 @@ document.addEventListener('DOMContentLoaded', function() {
     const saldoRestanteInput = document.getElementById('saldo_restante');
     const paymentMethodsContainer = document.getElementById('payment-methods-container');
     const addPaymentMethodButton = document.getElementById('add-payment-method');
+    const form = document.querySelector('form');
+    const clienteSelect = document.getElementById('cliente');
+    const identificacionInput = document.getElementById('identificacion');
 
     // Mostrar/ocultar el formulario de nuevo cliente
     nuevoClienteCheck.addEventListener('change', function() {
@@ -12,44 +15,68 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 
     // Convertimos el total de la factura a número
-    const totalFactura = parseFloat(totalFacturaInput.value);
+    const totalFactura = parseFloat(totalFacturaInput.value) || 0;
 
     // Función para recalcular el saldo restante
     function recalcularSaldoRestante() {
         let totalPagado = 0;
 
-        // Sumar todos los montos de pago
         paymentMethodsContainer.querySelectorAll('input[name="montos_pago"]').forEach(function(input) {
             const monto = parseFloat(input.value) || 0;
             totalPagado += monto;
         });
 
-        // Calcular el saldo restante
         const saldoRestante = totalFactura - totalPagado;
-        saldoRestanteInput.value = saldoRestante.toFixed(2);  // Mostrar el saldo con dos decimales
+        saldoRestanteInput.value = saldoRestante.toFixed(2);
 
-        // Validación: Si el saldo restante es menor que 0, mostrar alerta
         if (saldoRestante < 0) {
             alert("El monto total pagado excede el valor de la factura.");
         }
     }
 
-    // Escuchar los cambios en los montos de pago
     paymentMethodsContainer.addEventListener('input', recalcularSaldoRestante);
 
-    // Función para agregar un nuevo método de pago
     function agregarMetodoDePago() {
         const newPaymentMethod = paymentMethodsContainer.children[0].cloneNode(true);
-
-        // Limpiar el monto y el método de pago en el nuevo campo
         newPaymentMethod.querySelector('select').value = '01';
         newPaymentMethod.querySelector('input').value = '';
-
-        // Añadir el nuevo método de pago y recalcular el saldo restante
         paymentMethodsContainer.appendChild(newPaymentMethod);
-        recalcularSaldoRestante();  // Recalcular después de añadir
+        recalcularSaldoRestante();
     }
 
-    // Agregar un evento para agregar métodos de pago al hacer clic en el botón
     addPaymentMethodButton.addEventListener('click', agregarMetodoDePago);
+
+    form.addEventListener('submit', function(event) {
+        event.preventDefault();
+
+        if (!clienteSelect.value && (!nuevoClienteCheck.checked || !identificacionInput.value)) {
+            alert("Por favor, selecciona un cliente o ingresa los datos de un nuevo cliente.");
+            return;
+        }
+
+        fetch(form.action, {
+            method: 'POST',
+            body: new FormData(form),
+            headers: {
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                const errorAlert = document.createElement('div');
+                errorAlert.className = 'alert alert-danger';
+                errorAlert.role = 'alert';
+                errorAlert.innerText = data.error;
+                form.prepend(errorAlert);
+            } else if (data.pdf_url && data.redirect_url) {
+                // Open the PDF in a new tab
+                window.open(data.pdf_url, '_blank');
+
+                // Redirect to the new page (home)
+                window.location.href = data.redirect_url;
+            }
+        })
+        .catch(error => console.error('Error:', error));
+    });
 });

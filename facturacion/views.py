@@ -46,6 +46,13 @@ def generar_cotizacion(request):
 
 def generar_factura(request):
     if request.method == 'POST':
+        cliente_id = request.POST.get('cliente_id')
+        identificacion = request.POST.get('identificacion')
+
+        # Validar que se ha seleccionado un cliente existente o que se ha proporcionado un nuevo cliente
+        if not cliente_id and not identificacion:
+            return JsonResponse({'error': 'Debes seleccionar un cliente o ingresar los datos de un nuevo cliente.'}, status=400)
+
         empleado = request.user.empleado
         turno_activo = RegistroTurno.objects.filter(empleado=empleado, fin_turno__isnull=True).first()
 
@@ -54,15 +61,26 @@ def generar_factura(request):
 
         sucursal = turno_activo.sucursal
 
-        cliente_id = request.POST.get('cliente_id')
-        cliente = Cliente.objects.get(id=cliente_id) if cliente_id else Cliente.objects.create(
-            identificacion=request.POST.get('identificacion'),
-            tipo_identificacion=request.POST.get('tipo_identificacion'),
-            razon_social=request.POST.get('razon_social'),
-            direccion=request.POST.get('direccion'),
-            telefono=request.POST.get('telefono'),
-            email=request.POST.get('email')
-        )
+        # Verificar si el cliente ya existe o crear uno nuevo
+        try:
+            if cliente_id:
+                cliente = Cliente.objects.get(id=cliente_id)
+            else:
+                cliente, created = Cliente.objects.get_or_create(
+                    identificacion=identificacion,
+                    defaults={
+                        'tipo_identificacion': request.POST.get('tipo_identificacion'),
+                        'razon_social': request.POST.get('razon_social'),
+                        'direccion': request.POST.get('direccion'),
+                        'telefono': request.POST.get('telefono'),
+                        'email': request.POST.get('email')
+                    }
+                )
+                # Si el cliente ya existía pero no tiene todos los campos, mostrará error
+                if not created and not cliente.razon_social:
+                    return JsonResponse({'error': 'Cliente incompleto. Por favor revisa los datos ingresados.'}, status=400)
+        except Cliente.DoesNotExist:
+            return JsonResponse({'error': 'Cliente no encontrado.'}, status=400)
 
         carrito_items = obtener_carrito(request.user)
         if not carrito_items.exists():
@@ -83,7 +101,7 @@ def generar_factura(request):
 
         try:
             with transaction.atomic():
-                # Llamamos a crear_factura solo con los 4 argumentos correctos
+                # Crear la factura
                 factura = crear_factura(cliente, sucursal, empleado, carrito_items)
 
                 # Asociamos los pagos con la factura
@@ -113,11 +131,18 @@ def generar_factura(request):
         except ValidationError as e:
             return JsonResponse({'error': e.messages}, status=400)
 
-    # En el caso de GET
-    return render(request, 'facturacion/generar_factura.html', {
-        'clientes': Cliente.objects.all(),
-    })
+    # En el caso de GET (cuando la página se carga)
+    else:
+        # Obtener el carrito de compras
+        carrito_items = obtener_carrito(request.user)
 
+        # Calcular el total de la factura
+        total_factura = sum(item.subtotal() for item in carrito_items)
+
+        return render(request, 'facturacion/generar_factura.html', {
+            'clientes': Cliente.objects.all(),
+            'total_factura': total_factura,  # Pasar el total al template
+        })
 
 
 def generar_comprobante_pago(request):
