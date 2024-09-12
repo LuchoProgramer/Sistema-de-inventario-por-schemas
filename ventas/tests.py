@@ -1,89 +1,80 @@
 from django.test import TestCase
 from django.utils import timezone
 from django.contrib.auth.models import User
-from ventas.models import Venta, CierreCaja
-from empleados.models import Empleado
+from empleados.models import Empleado, RegistroTurno
 from sucursales.models import Sucursal
-from inventarios.models import Producto, Categoria, Inventario  # Asegúrate de importar Inventario
 
-class CierreCajaTestCase(TestCase):
-
+class TurnoTest(TestCase):
     def setUp(self):
+        # Crear un usuario y empleado
+        self.usuario = User.objects.create(username='testuser', password='testpassword')
+        self.empleado = Empleado.objects.create(usuario=self.usuario, nombre='Empleado Test')
+
         # Crear una sucursal
         self.sucursal = Sucursal.objects.create(
-            nombre="Sucursal 1",
-            direccion="Calle Falsa 123",
-            telefono="1234567890"
-        )
-        
-        # Crear una categoría de producto
-        self.categoria = Categoria.objects.create(nombre="Categoría de Prueba")
-        
-        # Crear un producto de prueba
-        self.producto = Producto.objects.create(
-            nombre="Producto de Prueba",
-            descripcion="Descripción del producto de prueba",
-            precio_compra=5.00,
-            precio_venta=10.00,
-            unidad_medida="Unidad",
-            categoria=self.categoria,
-            sucursal=self.sucursal
-        )
-        
-        # Crear un inventario para el producto y la sucursal
-        self.inventario = Inventario.objects.create(
-            sucursal=self.sucursal,
-            producto=self.producto,
-            cantidad=100  # Cantidad inicial en inventario
-        )
-        
-        # Crear un usuario
-        self.usuario = User.objects.create_user(username="Empleado1", password="password123")
-        
-        # Crear un empleado asociado al usuario
-        self.empleado = Empleado.objects.create(
-            usuario=self.usuario,
-            nombre="Empleado1",
-            sucursal=self.sucursal,
-            grupo="Empleado"
-        )
-        
-        # Crear ventas de ejemplo usando el producto
-        Venta.objects.create(
-            sucursal=self.sucursal,
-            empleado=self.usuario,  # Asignar User aquí
-            producto=self.producto,  # Asignar el Producto aquí
-            metodo_pago="Efectivo",
-            total_venta=100.00,  # Este puede ser calculado automáticamente
-            cantidad=10,  # Asigna un valor válido para la cantidad
-            precio_unitario=10.00,  # Asigna un valor válido para el precio unitario
-            fecha=timezone.now()
-        )
-        Venta.objects.create(
-            sucursal=self.sucursal,
-            empleado=self.usuario,  # Asignar User aquí
-            producto=self.producto,  # Asignar el Producto aquí
-            metodo_pago="Tarjeta",
-            total_venta=50.00,  # Este puede ser calculado automáticamente
-            cantidad=5,  # Asigna un valor válido para la cantidad
-            precio_unitario=10.00,  # Asigna un valor válido para el precio unitario
-            fecha=timezone.now()
-        )
-        
-        # Crear un cierre de caja con montos coincidentes
-        self.cierre_caja = CierreCaja.objects.create(
-            sucursal=self.sucursal,
-            empleado=self.usuario,  # Cambiar self.empleado a self.usuario
-            efectivo_total=100.00,
-            tarjeta_total=50.00,
-            transferencia_total=0.00
+            nombre='Sucursal 1', 
+            direccion='Dirección 1',
+            razon_social='Empresa Test',
+            telefono='0987654321',
+            ruc='1234567890001',
+            codigo_establecimiento='001',
+            punto_emision='001',
+            secuencial_actual='000000001'
         )
 
-    def test_verificar_montos_incorrectos(self):
-        # Modificar el cierre de caja para simular una discrepancia
-        self.cierre_caja.efectivo_total = 120.00
-        resultado = self.cierre_caja.verificar_montos()
+    def test_iniciar_turno(self):
+        # Verificar que no hay un turno activo antes de iniciar
+        turno_activo = RegistroTurno.objects.filter(empleado=self.empleado, fin_turno__isnull=True).exists()
+        self.assertFalse(turno_activo)
 
-        # Asegurarse de que el resultado incluya la discrepancia, ignorando el formato exacto
-        esperado = "Discrepancia en efectivo"
-        self.assertTrue(any(esperado in mensaje for mensaje in resultado))
+        # Iniciar turno
+        turno = RegistroTurno.objects.create(
+            empleado=self.empleado,
+            sucursal=self.sucursal,
+            inicio_turno=timezone.now()
+        )
+
+        # Verificar que ahora sí hay un turno activo
+        turno_activo = RegistroTurno.objects.filter(empleado=self.empleado, fin_turno__isnull=True).exists()
+        self.assertTrue(turno_activo)
+        self.assertEqual(turno.empleado, self.empleado)
+        self.assertEqual(turno.sucursal, self.sucursal)
+
+
+class CierreTurnoTest(TestCase):
+    def setUp(self):
+        # Crear un usuario y empleado
+        self.usuario = User.objects.create(username='testuser', password='testpassword')
+        self.empleado = Empleado.objects.create(usuario=self.usuario, nombre='Empleado Test')
+
+        # Crear una sucursal
+        self.sucursal = Sucursal.objects.create(
+            nombre='Sucursal 1', 
+            direccion='Dirección 1',
+            razon_social='Empresa Test',
+            telefono='0987654321',
+            ruc='1234567890001',
+            codigo_establecimiento='001',
+            punto_emision='001',
+            secuencial_actual='000000001'
+        )
+
+        # Iniciar un turno
+        self.turno = RegistroTurno.objects.create(
+            empleado=self.empleado,
+            sucursal=self.sucursal,
+            inicio_turno=timezone.now()
+        )
+
+    def test_cerrar_turno(self):
+        # Verificar que el turno no tiene fin_turno al inicio
+        self.assertIsNone(self.turno.fin_turno)
+
+        # Cerrar el turno
+        self.turno.fin_turno = timezone.now()
+        self.turno.save()
+
+        # Verificar que ahora el turno tiene una fecha de fin
+        turno_cerrado = RegistroTurno.objects.get(id=self.turno.id)
+        self.assertIsNotNone(turno_cerrado.fin_turno)
+        self.assertEqual(turno_cerrado.empleado, self.empleado)

@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Comparar Cierre de Caja y Ventas</title>
+    <link rel="stylesheet" href="{% static 'path_to_your_css_file.css' %}">
+</head>
+<body>
+    <h1>Comparación de Cierre de Caja para el Turno de {{ turno.empleado.nombre }}</h1>
+    
+    <h2>Detalles del Turno</h2>
+    <p><strong>Sucursal:</strong> {{ turno.sucursal.nombre }}</p>
+    <p><strong>Inicio del Turno:</strong> {{ turno.inicio_turno }}</p>
+    <p><strong>Fin del Turno:</strong> {{ turno.fin_turno }}</p>
+    
+    <h2>Valores Ingresados por el Empleado</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Método de Pago</th>
+                <th>Total Ingresado</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>Efectivo</td>
+                <td>{{ cierre_caja.efectivo_total }}</td>
+            </tr>
+            <tr>
+                <td>Tarjeta</td>
+                <td>{{ cierre_caja.tarjeta_total }}</td>
+            </tr>
+            <tr>
+                <td>Transferencia</td>
+                <td>{{ cierre_caja.transferencia_total }}</td>
+            </tr>
+            <tr>
+                <td>Salidas de Caja</td>
+                <td>{{ cierre_caja.salidas_caja }}</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <h2>Totales de Ventas Reales</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Método de Pago</th>
+                <th>Total de Ventas</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>Efectivo</td>
+                <td>{{ total_ventas_efectivo }}</td>
+            </tr>
+            <tr>
+                <td>Tarjeta</td>
+                <td>{{ total_ventas_tarjeta }}</td>
+            </tr>
+            <tr>
+                <td>Transferencia</td>
+                <td>{{ total_ventas_transferencia }}</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <h2>Diferencias</h2>
+    <table>
+        <thead>
+            <tr>
+                <th>Método de Pago</th>
+                <th>Diferencia</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr>
+                <td>Efectivo</td>
+                <td>{{ cierre_caja.efectivo_total|floatformat:2|default:0|add:total_ventas_efectivo|floatformat:2 }}</td>
+            </tr>
+            <tr>
+                <td>Tarjeta</td>
+                <td>{{ cierre_caja.tarjeta_total|floatformat:2|default:0|add:total_ventas_tarjeta|floatformat:2 }}</td>
+            </tr>
+            <tr>
+                <td>Transferencia</td>
+                <td>{{ cierre_caja.transferencia_total|floatformat:2|default:0|add:total_ventas_transferencia|floatformat:2 }}</td>
+            </tr>
+        </tbody>
+    </table>
+
+    <a href="{% url 'dashboard' %}">Volver al Dashboard</a>
+</body>
+</html>

@@ -27,6 +27,7 @@ def crear_factura(cliente, sucursal, empleado, carrito_items):
         with transaction.atomic():
             # Incrementar el secuencial de la sucursal ANTES de crear la factura
             sucursal.incrementar_secuencial()
+            sucursal.save()  # Guardamos el nuevo secuencial en la base de datos
             secuencial = sucursal.secuencial_actual.zfill(9)
 
             # Crear la factura con el secuencial actual

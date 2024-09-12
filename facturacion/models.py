@@ -1,10 +1,7 @@
 from django.db import models
-from empleados.models import Empleado
 from sucursales.models import Sucursal
 from inventarios.models import Producto
 from django.core.exceptions import ValidationError
-from ventas.models import Carrito
-from empleados.models import RegistroTurno
 from django.core.validators import RegexValidator
 from decimal import Decimal
 
@@ -70,9 +67,9 @@ class Factura(models.Model):
 
     sucursal = models.ForeignKey(Sucursal, on_delete=models.CASCADE)
     cliente = models.ForeignKey(Cliente, on_delete=models.CASCADE)
-    empleado = models.ForeignKey(Empleado, on_delete=models.SET_NULL, null=True, blank=True)
+    empleado = models.ForeignKey('empleados.Empleado', on_delete=models.SET_NULL, null=True, blank=True)
     fecha_emision = models.DateTimeField(auto_now_add=True)
-    numero_autorizacion = models.CharField(max_length=49, unique=True, null=True, blank=True)
+    numero_autorizacion = models.CharField(max_length=49)
     clave_acceso = models.CharField(max_length=49, unique=True, null=True, blank=True)
     tipo_comprobante = models.CharField(max_length=2, choices=TIPO_COMPROBANTE_OPCIONES, default='01')
     contribuyente_especial = models.CharField(max_length=5, null=True, blank=True)
@@ -83,6 +80,11 @@ class Factura(models.Model):
     estado = models.CharField(max_length=20, choices=ESTADOS_FACTURA, default='EN_PROCESO')
     estado_pago = models.CharField(max_length=20, choices=ESTADOS_PAGO, default='PENDIENTE')
     valor_iva = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))
+        # Agregar la relación con RegistroTurno
+    registroturno = models.ForeignKey('empleados.RegistroTurno', on_delete=models.CASCADE, null=True, blank=True)
+
+    class Meta:
+        unique_together = ('sucursal', 'numero_autorizacion')
 
     def calcular_total_pagado(self):
         return sum(pago.valor for pago in self.pagos.all())
@@ -113,7 +115,7 @@ class Factura(models.Model):
     
 
 class DetalleFactura(models.Model):
-    factura = models.ForeignKey(Factura, on_delete=models.CASCADE, related_name='detalles')
+    factura = models.ForeignKey('facturacion.Factura', on_delete=models.CASCADE, related_name='detalles')
     producto = models.ForeignKey(Producto, on_delete=models.CASCADE)
     codigo_principal = models.CharField(max_length=20, null=True, blank=True)  # Código único del producto
     cantidad = models.IntegerField()
@@ -159,7 +161,7 @@ class Pago(models.Model):
         ('21', 'Endoso de títulos'),
     ]
 
-    factura = models.ForeignKey('Factura', on_delete=models.CASCADE, related_name="pagos")
+    factura = models.ForeignKey('facturacion.Factura', on_delete=models.CASCADE, related_name="pagos")
     codigo_sri = models.CharField(max_length=2, choices=METODOS_PAGO_SRI, default='01', help_text="Código del método de pago según el SRI")
     descripcion = models.CharField(max_length=100, help_text="Descripción del método de pago", default='Sin descripción')
     total = models.DecimalField(max_digits=10, decimal_places=2, help_text="Monto total del pago", default=0.00)
@@ -202,7 +204,7 @@ class FacturaImpuesto(models.Model):
 class Cotizacion(models.Model):
     sucursal = models.ForeignKey(Sucursal, on_delete=models.CASCADE)
     cliente = models.ForeignKey(Cliente, on_delete=models.SET_NULL, null=True, blank=True)
-    empleado = models.ForeignKey(Empleado, on_delete=models.SET_NULL, null=True, blank=True)
+    empleado = models.ForeignKey('empleados.Empleado', on_delete=models.SET_NULL, null=True, blank=True)
     fecha_emision = models.DateTimeField(auto_now_add=True)
     total_sin_impuestos = models.DecimalField(max_digits=10, decimal_places=2)
     total_con_impuestos = models.DecimalField(max_digits=10, decimal_places=2)
@@ -215,7 +217,7 @@ class Cotizacion(models.Model):
 class ComprobantePago(models.Model):
     sucursal = models.ForeignKey(Sucursal, on_delete=models.CASCADE)
     cliente = models.CharField(max_length=200, null=True, blank=True)
-    empleado = models.ForeignKey(Empleado, on_delete=models.SET_NULL, null=True, blank=True)
+    empleado = models.ForeignKey('empleados.Empleado', on_delete=models.SET_NULL, null=True, blank=True)
     fecha_emision = models.DateTimeField(auto_now_add=True)
     numero_autorizacion = models.CharField(max_length=49, unique=True, null=True, blank=True)
     total = models.DecimalField(max_digits=10, decimal_places=2)

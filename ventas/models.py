@@ -4,18 +4,17 @@ from sucursales.models import Sucursal
 from django.contrib.auth.models import User  # Asumiendo que los empleados están basados en el modelo User
 from django.db.models import Sum
 from django.core.exceptions import ValidationError
-from empleados.models import RegistroTurno
+from decimal import Decimal
 
 
 class Venta(models.Model):
-    turno = models.ForeignKey(RegistroTurno, on_delete=models.CASCADE, related_name='ventas')
+    turno = models.ForeignKey('empleados.RegistroTurno', on_delete=models.CASCADE, related_name='ventas')
     sucursal = models.ForeignKey(Sucursal, on_delete=models.CASCADE)
     empleado = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
     producto = models.ForeignKey(Producto, on_delete=models.CASCADE)
     cantidad = models.IntegerField()
     precio_unitario = models.DecimalField(max_digits=10, decimal_places=2)
     total_venta = models.DecimalField(max_digits=10, decimal_places=2, editable=False)
-    # Eliminar el campo método de pago, ya que será gestionado por el modelo Pago
     fecha = models.DateTimeField(auto_now_add=True)
 
     def clean(self):
@@ -40,12 +39,14 @@ class Venta(models.Model):
         # Validar los datos antes de guardar
         self.full_clean()  # Esto ejecuta el método clean automáticamente
 
-        # Calcular el total de la venta
-        self.total_venta = self.cantidad * self.precio_unitario
+        # Calcular el total de la venta con precisión de dos decimales
+        self.total_venta = (self.cantidad * self.precio_unitario).quantize(Decimal('0.01'))
 
         # Obtener el inventario y verificar la disponibilidad
         inventario = Inventario.objects.select_for_update().get(sucursal=self.sucursal, producto=self.producto)
         inventario.cantidad -= self.cantidad
+        if inventario.cantidad < 0:
+            raise ValidationError("El inventario no puede ser negativo después de la venta.")
         inventario.save()
 
         # Registrar el movimiento de inventario
@@ -80,7 +81,7 @@ class CierreCaja(models.Model):
     def verificar_montos(self):
         # Importar aquí para evitar el ciclo de importación
         from ventas.models import Venta
-        
+
         # Filtrar las ventas para la fecha, sucursal y empleado específicos
         ventas = Venta.objects.filter(
             fecha__date=self.fecha_cierre.date(),
@@ -91,9 +92,10 @@ class CierreCaja(models.Model):
         # Realizar agregaciones para calcular los totales directamente en la base de datos
         totales = ventas.values('metodo_pago').annotate(total=Sum('total_venta'))
 
-        total_ventas_efectivo = next((item['total'] for item in totales if item['metodo_pago'] == 'Efectivo'), 0)
-        total_ventas_tarjeta = next((item['total'] for item in totales if item['metodo_pago'] == 'Tarjeta'), 0)
-        total_ventas_transferencia = next((item['total'] for item in totales if item['metodo_pago'] == 'Transferencia'), 0)
+        # Obtener los totales por cada método de pago o asignar 0 si no existen
+        total_ventas_efectivo = Decimal(next((item['total'] for item in totales if item['metodo_pago'] == 'Efectivo'), 0))
+        total_ventas_tarjeta = Decimal(next((item['total'] for item in totales if item['metodo_pago'] == 'Tarjeta'), 0))
+        total_ventas_transferencia = Decimal(next((item['total'] for item in totales if item['metodo_pago'] == 'Transferencia'), 0))
 
         errores = []
         if total_ventas_efectivo != self.efectivo_total:
@@ -103,16 +105,30 @@ class CierreCaja(models.Model):
         if total_ventas_transferencia != self.transferencia_total:
             errores.append(f"Discrepancia en transferencias: {total_ventas_transferencia} esperado, {self.transferencia_total} registrado.")
 
-        return errores or "Los montos coinciden."
+        return errores if errores else "Los montos coinciden."
+    
+
 
 class Carrito(models.Model):
-    turno = models.ForeignKey(RegistroTurno, on_delete=models.CASCADE, related_name='carritos')
+    turno = models.ForeignKey('empleados.RegistroTurno', on_delete=models.CASCADE, related_name='carritos')
     producto = models.ForeignKey(Producto, on_delete=models.CASCADE)
     cantidad = models.PositiveIntegerField(default=1)
     agregado_el = models.DateTimeField(auto_now_add=True)
 
+    def clean(self):
+        # Validar que la cantidad sea positiva
+        if self.cantidad <= 0:
+            raise ValidationError('La cantidad del producto debe ser mayor que cero.')
+
+        # Verificar que haya suficiente inventario del producto
+        if self.producto.stock < self.cantidad:
+            raise ValidationError(f'No hay suficiente stock para {self.producto.nombre}. Disponibles: {self.producto.stock}')
+
+        super().clean()
+
     def subtotal(self):
-        return self.producto.precio_venta * self.cantidad
+        # Calcular subtotal con precisión de dos decimales
+        return (self.producto.precio_venta * self.cantidad).quantize(Decimal('0.01'))
 
     def __str__(self):
         return f"{self.cantidad} x {self.producto.nombre} (en {self.turno.sucursal.nombre})"

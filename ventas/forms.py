@@ -23,6 +23,7 @@ class SeleccionVentaForm(forms.Form):
     
     def __init__(self, *args, **kwargs):
         sucursal_id = kwargs.pop('sucursal_id', None)
+        self.sucursal_id = sucursal_id
         super().__init__(*args, **kwargs)
         if sucursal_id:
             self.fields['producto'].queryset = Producto.objects.filter(inventario__sucursal_id=sucursal_id)

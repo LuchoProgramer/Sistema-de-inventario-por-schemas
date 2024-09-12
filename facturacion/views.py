@@ -44,12 +44,17 @@ def generar_cotizacion(request):
     return render(request, 'facturacion/generar_cotizacion.html')
 
 
+from django.urls import reverse
+from django.http import JsonResponse
+from django.db import transaction
+from decimal import Decimal
+
 def generar_factura(request):
     if request.method == 'POST':
         cliente_id = request.POST.get('cliente_id')
         identificacion = request.POST.get('identificacion')
 
-        # Validar que se ha seleccionado un cliente existente o que se ha proporcionado un nuevo cliente
+        # Validar que se ha seleccionado un cliente o proporcionado los datos de uno nuevo
         if not cliente_id and not identificacion:
             return JsonResponse({'error': 'Debes seleccionar un cliente o ingresar los datos de un nuevo cliente.'}, status=400)
 
@@ -76,26 +81,27 @@ def generar_factura(request):
                         'email': request.POST.get('email')
                     }
                 )
-                # Si el cliente ya existía pero no tiene todos los campos, mostrará error
+                # Si el cliente ya existía pero no tiene todos los campos completos
                 if not created and not cliente.razon_social:
                     return JsonResponse({'error': 'Cliente incompleto. Por favor revisa los datos ingresados.'}, status=400)
         except Cliente.DoesNotExist:
             return JsonResponse({'error': 'Cliente no encontrado.'}, status=400)
 
+        # Obtener el carrito de compras
         carrito_items = obtener_carrito(request.user)
         if not carrito_items.exists():
             return JsonResponse({'error': 'El carrito está vacío. No se puede generar una factura.'}, status=400)
 
-        # Capturamos los métodos de pago directamente desde el request.POST
+        # Capturar los métodos de pago y montos desde el formulario
         metodos_pago = request.POST.getlist('metodos_pago')
         montos_pago = request.POST.getlist('montos_pago')
 
-        # Definir descripciones para los métodos de pago
+        # Descripciones para los métodos de pago
         metodo_descripciones = {
             '01': 'Efectivo',
             '16': 'Tarjeta de Débito',
             '19': 'Tarjeta de Crédito',
-            '20': 'Transferencias',  # Cambiado de "Otros" a "Transferencias"
+            '20': 'Transferencias',
             '17': 'Dinero Electrónico'
         }
 
@@ -104,7 +110,7 @@ def generar_factura(request):
                 # Crear la factura
                 factura = crear_factura(cliente, sucursal, empleado, carrito_items)
 
-                # Asociamos los pagos con la factura
+                # Asignar los pagos a la factura
                 for metodo_pago, monto_pago in zip(metodos_pago, montos_pago):
                     descripcion = metodo_descripciones.get(metodo_pago, 'Método de Pago Desconocido')
                     Pago.objects.create(
@@ -124,16 +130,16 @@ def generar_factura(request):
 
                 # URLs de respuesta
                 pdf_url = f"/media/{nombre_archivo}"
-                redirect_url = reverse('ventas:inicio_turno')
+                # Aquí pasamos el turno_id al redirigir
+                redirect_url = reverse('ventas:inicio_turno', args=[turno_activo.id])
 
                 return JsonResponse({'pdf_url': pdf_url, 'redirect_url': redirect_url})
 
         except ValidationError as e:
             return JsonResponse({'error': e.messages}, status=400)
 
-    # En el caso de GET (cuando la página se carga)
+    # Si el método es GET, cargamos la página con los datos del carrito
     else:
-        # Obtener el carrito de compras
         carrito_items = obtener_carrito(request.user)
 
         # Calcular el total de la factura

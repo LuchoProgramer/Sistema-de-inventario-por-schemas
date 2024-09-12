@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Venta, CierreCaja, RegistroTurno
+from .models import Venta, CierreCaja
 
 class VentaAdmin(admin.ModelAdmin):
     list_display = ['producto', 'sucursal', 'empleado', 'cantidad', 'precio_unitario', 'total_venta', 'fecha']

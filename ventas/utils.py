@@ -1,5 +1,6 @@
-from .models import Carrito, RegistroTurno
+from .models import Carrito
 from empleados.models import Empleado
+from empleados.models import RegistroTurno
 
 def obtener_carrito(usuario):
     """
@@ -15,9 +16,16 @@ def obtener_carrito(usuario):
         if turno_activo:
             # Obtener los elementos del carrito asociados con el turno activo
             return Carrito.objects.filter(turno=turno_activo)
-        
+        else:
+            # Si no hay turno activo, retornar un queryset vacío y loggear
+            return Carrito.objects.none()
+    
     except Empleado.DoesNotExist:
         # Si no existe el empleado o turno, retornar un queryset vacío
+        return Carrito.objects.none()
+    except Exception as e:
+        # Capturar cualquier otra excepción
+        print(f"Error al obtener el carrito: {e}")
         return Carrito.objects.none()
 
 
@@ -42,3 +50,6 @@ def vaciar_carrito(usuario):
     except Empleado.DoesNotExist:
         # Si el empleado no existe, no se hace nada
         pass
+    except Exception as e:
+        # Capturar cualquier otra excepción
+        print(f"Error al vaciar el carrito: {e}")
