@@ -13,6 +13,8 @@ from ventas.models import Venta, CierreCaja
 from facturacion.models import Factura, Pago
 from decimal import Decimal
 from sucursales.models import Sucursal
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
 
 @login_required
 def registrar_venta(request):
@@ -63,38 +65,37 @@ def registrar_venta(request):
 def inicio_turno(request, turno_id=None):
     empleado = request.user.empleado
 
+    # Si se proporciona un turno_id, significa que ya hay un turno activo
+    if turno_id:
+        turno = get_object_or_404(RegistroTurno, id=turno_id, empleado=empleado)
+        productos = Producto.objects.all()  # Ajusta esto según tu lógica para obtener productos
+        return render(request, 'ventas/inicio_turno.html', {
+            'turno': turno, 
+            'productos': productos,
+            'sucursal': turno.sucursal
+        })
+
+    # Si no hay turno_id, se está intentando iniciar un turno nuevo
     if request.method == 'POST':
         sucursal_id = request.POST.get('sucursal_id')
         try:
-            # Verificar la sucursal seleccionada
             sucursal = Sucursal.objects.get(id=sucursal_id)
-
-            # Crear un nuevo turno
             nuevo_turno = RegistroTurno.objects.create(
                 empleado=empleado,
                 sucursal=sucursal,
                 inicio_turno=timezone.now()
             )
-            messages.success(request, f"Turno iniciado en {sucursal.nombre}")
-            
-            # Redirigir al inicio del turno con el ID
+            messages.success(request, f'Turno iniciado en {sucursal.nombre}.')
             return redirect('ventas:inicio_turno', turno_id=nuevo_turno.id)
+
         except Sucursal.DoesNotExist:
-            messages.error(request, "La sucursal seleccionada no existe.")
-            return redirect('dashboard')
-        except Exception as e:
-            messages.error(request, f"Error al iniciar el turno: {str(e)}")
-            return redirect('dashboard')
-    
-    # Mostrar los productos y turno activo
-    else:
-        if turno_id:
-            turno = get_object_or_404(RegistroTurno, id=turno_id, empleado=empleado)
-            productos = Producto.objects.filter(sucursal=turno.sucursal)
-            return render(request, 'ventas/inicio_turno.html', {'turno': turno, 'productos': productos})
-        else:
-            messages.error(request, "No tienes un turno activo.")
-            return redirect('dashboard')
+            messages.error(request, 'La sucursal seleccionada no existe.')
+            return redirect('ventas:inicio_turno')
+
+    # Si es una solicitud GET, mostrar la página de selección de sucursal
+    sucursales = Sucursal.objects.all()
+    return render(request, 'ventas/inicio_turno.html', {'sucursales': sucursales})
+
 
 @login_required
 def agregar_al_carrito(request, producto_id):
