@@ -45,7 +45,7 @@
         $('#form-inicio-turno').on('submit', function(event) {
             event.preventDefault();
             const formData = new FormData(this);
-
+    
             $.ajax({
                 url: "{% url 'dashboard' %}",  // Asegúrate de que la URL esté correcta
                 type: 'POST',
@@ -57,13 +57,15 @@
                 },
                 success: function(response) {
                     if (response.success) {
-                        window.location.href = "/ventas/inicio_turno/";  // Redirigir a la pantalla de ventas si es exitoso
+                        // Redirigir a la URL dinámica con el turno_id
+                        window.location.href = `/ventas/inicio_turno/${response.turno_id}/`;
                     } else {
-                        alert('Error al iniciar el turno. Por favor, inténtelo de nuevo.');
+                        alert(response.message || 'Error al iniciar el turno. Por favor, inténtelo de nuevo.');
                     }
                 },
                 error: function(xhr, status, error) {
                     console.error('Error:', error);
+                    alert('Ocurrió un error al procesar la solicitud.');
                 }
             });
         });

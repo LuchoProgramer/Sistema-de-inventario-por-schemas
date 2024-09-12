@@ -7,7 +7,6 @@ app_name = 'ventas'  # Define el namespace
 
 urlpatterns = [
     path('registrar/', registrar_venta, name='registrar_venta'),
-    path('inicio_turno/', inicio_turno, name='inicio_turno'),  # Para iniciar el turno
     path('inicio_turno/<int:turno_id>/', inicio_turno, name='inicio_turno'),
     path('agregar/<int:producto_id>/', agregar_al_carrito, name='agregar_al_carrito'),
     path('carrito/', ver_carrito, name='ver_carrito'),

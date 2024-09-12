@@ -60,7 +60,7 @@ def registrar_venta(request):
 
 
 @login_required
-def inicio_turno(request, turno_id):
+def inicio_turno(request, turno_id): #esta es la vista de cuando se inicia el turno no tieene nada que ver con la logica para iniciar turno
     # Cargar el turno usando el turno_id y verificar que pertenece al empleado logueado
     turno = get_object_or_404(RegistroTurno, id=turno_id, empleado=request.user.empleado)
 
