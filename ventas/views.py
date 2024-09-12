@@ -13,8 +13,6 @@ from ventas.models import Venta, CierreCaja
 from facturacion.models import Factura, Pago
 from decimal import Decimal
 from sucursales.models import Sucursal
-from django.http import JsonResponse
-from django.views.decorators.csrf import csrf_exempt
 
 @login_required
 def registrar_venta(request):
@@ -62,39 +60,19 @@ def registrar_venta(request):
 
 
 @login_required
-def inicio_turno(request, turno_id=None):
-    empleado = request.user.empleado
+def inicio_turno(request, turno_id):
+    # Cargar el turno usando el turno_id y verificar que pertenece al empleado logueado
+    turno = get_object_or_404(RegistroTurno, id=turno_id, empleado=request.user.empleado)
 
-    # Si se proporciona un turno_id, significa que ya hay un turno activo
-    if turno_id:
-        turno = get_object_or_404(RegistroTurno, id=turno_id, empleado=empleado)
-        productos = Producto.objects.all()  # Ajusta esto según tu lógica para obtener productos
-        return render(request, 'ventas/inicio_turno.html', {
-            'turno': turno, 
-            'productos': productos,
-            'sucursal': turno.sucursal
-        })
+    # Obtener los productos disponibles (ajusta esto según tu lógica)
+    productos = Producto.objects.all()
 
-    # Si no hay turno_id, se está intentando iniciar un turno nuevo
-    if request.method == 'POST':
-        sucursal_id = request.POST.get('sucursal_id')
-        try:
-            sucursal = Sucursal.objects.get(id=sucursal_id)
-            nuevo_turno = RegistroTurno.objects.create(
-                empleado=empleado,
-                sucursal=sucursal,
-                inicio_turno=timezone.now()
-            )
-            messages.success(request, f'Turno iniciado en {sucursal.nombre}.')
-            return redirect('ventas:inicio_turno', turno_id=nuevo_turno.id)
-
-        except Sucursal.DoesNotExist:
-            messages.error(request, 'La sucursal seleccionada no existe.')
-            return redirect('ventas:inicio_turno')
-
-    # Si es una solicitud GET, mostrar la página de selección de sucursal
-    sucursales = Sucursal.objects.all()
-    return render(request, 'ventas/inicio_turno.html', {'sucursales': sucursales})
+    # Renderizar la plantilla mostrando los detalles del turno y los productos disponibles
+    return render(request, 'ventas/inicio_turno.html', {
+        'turno': turno,  # Pasar el turno activo a la plantilla
+        'productos': productos,  # Pasar la lista de productos a la plantilla
+        'sucursal': turno.sucursal  # Mostrar la sucursal asociada al turno
+    })
 
 
 @login_required
@@ -197,21 +175,18 @@ def cerrar_turno(request):
 
             # Marcar el turno como cerrado
             turno_activo.fin_turno = timezone.now()
-            # Aquí agregamos el print para verificar que el turno está siendo cerrado
-            print("Turno cerrado con ID:", turno_activo.id)
-            
             turno_activo.save()
 
             messages.success(request, "Turno cerrado correctamente.")
             # Redirigir al dashboard después del cierre
-            return redirect('dashboard')  # Redirige al dashboard
+            return redirect('dashboard')  # Redirige al dashboard sin namespace
         else:
             messages.error(request, "Por favor, revisa los datos ingresados.")
+    
     else:
         form = CierreCajaForm()
 
     return render(request, 'ventas/cierre_caja.html', {'form': form, 'turno': turno_activo})
-
 
 @login_required
 @user_passes_test(lambda u: u.is_staff)
