@@ -60,20 +60,19 @@ def registrar_venta(request):
 
 
 @login_required
-def inicio_turno(request, turno_id): #esta es la vista de cuando se inicia el turno no tieene nada que ver con la logica para iniciar turno
+def inicio_turno(request, turno_id):
     # Cargar el turno usando el turno_id y verificar que pertenece al empleado logueado
     turno = get_object_or_404(RegistroTurno, id=turno_id, empleado=request.user.empleado)
 
-    # Obtener los productos disponibles (ajusta esto según tu lógica)
-    productos = Producto.objects.all()
+    # Filtrar los productos disponibles en la sucursal del turno y con inventario mayor a 0
+    productos = Producto.objects.filter(inventario__sucursal=turno.sucursal, inventario__cantidad__gt=0)
 
     # Renderizar la plantilla mostrando los detalles del turno y los productos disponibles
     return render(request, 'ventas/inicio_turno.html', {
         'turno': turno,  # Pasar el turno activo a la plantilla
-        'productos': productos,  # Pasar la lista de productos a la plantilla
+        'productos': productos,  # Pasar la lista de productos a la plantilla filtrados
         'sucursal': turno.sucursal  # Mostrar la sucursal asociada al turno
     })
-
 
 @login_required
 def agregar_al_carrito(request, producto_id):
@@ -93,19 +92,25 @@ def agregar_al_carrito(request, producto_id):
 @login_required
 def ver_carrito(request):
     turno = RegistroTurno.objects.filter(empleado__usuario=request.user, fin_turno__isnull=True).first()
-    
+
+    # Verificar si el usuario ha hecho clic en el botón "Eliminar"
+    if request.method == 'POST':
+        item_id = request.POST.get('item_id')  # Obtener el ID del producto del formulario
+        carrito_item = get_object_or_404(Carrito, id=item_id)
+        carrito_item.delete()  # Eliminar el producto del carrito
+        return redirect('ventas:ver_carrito')  # Redirigir al carrito actualizado
+
     if turno:
         carrito_items = Carrito.objects.filter(turno=turno)
         total = sum(item.subtotal() for item in carrito_items)
-        
-        # Asegurarse de pasar el turno al contexto
+
         return render(request, 'ventas/ver_carrito.html', {
             'carrito_items': carrito_items,
             'total': total,
-            'turno': turno  # Pasar el turno para usar turno.id en la plantilla
+            'turno': turno
         })
     else:
-        return render(request, 'ventas/error.html', {'mensaje': 'No tienes un turno activo.'}) 
+        return render(request, 'ventas/error.html', {'mensaje': 'No tienes un turno activo.'})
     
 @login_required
 def finalizar_venta(request):

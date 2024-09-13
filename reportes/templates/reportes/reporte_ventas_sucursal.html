@@ -1,0 +1,13 @@
+<h2>Reporte de Ventas por Sucursal</h2>
+<table>
+    <tr>
+        <th>Sucursal</th>
+        <th>Total Vendido</th>
+    </tr>
+    {% for item in ventas_por_sucursal %}
+    <tr>
+        <td>{{ item.sucursal__nombre }}</td>
+        <td>{{ item.total }}</td>
+    </tr>
+    {% endfor %}
+</table>
