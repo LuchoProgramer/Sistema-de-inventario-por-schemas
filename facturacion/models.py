@@ -4,7 +4,9 @@ from inventarios.models import Producto
 from django.core.exceptions import ValidationError
 from django.core.validators import RegexValidator
 from decimal import Decimal
-
+from django.dispatch import receiver
+from django.db.models.signals import post_save
+from ventas.models import Venta
 
 class Cliente(models.Model):
     TIPO_IDENTIFICACION_OPCIONES = [
@@ -112,6 +114,30 @@ class Factura(models.Model):
 
     def __str__(self):
         return f'Factura {self.numero_autorizacion} para {self.cliente.razon_social}'
+    
+@receiver(post_save, sender=Factura)
+def crear_venta_desde_factura(sender, instance, created, **kwargs):
+    if created and instance.detalles.exists():
+        detalle = instance.detalles.first()
+        Venta.objects.create(
+            turno=instance.registroturno,
+            empleado=instance.empleado,
+            producto=detalle.producto,
+            cantidad=detalle.cantidad,
+            precio_unitario=detalle.precio_unitario,
+            total_venta=detalle.total,
+            sucursal=instance.sucursal,
+            factura=instance  # Relacionar la venta con la factura
+        )
+    else:
+        # Actualizar la venta si la factura ya existía
+        detalle = instance.detalles.first()
+        venta = Venta.objects.filter(factura=instance).first()
+        if venta:
+            venta.cantidad = detalle.cantidad
+            venta.precio_unitario = detalle.precio_unitario
+            venta.total_venta = detalle.total
+            venta.save()
     
 
 class DetalleFactura(models.Model):

@@ -14,7 +14,7 @@
     <ul>
         {% for producto in productos %}
             <li>
-                {{ producto.nombre }} - {{ producto.precio }} {{ producto.moneda }}
+                {{ producto.nombre }} - {{ producto.precio_venta }} USD
                 <a href="{% url 'ventas:agregar_al_carrito' producto.id %}">Agregar al Carrito</a>
             </li>
         {% endfor %}

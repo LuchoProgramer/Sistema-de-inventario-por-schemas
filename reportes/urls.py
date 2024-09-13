@@ -2,7 +2,11 @@ from django.urls import path
 from . import views
 
 urlpatterns = [
-    path('ventas/', views.reporte_ventas, name='reporte_ventas'),
-    path('ventas/empleado/', views.reporte_ventas_empleado, name='reporte_ventas_empleado'),
-    path('ventas/sucursal/', views.reporte_ventas_sucursal, name='reporte_ventas_sucursal'),
+    # URL para ver el listado de reportes
+    path('reportes/', views.reporte_ventas, name='reporte_ventas'),
+    
+    # URL para ver el detalle de un reporte por su ID
+    path('reportes/<int:id>/', views.detalle_reporte, name='detalle_reporte'),
+    
+    # Otras URLs relacionadas con facturas y ventas pueden ir aquí también
 ]

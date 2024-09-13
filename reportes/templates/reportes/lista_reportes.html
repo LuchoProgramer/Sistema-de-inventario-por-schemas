@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Lista de Reportes de Ventas</title>
+</head>
+<body>
+    <h1>Lista de Reportes de Ventas</h1>
+    <ul>
+        {% for reporte in reportes %}
+            <li>
+                <a href="{% url 'detalle_reporte' reporte.id %}">
+                    Reporte de la sucursal {{ reporte.sucursal.nombre }} ({{ reporte.fecha }})
+                </a>
+            </li>
+        {% endfor %}
+    </ul>
+</body>
+</html>
