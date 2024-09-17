@@ -1,16 +1,27 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Listado de Reportes</title>
+    <title>Lista de Reportes</title>
 </head>
 <body>
-    <h1>Listado de Reportes</h1>
-    <ul>
+    <h1>Lista de Reportes</h1>
+    <table border="1">
+        <tr>
+            <th>ID</th>
+            <th>Sucursal</th>
+            <th>Total Ventas</th>
+            <th>Fecha</th>
+            <th>Detalle</th>
+        </tr>
         {% for reporte in reportes %}
-            <li>
-                <a href="{% url 'detalle_reporte' reporte.id %}">Reporte del {{ reporte.fecha }}</a>
-            </li>
+        <tr>
+            <td>{{ reporte.id }}</td>
+            <td>{{ reporte.sucursal.nombre }}</td>
+            <td>{{ reporte.total_ventas }}</td>
+            <td>{{ reporte.fecha }}</td>
+            <td><a href="{% url 'detalle_reporte' reporte.id %}">Ver Detalle</a></td>
+        </tr>
         {% endfor %}
-    </ul>
+    </table>
 </body>
 </html>

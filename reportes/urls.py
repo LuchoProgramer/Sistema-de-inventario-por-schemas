@@ -3,7 +3,7 @@ from . import views
 
 urlpatterns = [
     # URL para ver el listado de reportes
-    path('reportes/', views.reporte_ventas, name='reporte_ventas'),
+    path('reportes/', views.reporte_ventas, name='lista_reportes'),
     
     # URL para ver el detalle de un reporte por su ID
     path('reportes/<int:id>/', views.detalle_reporte, name='detalle_reporte'),

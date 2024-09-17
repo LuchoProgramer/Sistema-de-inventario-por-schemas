@@ -6,8 +6,8 @@ from django.db.models import Sum
 from django.core.exceptions import ValidationError
 from decimal import Decimal
 
-
 class Venta(models.Model):
+    # Definición de los campos
     turno = models.ForeignKey('empleados.RegistroTurno', on_delete=models.CASCADE, related_name='ventas')
     sucursal = models.ForeignKey(Sucursal, on_delete=models.CASCADE)
     empleado = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
@@ -19,15 +19,11 @@ class Venta(models.Model):
     fecha = models.DateTimeField(auto_now_add=True)
 
     def clean(self):
-        # Verificar que la cantidad sea un número positivo
+        # Validaciones personalizadas
         if self.cantidad <= 0:
             raise ValidationError('La cantidad debe ser mayor que cero.')
-
-        # Verificar que el precio unitario sea un valor positivo
         if self.precio_unitario <= 0:
             raise ValidationError('El precio unitario debe ser mayor que cero.')
-
-        # Asegurarse de que haya suficiente inventario
         try:
             inventario = Inventario.objects.get(sucursal=self.sucursal, producto=self.producto)
             if inventario.cantidad < self.cantidad:
@@ -37,13 +33,13 @@ class Venta(models.Model):
 
     @transaction.atomic
     def save(self, *args, **kwargs):
-        # Validar los datos antes de guardar
-        self.full_clean()  # Esto ejecuta el método clean automáticamente
+        # Validar antes de guardar
+        self.full_clean()  # Ejecutar validaciones
 
-        # Calcular el total de la venta con precisión de dos decimales
+        # Calcular el total de la venta con precisión
         self.total_venta = (self.cantidad * self.precio_unitario).quantize(Decimal('0.01'))
 
-        # Obtener el inventario y verificar la disponibilidad
+        # Obtener el inventario y actualizar la cantidad
         inventario = Inventario.objects.select_for_update().get(sucursal=self.sucursal, producto=self.producto)
         inventario.cantidad -= self.cantidad
         if inventario.cantidad < 0:
@@ -60,6 +56,25 @@ class Venta(models.Model):
 
         # Guardar la venta
         super(Venta, self).save(*args, **kwargs)
+        print(f"Venta guardada exitosamente con ID: {self.id}")
+
+        # Crear el movimiento de reporte después de la venta
+        from django.apps import apps
+        MovimientoReporte = apps.get_model('reportes', 'MovimientoReporte')  # Obtener el modelo de MovimientoReporte
+        Pago = apps.get_model('facturacion', 'Pago')  # Obtener el modelo Pago
+
+        print("Creando Movimiento de Reporte...")
+
+        # Crear un movimiento de reporte
+        movimiento = MovimientoReporte.objects.create(
+            venta=self,
+            turno=self.turno,
+            sucursal=self.sucursal,
+            total_venta=self.total_venta,
+            pago=Pago.objects.filter(factura=self.factura).first()  # Relacionar con el pago si existe
+        )
+
+        print(f"Movimiento de reporte creado exitosamente con ID: {movimiento.id}")
 
     def __str__(self):
         return f"Venta de {self.producto.nombre} en {self.sucursal.nombre} - {self.cantidad} unidades - Total: {self.total_venta}"

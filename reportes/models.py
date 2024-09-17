@@ -1,6 +1,8 @@
 from django.db import models
 from empleados.models import RegistroTurno
 from sucursales.models import Sucursal
+from ventas.models import Venta
+from facturacion.models import Pago
 
 class Reporte(models.Model):
     turno = models.ForeignKey(RegistroTurno, on_delete=models.CASCADE, related_name='reportes', null=True, blank=True)
@@ -16,3 +18,16 @@ class Reporte(models.Model):
 
     class Meta:
         ordering = ['fecha']
+
+
+
+class MovimientoReporte(models.Model):
+    venta = models.ForeignKey('ventas.Venta', on_delete=models.CASCADE)  # Usamos una cadena de texto
+    turno = models.ForeignKey('empleados.RegistroTurno', on_delete=models.CASCADE)
+    sucursal = models.ForeignKey('sucursales.Sucursal', on_delete=models.CASCADE)
+    pago = models.ForeignKey('facturacion.Pago', on_delete=models.CASCADE, null=True, blank=True)  # Usamos una cadena de texto
+    total_venta = models.DecimalField(max_digits=10, decimal_places=2)
+    fecha = models.DateField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Movimiento de Reporte: Venta {self.venta.id} - Sucursal {self.sucursal.nombre}"
