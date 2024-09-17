@@ -42,14 +42,18 @@ class RegistroTurno(models.Model):
     total_efectivo = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     otros_metodos_pago = models.DecimalField(max_digits=10, decimal_places=2, default=0)
 
+    # empleados/models.py
+
     def cerrar_turno(self, efectivo_total, tarjeta_total, transferencia_total, salidas_caja):
         from ventas.models import CierreCaja
+        from reportes.models import Reporte
+        from decimal import Decimal
 
         # Verificar si el turno ya ha sido cerrado
         if self.fin_turno:
             raise ValidationError("Este turno ya está cerrado.")
 
-        # Actualizar los totales y cerrar el turno
+        # Actualizar los totales del turno y cerrar el turno
         self.fin_turno = timezone.now()
         self.total_efectivo = efectivo_total
         self.otros_metodos_pago = tarjeta_total + transferencia_total
@@ -65,6 +69,20 @@ class RegistroTurno(models.Model):
             salidas_caja=salidas_caja,
             fecha_cierre=self.fin_turno
         )
+
+        # Obtener o crear el reporte del turno para actualizar los totales
+        reporte, creado = Reporte.objects.get_or_create(
+            turno=self,
+            sucursal=self.sucursal,
+            fecha=self.inicio_turno.date()
+        )
+
+        # Actualizar los totales en el reporte
+        reporte.total_efectivo = Decimal(reporte.total_efectivo) + efectivo_total
+        reporte.otros_metodos_pago = Decimal(reporte.otros_metodos_pago) + tarjeta_total + transferencia_total
+        reporte.save()
+
+        print(f"Reporte del turno actualizado: {reporte.id} - Total Efectivo: {reporte.total_efectivo} - Otros Métodos: {reporte.otros_metodos_pago}")
 
     @classmethod
     def turno_activo(cls, empleado):

@@ -15,7 +15,7 @@ class Venta(models.Model):
     cantidad = models.IntegerField()
     precio_unitario = models.DecimalField(max_digits=10, decimal_places=2)
     total_venta = models.DecimalField(max_digits=10, decimal_places=2, editable=False)
-    factura = models.ForeignKey('facturacion.Factura', on_delete=models.CASCADE, related_name='ventas', null=True, blank=True)
+    factura = models.ForeignKey('facturacion.Factura', on_delete=models.CASCADE, related_name='ventas', null=False, blank=False)
     fecha = models.DateTimeField(auto_now_add=True)
 
     def clean(self):

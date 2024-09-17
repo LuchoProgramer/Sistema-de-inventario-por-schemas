@@ -49,6 +49,8 @@ from django.http import JsonResponse
 from django.db import transaction
 from decimal import Decimal
 
+
+@transaction.atomic
 def generar_factura(request):
     if request.method == 'POST':
         cliente_id = request.POST.get('cliente_id')

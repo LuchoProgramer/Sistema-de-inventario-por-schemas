@@ -120,7 +120,7 @@ TIME_ZONE = "America/Guayaquil"  # Cambia UTC por America/Guayaquil
 
 USE_I18N = True
 
-USE_TZ = True
+USE_TZ = False
 
 
 # Static files (CSS, JavaScript, Images)
@@ -156,7 +156,7 @@ CELERY_RESULT_BACKEND = 'redis://localhost:6379/0'  # Backend opcional para alma
 CELERY_ACCEPT_CONTENT = ['json']  # Aceptar solo formatos de contenido JSON
 CELERY_TASK_SERIALIZER = 'json'  # Serializador de tareas
 CELERY_RESULT_SERIALIZER = 'json'  # Serializador de resultados
-CELERY_TIMEZONE = 'UTC'  # Ajusta según tu zona horaria, si es necesario
+CELERY_TIMEZONE = 'America/Guayaquil'  # Ajusta según tu zona horaria, si es necesario
 
 
 LOGIN_URL = '/empleados/dashboard/'
