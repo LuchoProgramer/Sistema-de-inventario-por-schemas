@@ -1,0 +1,11 @@
+<!-- templates/reportes/seleccionar_turno_detallado.html -->
+<h1>Seleccionar Turno Específico</h1>
+<ul>
+  {% for turno in turnos %}
+    <li>
+      <a href="{% url 'reporte_ventas_por_turno' %}?turno_id={{ turno.id }}">
+        Turno en {{ turno.sucursal.nombre }} de {{ turno.empleado.nombre }} - {{ turno.inicio_turno }} {% if turno.fin_turno %} hasta {{ turno.fin_turno }} {% else %} (Activo) {% endif %}
+      </a>
+    </li>
+  {% endfor %}
+</ul>

@@ -1,57 +1,72 @@
+# reportes/views.py
 from django.shortcuts import render
-from .models import Reporte
-from django.shortcuts import render, get_object_or_404
-from ventas.models import Venta
-from django.db.models import Sum
+from .services import generar_reporte_ventas_por_turno
+from empleados.models import RegistroTurno, Empleado
+
+def reporte_ventas_por_turno(request):
+    turno_id = request.GET.get('turno_id')  # Obtener el ID del turno desde la URL
+    
+    ventas, total_ventas = generar_reporte_ventas_por_turno(turno_id)
+    
+    context = {
+        'ventas': ventas,
+        'total_ventas': total_ventas,
+    }
+    return render(request, 'reportes/reporte_ventas.html', context)
 
 
-def reporte_ventas(request):
-    reportes = Reporte.objects.all()  # Obtén todos los reportes
-    return render(request, 'reportes/lista_reportes.html', {'reportes': reportes})
+def seleccionar_turno_por_fechas(request):
+    fecha_inicio = request.GET.get('fecha_inicio')
+    fecha_fin = request.GET.get('fecha_fin')
+    empleado_id = request.GET.get('empleado_id')
 
-
-
-def detalle_reporte(request, id):
-    # Obtener el reporte específico por su ID
-    reporte = get_object_or_404(Reporte, id=id)
-    return render(request, 'reportes/detalle_reporte.html', {'reporte': reporte})
-
-
-from django.utils import timezone
-from django.db.models import Sum
-from .models import Reporte
-from facturacion.models import Pago  # Asegúrate de importar el modelo Pago
-
-def actualizar_reporte(sucursal, turno):
-    # Obtener la fecha actual (para referencia)
-    fecha_hoy = timezone.now().date()
-
-    # Obtener todas las ventas de la sucursal y el turno actual
-    ventas_hoy = Venta.objects.filter(sucursal=sucursal, turno=turno)
-
-    # Calcular el total de ventas
-    total_ventas = ventas_hoy.aggregate(Sum('total_venta'))['total_venta__sum'] or 0
-
-    # Calcular el total de efectivo utilizando el modelo Pago
-    total_efectivo = Pago.objects.filter(
-        factura__in=ventas_hoy.values('factura'),  # Relacionar pagos con facturas de las ventas
-        descripcion__icontains='efectivo'  # Suponiendo que la descripción del pago incluye 'efectivo'
-    ).aggregate(Sum('total'))['total__sum'] or 0
-
-    # Calcular el total de otros métodos de pago (lo que no es en efectivo)
-    otros_metodos_pago = total_ventas - total_efectivo
-
-    # Actualizar o crear el reporte para el turno actual
-    reporte, created = Reporte.objects.update_or_create(
-        sucursal=sucursal,
-        turno=turno,  # Asegurarte de que estamos creando el reporte para el turno específico
-        defaults={
-            'total_ventas': total_ventas,
-            'total_efectivo': total_efectivo,
-            'otros_metodos_pago': otros_metodos_pago,
-            'total_facturas': ventas_hoy.count(),
-            'fecha': fecha_hoy,  # Esto es solo una referencia si deseas mantener la fecha
-        }
+    turnos = RegistroTurno.objects.filter(
+        inicio_turno__range=[fecha_inicio, fecha_fin], empleado_id=empleado_id
     )
 
-    print(f"Reporte actualizado para la sucursal: {sucursal.nombre}, Turno: {turno.id}, Fecha: {fecha_hoy}")
+    context = {
+        'turnos': turnos,
+    }
+    return render(request, 'reportes/seleccionar_turno.html', context)
+
+def listar_empleados(request):
+    empleados = Empleado.objects.all()  # Para mostrar todos los empleados en el formulario
+    return render(request, 'reportes/seleccionar_turno_fechas.html', {'empleados': empleados})
+
+
+def buscar_turno_por_id(request):
+    turno_id = request.GET.get('turno_id')
+
+    if turno_id:
+        turno = RegistroTurno.objects.filter(id=turno_id).first()
+        if turno:
+            ventas, total_ventas = generar_reporte_ventas_por_turno(turno_id)
+            return render(request, 'reportes/reporte_ventas.html', {'ventas': ventas, 'total_ventas': total_ventas})
+        else:
+            return render(request, 'reportes/error.html', {'error': 'No se encontró el turno con el ID proporcionado'})
+    else:
+        return render(request, 'reportes/buscar_turno.html')
+    
+
+# reportes/views.py
+def seleccionar_turno_detallado(request):
+    fecha_inicio = request.GET.get('fecha_inicio')
+    fecha_fin = request.GET.get('fecha_fin')
+    empleado_id = request.GET.get('empleado_id')
+    sucursal_id = request.GET.get('sucursal_id')
+
+    turnos = RegistroTurno.objects.all()
+
+    if fecha_inicio and fecha_fin:
+        turnos = turnos.filter(inicio_turno__range=[fecha_inicio, fecha_fin])
+
+    if empleado_id:
+        turnos = turnos.filter(empleado_id=empleado_id)
+
+    if sucursal_id:
+        turnos = turnos.filter(sucursal_id=sucursal_id)
+
+    context = {
+        'turnos': turnos,
+    }
+    return render(request, 'reportes/seleccionar_turno_detallado.html', context)

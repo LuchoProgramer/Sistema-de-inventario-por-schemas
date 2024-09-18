@@ -1,12 +1,11 @@
+# reportes/urls.py
 from django.urls import path
 from . import views
 
 urlpatterns = [
-    # URL para ver el listado de reportes
-    path('reportes/', views.reporte_ventas, name='lista_reportes'),
-    
-    # URL para ver el detalle de un reporte por su ID
-    path('reportes/<int:id>/', views.detalle_reporte, name='detalle_reporte'),
-    
-    # Otras URLs relacionadas con facturas y ventas pueden ir aquí también
+    path('ventas_por_turno/', views.reporte_ventas_por_turno, name='reporte_ventas_por_turno'),
+    path('seleccionar_turno/', views.seleccionar_turno_por_fechas, name='seleccionar_turno_por_fechas'),
+    path('empleados/', views.listar_empleados, name='listar_empleados'),
+    path('buscar_turno/', views.buscar_turno_por_id, name='buscar_turno_por_id'),
+    path('filtro_turnos/', views.seleccionar_turno_detallado, name='seleccionar_turno_detallado'),
 ]

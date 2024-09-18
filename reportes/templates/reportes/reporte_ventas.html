@@ -1,0 +1,20 @@
+<h1>Reporte de Ventas</h1>
+<p>Total ventas: {{ total_ventas }}</p>
+<table>
+  <thead>
+    <tr>
+      <th>Producto</th>
+      <th>Cantidad</th>
+      <th>Total</th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for venta in ventas %}
+    <tr>
+      <td>{{ venta.producto.nombre }}</td>
+      <td>{{ venta.cantidad }}</td>
+      <td>{{ venta.total_venta }}</td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>

@@ -1,0 +1,27 @@
+<!-- templates/reportes/filtro_turnos.html -->
+<h1>Filtrar Turnos</h1>
+<form method="GET" action="{% url 'seleccionar_turno_detallado' %}">
+  <label for="fecha_inicio">Fecha Inicio:</label>
+  <input type="date" name="fecha_inicio">
+  
+  <label for="fecha_fin">Fecha Fin:</label>
+  <input type="date" name="fecha_fin">
+  
+  <label for="empleado_id">Empleado:</label>
+  <select name="empleado_id">
+    <option value="">Todos los empleados</option>
+    {% for empleado in empleados %}
+      <option value="{{ empleado.id }}">{{ empleado.nombre }}</option>
+    {% endfor %}
+  </select>
+  
+  <label for="sucursal_id">Sucursal:</label>
+  <select name="sucursal_id">
+    <option value="">Todas las sucursales</option>
+    {% for sucursal in sucursales %}
+      <option value="{{ sucursal.id }}">{{ sucursal.nombre }}</option>
+    {% endfor %}
+  </select>
+  
+  <button type="submit">Buscar Turnos</button>
+</form>
