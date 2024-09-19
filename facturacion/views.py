@@ -18,6 +18,9 @@ from django.http import JsonResponse
 from django.urls import reverse
 from django.contrib import messages
 from ventas.forms import MetodoPagoForm
+from facturacion.services import obtener_o_crear_cliente, verificar_turno_activo, asignar_pagos_a_factura, generar_pdf_factura_y_guardar
+from facturacion.services import crear_factura  # Si no lo tienes aún, importa la función que maneja la creación de facturas.
+
 
  
 def generar_cotizacion(request):
@@ -47,110 +50,87 @@ def generar_cotizacion(request):
 from django.urls import reverse
 from django.http import JsonResponse
 from django.db import transaction
-from decimal import Decimal
 
 
 @transaction.atomic
 def generar_factura(request):
     if request.method == 'POST':
+        print("Procesando solicitud POST para generar factura.")  # Depuración
+
         cliente_id = request.POST.get('cliente_id')
         identificacion = request.POST.get('identificacion')
 
-        # Validar que se ha seleccionado un cliente o proporcionado los datos de uno nuevo
         if not cliente_id and not identificacion:
+            print("No se proporcionó cliente ni identificación.")  # Depuración
             return JsonResponse({'error': 'Debes seleccionar un cliente o ingresar los datos de un nuevo cliente.'}, status=400)
 
-        empleado = request.user.empleado
-        turno_activo = RegistroTurno.objects.filter(empleado=empleado, fin_turno__isnull=True).first()
-
-        if not turno_activo:
-            return JsonResponse({'error': 'No tienes un turno activo. Por favor inicia un turno.'}, status=400)
-
-        sucursal = turno_activo.sucursal
-
-        # Verificar si el cliente ya existe o crear uno nuevo
         try:
-            if cliente_id:
-                cliente = Cliente.objects.get(id=cliente_id)
-            else:
-                cliente, created = Cliente.objects.get_or_create(
-                    identificacion=identificacion,
-                    defaults={
-                        'tipo_identificacion': request.POST.get('tipo_identificacion'),
-                        'razon_social': request.POST.get('razon_social'),
-                        'direccion': request.POST.get('direccion'),
-                        'telefono': request.POST.get('telefono'),
-                        'email': request.POST.get('email')
-                    }
-                )
-                # Si el cliente ya existía pero no tiene todos los campos completos
-                if not created and not cliente.razon_social:
-                    return JsonResponse({'error': 'Cliente incompleto. Por favor revisa los datos ingresados.'}, status=400)
-        except Cliente.DoesNotExist:
-            return JsonResponse({'error': 'Cliente no encontrado.'}, status=400)
+            data_cliente = {
+                'tipo_identificacion': request.POST.get('tipo_identificacion'),
+                'razon_social': request.POST.get('razon_social'),
+                'direccion': request.POST.get('direccion'),
+                'telefono': request.POST.get('telefono'),
+                'email': request.POST.get('email')
+            }
+            print(f"Datos del cliente: {data_cliente}")  # Depuración
+            cliente = obtener_o_crear_cliente(cliente_id, identificacion, data_cliente)
 
-        # Obtener el carrito de compras
-        carrito_items = obtener_carrito(request.user)
-        if not carrito_items.exists():
-            return JsonResponse({'error': 'El carrito está vacío. No se puede generar una factura.'}, status=400)
+            empleado = request.user.empleado
+            turno_activo = verificar_turno_activo(empleado)
 
-        # Capturar los métodos de pago y montos desde el formulario
-        metodos_pago = request.POST.getlist('metodos_pago')
-        montos_pago = request.POST.getlist('montos_pago')
+            sucursal = turno_activo.sucursal
+            print(f"Turno activo: {turno_activo}, Sucursal: {sucursal}")  # Depuración
 
-        # Descripciones para los métodos de pago
-        metodo_descripciones = {
-            '01': 'Efectivo',
-            '16': 'Tarjeta de Débito',
-            '19': 'Tarjeta de Crédito',
-            '20': 'Transferencias',
-            '17': 'Dinero Electrónico'
-        }
+            carrito_items = obtener_carrito(request.user)
+            if not carrito_items.exists():
+                print("Carrito vacío, no se puede generar factura.")  # Depuración
+                return JsonResponse({'error': 'El carrito está vacío. No se puede generar una factura.'}, status=400)
 
-        try:
-            with transaction.atomic():
-                # Crear la factura
-                factura = crear_factura(cliente, sucursal, empleado, carrito_items)
+            print(f"Items en el carrito: {carrito_items}")  # Depuración
 
-                # Asignar los pagos a la factura
-                for metodo_pago, monto_pago in zip(metodos_pago, montos_pago):
-                    descripcion = metodo_descripciones.get(metodo_pago, 'Método de Pago Desconocido')
-                    Pago.objects.create(
-                        factura=factura,
-                        codigo_sri=metodo_pago,
-                        total=Decimal(monto_pago),
-                        descripcion=f"Pago con {descripcion}"
-                    )
+            metodos_pago = request.POST.getlist('metodos_pago')
+            montos_pago = request.POST.getlist('montos_pago')
+            print(f"Métodos de pago: {metodos_pago}, Montos de pago: {montos_pago}")  # Depuración
 
-                # Generar PDF de la factura
-                nombre_archivo = f"factura_{factura.numero_autorizacion}.pdf"
-                ruta_pdf = os.path.join(settings.MEDIA_ROOT, nombre_archivo)
-                generar_pdf_factura(factura, ruta_pdf)
+            # Crear la factura
+            factura = crear_factura(cliente, sucursal, empleado, carrito_items)
+            print(f"Factura creada: {factura}")  # Depuración
 
-                # Vaciar el carrito después de generar la factura
-                carrito_items.delete()
+            # Validar que la factura tenga detalles asociados
+            detalles = factura.detalles.all()  # Utilizamos el related_name 'detalles'
+            print(f"Detalles asociados a la factura: {detalles}")  # Depuración
 
-                # URLs de respuesta
-                pdf_url = f"/media/{nombre_archivo}"
-                # Aquí pasamos el turno_id al redirigir
-                redirect_url = reverse('ventas:inicio_turno', args=[turno_activo.id])
+            if not detalles.exists():
+                print("Error: La factura no tiene detalles asociados.")  # Depuración
+                return JsonResponse({'error': 'La factura no tiene detalles asociados.'}, status=400)
 
-                return JsonResponse({'pdf_url': pdf_url, 'redirect_url': redirect_url})
+            asignar_pagos_a_factura(factura, metodos_pago, montos_pago)
+
+            pdf_url = generar_pdf_factura_y_guardar(factura)
+
+            carrito_items.delete()
+            print("Carrito eliminado después de generar factura.")  # Depuración
+
+            redirect_url = reverse('ventas:inicio_turno', args=[turno_activo.id])
+            return JsonResponse({'pdf_url': pdf_url, 'redirect_url': redirect_url})
 
         except ValidationError as e:
+            print(f"Error de validación: {e.messages}")  # Depuración
             return JsonResponse({'error': e.messages}, status=400)
+        except Exception as e:
+            print(f"Error general: {e}")  # Depuración
+            return JsonResponse({'error': str(e)}, status=500)
 
-    # Si el método es GET, cargamos la página con los datos del carrito
     else:
         carrito_items = obtener_carrito(request.user)
-
-        # Calcular el total de la factura
         total_factura = sum(item.subtotal() for item in carrito_items)
+        print(f"Total factura para el carrito: {total_factura}")  # Depuración
 
         return render(request, 'facturacion/generar_factura.html', {
             'clientes': Cliente.objects.all(),
-            'total_factura': total_factura,  # Pasar el total al template
+            'total_factura': total_factura,
         })
+
 
 
 def generar_comprobante_pago(request):

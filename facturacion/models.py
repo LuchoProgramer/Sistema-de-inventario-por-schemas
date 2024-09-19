@@ -129,6 +129,9 @@ class DetalleFactura(models.Model):
     valor_iva = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))
 
     def clean(self):
+        print(f"Cantidad: {self.cantidad}, Precio Unitario: {self.precio_unitario}, Subtotal esperado: {(self.cantidad * self.precio_unitario) - self.descuento}, Subtotal actual: {self.subtotal}, Descuento: {self.descuento}")
+        print(f"Total esperado: {self.subtotal}, Total actual: {self.total}")
+
         # Validación de cantidad
         if self.cantidad <= 0:
             raise ValidationError("La cantidad debe ser mayor que cero.")
@@ -147,8 +150,6 @@ class DetalleFactura(models.Model):
 
         super(DetalleFactura, self).clean()
 
-    def __str__(self):
-        return f'{self.producto.nombre} - {self.cantidad} unidades'
 
 
 class Pago(models.Model):

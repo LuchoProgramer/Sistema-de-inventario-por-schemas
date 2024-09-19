@@ -4,9 +4,11 @@ from django.contrib.auth.models import User
 from ventas.models import Carrito
 from empleados.models import Empleado, RegistroTurno
 from sucursales.models import Sucursal
-from inventarios.models import Producto, Inventario  # Asegúrate de importar Inventario
-from facturacion.models import Cliente, Impuesto
+from inventarios.models import Producto, Inventario
+from facturacion.models import Cliente, Impuesto, DetalleFactura, Factura
 from facturacion.services import crear_factura
+from decimal import Decimal, ROUND_HALF_UP
+
 
 class TestFacturaRegistroTurno(TestCase):
     def setUp(self):
@@ -25,7 +27,7 @@ class TestFacturaRegistroTurno(TestCase):
             punto_emision='001',  
             secuencial_actual='000000001'
         )
-        
+
         # Crear un producto
         self.producto = Producto.objects.create(
             nombre='Producto Test',
@@ -39,14 +41,14 @@ class TestFacturaRegistroTurno(TestCase):
 
         # Crear inventario para el producto
         Inventario.objects.create(producto=self.producto, sucursal=self.sucursal, cantidad=10)
-        
+
         # Crear un cliente
         self.cliente = Cliente.objects.create(
             identificacion='9999999999',
             tipo_identificacion='07',
             razon_social='Consumidor Final'
         )
-        
+
         # Crear un turno para el empleado
         self.turno = RegistroTurno.objects.create(
             empleado=self.empleado,
@@ -59,7 +61,7 @@ class TestFacturaRegistroTurno(TestCase):
         self.iva = Impuesto.objects.create(
             codigo_impuesto='2', 
             nombre='IVA',
-            porcentaje=12.00,
+            porcentaje=12.00,  # IVA del 12%
             activo=True
         )
 
@@ -77,4 +79,20 @@ class TestFacturaRegistroTurno(TestCase):
         self.assertIsNotNone(factura)
         self.assertEqual(factura.cliente, self.cliente)
         self.assertEqual(factura.sucursal, self.sucursal)
-        self.assertEqual(factura.total_con_impuestos, 30.00)  # 2 productos a $15 cada uno
+
+        # Verificar que los detalles de la factura se han creado correctamente
+        detalles = DetalleFactura.objects.filter(factura=factura)
+        self.assertEqual(detalles.count(), 1)  # Debe haber un solo detalle de la factura
+        detalle = detalles.first()
+        self.assertEqual(detalle.producto, self.producto)
+        self.assertEqual(detalle.cantidad, 2)
+        self.assertEqual(detalle.precio_unitario, Decimal('15.00'))  # Verificar que se guarde como Decimal
+
+        # Verificar los valores calculados correctamente con redondeo
+        subtotal = (Decimal('15.00') * 2).quantize(Decimal('0.01'))  # Redondear subtotal
+        valor_iva = (subtotal * Decimal('0.12')).quantize(Decimal('0.01'))  # Redondear IVA
+        total_con_impuestos = (subtotal + valor_iva).quantize(Decimal('0.01'))
+
+        self.assertEqual(factura.total_sin_impuestos, subtotal)
+        self.assertEqual(factura.valor_iva, valor_iva)
+        self.assertEqual(factura.total_con_impuestos, total_con_impuestos)

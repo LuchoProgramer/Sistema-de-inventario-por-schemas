@@ -1,7 +1,9 @@
-from django.db.models.signals import post_save
+"""from django.db.models.signals import post_save
 from django.dispatch import receiver
 from .models import Factura
 from ventas.models import Venta
+from django.core.exceptions import ValidationError
+
 
 @receiver(post_save, sender=Factura)
 def crear_venta_desde_factura(sender, instance, created, **kwargs):
@@ -32,8 +34,8 @@ def crear_venta_desde_factura(sender, instance, created, **kwargs):
                         venta.total_venta = detalle.total
                         venta.save()
         else:
-            # Manejar el caso en que no haya detalles en la factura
-            print("Error: La factura no tiene detalles asociados.")
+            # Lanzar un error si no hay detalles en la factura
+            raise ValidationError("La factura no tiene detalles asociados.")
     else:
-        # Manejar el caso en que instance no sea del modelo Factura
-        print("Error: El objeto instance no es una factura válida.")
+        # Lanzar un error si la instancia no es de tipo Factura
+        raise ValidationError("El objeto instance no es una factura válida.")"""
