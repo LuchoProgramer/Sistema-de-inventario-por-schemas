@@ -13,6 +13,8 @@ from ventas.models import Venta, CierreCaja
 from facturacion.models import Factura, Pago
 from decimal import Decimal
 from sucursales.models import Sucursal
+from ventas.services import VentaService
+from ventas.services import TurnoService 
 
 @login_required
 def registrar_venta(request):
@@ -27,32 +29,15 @@ def registrar_venta(request):
         if form.is_valid():
             producto = form.cleaned_data['producto']
             cantidad = form.cleaned_data['cantidad']
-            precio_unitario = producto.precio
+            metodo_pago = request.POST.get('metodo_pago')
 
-            # Verificar que hay suficiente inventario
-            inventario = producto.inventario_set.filter(sucursal=turno_activo.sucursal).first()
-            if inventario and inventario.cantidad >= cantidad:
-                total_venta = cantidad * precio_unitario
-
-                venta = Venta.objects.create(
-                    turno=turno_activo,
-                    sucursal=turno_activo.sucursal,
-                    empleado=empleado.usuario,
-                    producto=producto,
-                    cantidad=cantidad,
-                    precio_unitario=precio_unitario,
-                    total_venta=total_venta,
-                    metodo_pago=request.POST.get('metodo_pago'),
-                    fecha=timezone.now(),
-                )
-
-                # Actualizar el inventario
-                inventario.cantidad -= cantidad
-                inventario.save()
-
+            try:
+                # Usar el servicio para registrar la venta
+                VentaService.registrar_venta(turno_activo, producto, cantidad, metodo_pago)
                 return redirect('dashboard')
-            else:
-                form.add_error(None, f"No hay suficiente inventario disponible. Solo hay {inventario.cantidad} unidades.")
+            except ValueError as e:
+                form.add_error(None, str(e))
+
     else:
         form = SeleccionVentaForm(sucursal_id=turno_activo.sucursal.id)
 
@@ -116,49 +101,24 @@ def ver_carrito(request):
 def finalizar_venta(request):
     turno = RegistroTurno.objects.filter(empleado__usuario=request.user, fin_turno__isnull=True).first()
 
-    if turno:
-        carrito_items = Carrito.objects.filter(turno=turno)
-        errores = []
-
-        for item in carrito_items:
-            # Verificar inventario para cada producto
-            inventario = item.producto.inventario_set.filter(sucursal=turno.sucursal).first()
-            if inventario and inventario.cantidad >= item.cantidad:
-                # Registrar la venta
-                venta = Venta.objects.create(
-                    turno=turno,
-                    sucursal=turno.sucursal,
-                    empleado=turno.empleado.usuario,
-                    producto=item.producto,
-                    cantidad=item.cantidad,
-                    precio_unitario=item.producto.precio,
-                    total_venta=item.subtotal(),
-                    metodo_pago=request.POST.get('metodo_pago', 'Efectivo'),  # Aquí se selecciona el método de pago
-                )
-                # Actualizar el inventario
-                inventario.cantidad -= item.cantidad
-                inventario.save()
-
-                # Generar la factura asociada al turno y al cliente
-                factura = Factura.objects.create(
-                    sucursal=turno.sucursal,
-                    cliente=turno.empleado.cliente,  # Asumiendo que hay un cliente relacionado al empleado
-                    empleado=turno.empleado,
-                    total_sin_impuestos=item.subtotal(),
-                    total_con_impuestos=item.subtotal() * Decimal('1.12'),  # Ejemplo con IVA
-                    estado='AUTORIZADA',
-                    turno=turno  # Asociamos la factura al turno
-                )
-            else:
-                errores.append(f"No hay suficiente inventario para {item.producto.nombre}. Solo hay {inventario.cantidad} unidades disponibles.")
-
-        if errores:
-            return render(request, 'ventas/ver_carrito.html', {'carrito_items': carrito_items, 'total': sum(item.subtotal() for item in carrito_items), 'errores': errores})
-
-        carrito_items.delete()  # Vaciar el carrito después de completar la venta
-        return redirect('ventas:inicio_turno', turno_id=turno.id)
-    else:
+    if not turno:
         return render(request, 'ventas/error.html', {'mensaje': 'No tienes un turno activo.'})
+
+    if request.method == 'POST':
+        metodo_pago = request.POST.get('metodo_pago', 'Efectivo')  # Selecciona el método de pago
+
+        try:
+            # Usar el servicio para finalizar la venta
+            factura = VentaService.finalizar_venta(turno, metodo_pago)
+            return redirect('ventas:inicio_turno', turno_id=turno.id)
+        except ValueError as e:
+            return render(request, 'ventas/ver_carrito.html', {
+                'errores': str(e), 
+                'carrito_items': Carrito.objects.filter(turno=turno),
+                'total': sum(item.subtotal() for item in Carrito.objects.filter(turno=turno))
+            })
+    
+    return redirect('ventas:ver_carrito')
 
 @login_required
 def cerrar_turno(request):
@@ -172,19 +132,13 @@ def cerrar_turno(request):
     if request.method == 'POST':
         form = CierreCajaForm(request.POST)
         if form.is_valid():
-            cierre_caja = form.save(commit=False)
-            cierre_caja.empleado = request.user
-            cierre_caja.sucursal = turno_activo.sucursal
-            cierre_caja.fecha_cierre = timezone.now()
-            cierre_caja.save()
-
-            # Marcar el turno como cerrado
-            turno_activo.fin_turno = timezone.now()
-            turno_activo.save()
-
-            messages.success(request, "Turno cerrado correctamente.")
-            # Redirigir al dashboard después del cierre
-            return redirect('dashboard')  # Redirige al dashboard sin namespace
+            try:
+                # Usar el servicio para cerrar el turno
+                TurnoService.cerrar_turno(turno_activo, form.cleaned_data)
+                messages.success(request, "Turno cerrado correctamente.")
+                return redirect('dashboard')  # Redirige al dashboard después del cierre
+            except ValueError as e:
+                messages.error(request, str(e))
         else:
             messages.error(request, "Por favor, revisa los datos ingresados.")
     

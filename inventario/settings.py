@@ -43,7 +43,7 @@ INSTALLED_APPS = [
     'ventas',
     'conteo',
     'facturacion',
-    'reportes',
+    'reportes.apps.ReportesConfig',
 ]
 
 MIDDLEWARE = [

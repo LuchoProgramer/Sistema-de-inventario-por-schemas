@@ -55,13 +55,13 @@ from django.db import transaction
 @transaction.atomic
 def generar_factura(request):
     if request.method == 'POST':
-        print("Procesando solicitud POST para generar factura.")  # Depuración
+        #print("Procesando solicitud POST para generar factura.")  # Depuración
 
         cliente_id = request.POST.get('cliente_id')
         identificacion = request.POST.get('identificacion')
 
         if not cliente_id and not identificacion:
-            print("No se proporcionó cliente ni identificación.")  # Depuración
+            #print("No se proporcionó cliente ni identificación.")  # Depuración
             return JsonResponse({'error': 'Debes seleccionar un cliente o ingresar los datos de un nuevo cliente.'}, status=400)
 
         try:
@@ -72,21 +72,21 @@ def generar_factura(request):
                 'telefono': request.POST.get('telefono'),
                 'email': request.POST.get('email')
             }
-            print(f"Datos del cliente: {data_cliente}")  # Depuración
+            #print(f"Datos del cliente: {data_cliente}")  # Depuración
             cliente = obtener_o_crear_cliente(cliente_id, identificacion, data_cliente)
 
             empleado = request.user.empleado
             turno_activo = verificar_turno_activo(empleado)
 
             sucursal = turno_activo.sucursal
-            print(f"Turno activo: {turno_activo}, Sucursal: {sucursal}")  # Depuración
+            #print(f"Turno activo: {turno_activo}, Sucursal: {sucursal}")  # Depuración
 
             carrito_items = obtener_carrito(request.user)
             if not carrito_items.exists():
-                print("Carrito vacío, no se puede generar factura.")  # Depuración
+                #print("Carrito vacío, no se puede generar factura.")  # Depuración
                 return JsonResponse({'error': 'El carrito está vacío. No se puede generar una factura.'}, status=400)
 
-            print(f"Items en el carrito: {carrito_items}")  # Depuración
+            #print(f"Items en el carrito: {carrito_items}")  # Depuración
 
             metodos_pago = request.POST.getlist('metodos_pago')
             montos_pago = request.POST.getlist('montos_pago')
@@ -94,14 +94,14 @@ def generar_factura(request):
 
             # Crear la factura
             factura = crear_factura(cliente, sucursal, empleado, carrito_items)
-            print(f"Factura creada: {factura}")  # Depuración
+            #print(f"Factura creada: {factura}")  # Depuración
 
             # Validar que la factura tenga detalles asociados
             detalles = factura.detalles.all()  # Utilizamos el related_name 'detalles'
-            print(f"Detalles asociados a la factura: {detalles}")  # Depuración
+            #print(f"Detalles asociados a la factura: {detalles}")  # Depuración
 
             if not detalles.exists():
-                print("Error: La factura no tiene detalles asociados.")  # Depuración
+                #print("Error: La factura no tiene detalles asociados.")  # Depuración
                 return JsonResponse({'error': 'La factura no tiene detalles asociados.'}, status=400)
 
             asignar_pagos_a_factura(factura, metodos_pago, montos_pago)
@@ -109,29 +109,28 @@ def generar_factura(request):
             pdf_url = generar_pdf_factura_y_guardar(factura)
 
             carrito_items.delete()
-            print("Carrito eliminado después de generar factura.")  # Depuración
+            #print("Carrito eliminado después de generar factura.")  # Depuración
 
             redirect_url = reverse('ventas:inicio_turno', args=[turno_activo.id])
             return JsonResponse({'pdf_url': pdf_url, 'redirect_url': redirect_url})
 
         except ValidationError as e:
-            print(f"Error de validación: {e.messages}")  # Depuración
+            #print(f"Error de validación: {e.messages}")  # Depuración
             return JsonResponse({'error': e.messages}, status=400)
         except Exception as e:
-            print(f"Error general: {e}")  # Depuración
+            #print(f"Error general: {e}")  # Depuración
             return JsonResponse({'error': str(e)}, status=500)
 
     else:
         carrito_items = obtener_carrito(request.user)
         total_factura = sum(item.subtotal() for item in carrito_items)
-        print(f"Total factura para el carrito: {total_factura}")  # Depuración
+        #print(f"Total factura para el carrito: {total_factura}")  # Depuración
 
         return render(request, 'facturacion/generar_factura.html', {
             'clientes': Cliente.objects.all(),
             'total_factura': total_factura,
         })
-
-
+    
 
 def generar_comprobante_pago(request):
     if request.method == 'POST':

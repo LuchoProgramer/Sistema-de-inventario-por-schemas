@@ -89,7 +89,7 @@ class Factura(models.Model):
         unique_together = ('sucursal', 'numero_autorizacion')
 
     def calcular_total_pagado(self):
-        return sum(pago.valor for pago in self.pagos.all())
+        return sum(pago.total for pago in self.pagos.all())
 
     def actualizar_estado_pago(self):
         total_pagado = self.calcular_total_pagado()

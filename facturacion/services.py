@@ -136,14 +136,34 @@ def asignar_pagos_a_factura(factura, metodos_pago, montos_pago):
         '20': 'Transferencias',
         '17': 'Dinero Electrónico'
     }
+
+    # Depuración: Mostrar la factura y los datos que se reciben
+    print(f"Asignando pagos para la factura: {factura.numero_autorizacion}")
+    print(f"Métodos de pago recibidos: {metodos_pago}")
+    print(f"Montos de pago recibidos: {montos_pago}")
+
     for metodo_pago, monto_pago in zip(metodos_pago, montos_pago):
         descripcion = metodo_descripciones.get(metodo_pago, 'Método de Pago Desconocido')
-        Pago.objects.create(
-            factura=factura,
-            codigo_sri=metodo_pago,
-            total=Decimal(monto_pago),
-            descripcion=f"Pago con {descripcion}"
-        )
+
+        # Depuración: Mostrar los detalles antes de crear el pago
+        print(f"Creando pago de {monto_pago} con método {metodo_pago} - {descripcion}")
+
+        try:
+            pago_creado = Pago.objects.create(
+                factura=factura,
+                codigo_sri=metodo_pago,
+                total=Decimal(monto_pago),
+                descripcion=f"Pago con {descripcion}"
+            )
+
+            # Depuración: Confirmar que el pago fue creado
+            print(f"Pago creado: {pago_creado}")
+        except Exception as e:
+            # Depuración: Capturar cualquier error al crear el pago
+            print(f"Error al crear el pago: {e}")
+
+    # Depuración: Mostrar los pagos asociados a la factura después de crear los nuevos pagos
+    print(f"Pagos asociados a la factura {factura.numero_autorizacion}: {factura.pagos.all()}")
 
 # Función para generar el PDF de la factura
 def generar_pdf_factura_y_guardar(factura):
