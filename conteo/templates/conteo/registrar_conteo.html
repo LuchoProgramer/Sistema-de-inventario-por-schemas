@@ -61,7 +61,7 @@
                         $(this).find('input[type="checkbox"]').parent().removeClass('error');
                     }
 
-                    if (cantidad.length && !cantidad.val()) {
+                    if (cantidad.length && (!cantidad.val() || cantidad.val() <= 0)) {
                         isValid = false;
                         cantidad.addClass('error');
                     } else {

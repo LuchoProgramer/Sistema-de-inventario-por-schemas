@@ -1,5 +1,4 @@
 from django.db import models, transaction
-from sucursales.models import Sucursal
 from django.core.exceptions import ValidationError
 from decimal import Decimal
 
@@ -64,7 +63,7 @@ class Producto(models.Model):
 
 class Inventario(models.Model):
     producto = models.ForeignKey(Producto, on_delete=models.CASCADE)
-    sucursal = models.ForeignKey(Sucursal, on_delete=models.CASCADE)
+    sucursal = models.ForeignKey('sucursales.Sucursal', on_delete=models.CASCADE)
     cantidad = models.IntegerField()
 
     class Meta:
@@ -78,7 +77,7 @@ class Inventario(models.Model):
             raise ValidationError("La cantidad en inventario no puede ser negativa.")
 
 class Compra(models.Model):
-    sucursal = models.ForeignKey(Sucursal, on_delete=models.CASCADE)
+    sucursal = models.ForeignKey('sucursales.Sucursal', on_delete=models.CASCADE)
     producto = models.ForeignKey(Producto, on_delete=models.CASCADE)
     cantidad = models.IntegerField()
     precio_unitario = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)  # Permitir que sea nulo inicialmente
@@ -126,8 +125,8 @@ class Compra(models.Model):
         return f"Compra de {self.cantidad} {self.producto.unidad_medida} de {self.producto.nombre} para {self.sucursal.nombre}"
 
 class Transferencia(models.Model):
-    sucursal_origen = models.ForeignKey(Sucursal, on_delete=models.CASCADE, related_name='transferencias_salida')
-    sucursal_destino = models.ForeignKey(Sucursal, on_delete=models.CASCADE, related_name='transferencias_entrada')
+    sucursal_origen = models.ForeignKey('sucursales.Sucursal', on_delete=models.CASCADE, related_name='transferencias_salida')
+    sucursal_destino = models.ForeignKey('sucursales.Sucursal', on_delete=models.CASCADE, related_name='transferencias_entrada')
     producto = models.ForeignKey(Producto, on_delete=models.CASCADE)
     cantidad = models.IntegerField()
     fecha = models.DateTimeField(auto_now_add=True)
@@ -175,7 +174,7 @@ class MovimientoInventario(models.Model):
     ]
 
     producto = models.ForeignKey(Producto, on_delete=models.CASCADE)
-    sucursal = models.ForeignKey(Sucursal, on_delete=models.CASCADE)
+    sucursal = models.ForeignKey('sucursales.Sucursal', on_delete=models.CASCADE)
     tipo_movimiento = models.CharField(max_length=25, choices=TIPOS_MOVIMIENTO)
     cantidad = models.IntegerField()
     fecha = models.DateTimeField(auto_now_add=True)

@@ -2,7 +2,7 @@
 
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required, user_passes_test
-from empleados.models import RegistroTurno
+from RegistroTurnos.models import RegistroTurno
 from .forms import SeleccionVentaForm, CierreCajaForm
 from .models import Venta, Carrito
 from django.utils import timezone
@@ -15,11 +15,13 @@ from decimal import Decimal
 from sucursales.models import Sucursal
 from ventas.services import VentaService
 from ventas.services import TurnoService 
+from datetime import timedelta
+
 
 @login_required
 def registrar_venta(request):
-    empleado = request.user.empleado
-    turno_activo = RegistroTurno.objects.filter(empleado=empleado, fin_turno__isnull=True).first()
+    usuario = request.user  # Cambiado de empleado a usuario
+    turno_activo = RegistroTurno.objects.filter(usuario=usuario, fin_turno__isnull=True).first()  # Cambiado a usuario
 
     if not turno_activo:
         return render(request, 'ventas/error.html', {'mensaje': 'No tienes un turno activo. Inicia un turno para registrar ventas.'})
@@ -46,8 +48,8 @@ def registrar_venta(request):
 
 @login_required
 def inicio_turno(request, turno_id):
-    # Cargar el turno usando el turno_id y verificar que pertenece al empleado logueado
-    turno = get_object_or_404(RegistroTurno, id=turno_id, empleado=request.user.empleado)
+    # Cargar el turno usando el turno_id y verificar que pertenece al usuario logueado
+    turno = get_object_or_404(RegistroTurno, id=turno_id, usuario=request.user)  # Cambiado de empleado a usuario
 
     # Filtrar los productos disponibles en la sucursal del turno y con inventario mayor a 0
     productos = Producto.objects.filter(inventario__sucursal=turno.sucursal, inventario__cantidad__gt=0)
@@ -62,7 +64,9 @@ def inicio_turno(request, turno_id):
 @login_required
 def agregar_al_carrito(request, producto_id):
     producto = get_object_or_404(Producto, id=producto_id)
-    turno = RegistroTurno.objects.filter(empleado__usuario=request.user, fin_turno__isnull=True).first()
+    
+    # Cambiado de empleado=request.user.empleado a usuario=request.user
+    turno = RegistroTurno.objects.filter(usuario=request.user, fin_turno__isnull=True).first()
 
     if turno:
         carrito_item, created = Carrito.objects.get_or_create(turno=turno, producto=producto)
@@ -76,7 +80,8 @@ def agregar_al_carrito(request, producto_id):
 
 @login_required
 def ver_carrito(request):
-    turno = RegistroTurno.objects.filter(empleado__usuario=request.user, fin_turno__isnull=True).first()
+    # Cambiado de empleado=request.user.empleado a usuario=request.user
+    turno = RegistroTurno.objects.filter(usuario=request.user, fin_turno__isnull=True).first()
 
     # Verificar si el usuario ha hecho clic en el botón "Eliminar"
     if request.method == 'POST':
@@ -99,7 +104,8 @@ def ver_carrito(request):
     
 @login_required
 def finalizar_venta(request):
-    turno = RegistroTurno.objects.filter(empleado__usuario=request.user, fin_turno__isnull=True).first()
+    # Cambiado de empleado=request.user.empleado a usuario=request.user
+    turno = RegistroTurno.objects.filter(usuario=request.user, fin_turno__isnull=True).first()
 
     if not turno:
         return render(request, 'ventas/error.html', {'mensaje': 'No tienes un turno activo.'})
@@ -122,8 +128,8 @@ def finalizar_venta(request):
 
 @login_required
 def cerrar_turno(request):
-    empleado = request.user.empleado
-    turno_activo = RegistroTurno.objects.filter(empleado=empleado, fin_turno__isnull=True).first()
+    usuario = request.user  # Cambiado de empleado a usuario
+    turno_activo = RegistroTurno.objects.filter(usuario=usuario, fin_turno__isnull=True).first()
 
     if not turno_activo:
         messages.error(request, "No tienes un turno activo para cerrar.")
@@ -161,8 +167,14 @@ def comparar_cierre_ventas(request, turno_id):
     total_ventas_tarjeta = ventas.filter(metodo_pago='Tarjeta').aggregate(Sum('total_venta'))['total_venta__sum'] or 0
     total_ventas_transferencia = ventas.filter(metodo_pago='Transferencia').aggregate(Sum('total_venta'))['total_venta__sum'] or 0
 
-    # Comparar con los valores ingresados por el empleado
-    cierre_caja = CierreCaja.objects.filter(empleado=turno.empleado, fecha_cierre=turno.fin_turno).first()
+    # Comparar con los valores ingresados por el usuario (anteriormente empleado), usando un rango de tiempo
+    cierre_caja = CierreCaja.objects.filter(
+        usuario=turno.usuario,  # Cambiado de empleado a usuario
+        fecha_cierre__range=(turno.fin_turno - timedelta(minutes=5), turno.fin_turno + timedelta(minutes=5))
+    ).first()
+
+    if not cierre_caja:
+        return render(request, 'ventas/error.html', {'mensaje': 'No se encontró un cierre de caja para este turno.'})
 
     context = {
         'turno': turno,

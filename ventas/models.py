@@ -5,13 +5,12 @@ from django.contrib.auth.models import User  # Asumiendo que los empleados está
 from django.db.models import Sum
 from django.core.exceptions import ValidationError
 from decimal import Decimal
-from empleados.models import Empleado
 
 class Venta(models.Model):
     # Definición de los campos
-    turno = models.ForeignKey('empleados.RegistroTurno', on_delete=models.CASCADE, related_name='ventas')
+    turno = models.ForeignKey('RegistroTurnos.RegistroTurno', on_delete=models.CASCADE, related_name='ventas')
     sucursal = models.ForeignKey(Sucursal, on_delete=models.CASCADE)
-    empleado = models.ForeignKey(Empleado, on_delete=models.SET_NULL, null=True, blank=True)
+    usuario = models.ForeignKey('auth.User', on_delete=models.SET_NULL, null=True, blank=True)
     producto = models.ForeignKey(Producto, on_delete=models.CASCADE)
     cantidad = models.IntegerField()
     precio_unitario = models.DecimalField(max_digits=10, decimal_places=2)
@@ -83,7 +82,7 @@ class Venta(models.Model):
 
 #Cierra de caja
 class CierreCaja(models.Model):
-    empleado = models.ForeignKey(Empleado, on_delete=models.CASCADE)  # Cambiado de User a Empleado
+    usuario = models.ForeignKey('auth.User', on_delete=models.CASCADE)
     sucursal = models.ForeignKey(Sucursal, on_delete=models.CASCADE)
     efectivo_total = models.DecimalField(max_digits=10, decimal_places=2)
     tarjeta_total = models.DecimalField(max_digits=10, decimal_places=2)
@@ -102,7 +101,7 @@ class CierreCaja(models.Model):
         ventas = Venta.objects.filter(
             fecha__date=self.fecha_cierre.date(),
             sucursal=self.sucursal,
-            empleado=self.empleado  # Ahora se relaciona con Empleado
+            usuario=self.usuario
         )
 
         # Realizar agregaciones para calcular los totales directamente en la base de datos
@@ -126,7 +125,7 @@ class CierreCaja(models.Model):
 
 
 class Carrito(models.Model):
-    turno = models.ForeignKey('empleados.RegistroTurno', on_delete=models.CASCADE, related_name='carritos')
+    turno = models.ForeignKey('RegistroTurnos.RegistroTurno', on_delete=models.CASCADE, related_name='carritos')
     producto = models.ForeignKey(Producto, on_delete=models.CASCADE)
     cantidad = models.PositiveIntegerField(default=1)
     agregado_el = models.DateTimeField(auto_now_add=True)
@@ -137,7 +136,8 @@ class Carrito(models.Model):
             raise ValidationError('La cantidad del producto debe ser mayor que cero.')
 
         # Verificar que haya suficiente inventario del producto
-        if self.producto.stock < self.cantidad:
+        inventario = Inventario.objects.filter(producto=self.producto, sucursal=self.turno.sucursal).first()
+        if not inventario or inventario.cantidad < self.cantidad:
             raise ValidationError(f'No hay suficiente stock para {self.producto.nombre}. Disponibles: {self.producto.stock}')
 
         super().clean()

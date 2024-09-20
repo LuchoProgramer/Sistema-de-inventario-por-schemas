@@ -32,13 +32,13 @@ def registrar_conteo(request):
                 cantidad = form.cleaned_data.get(f'cantidad_{producto.id}', 0)
                 ConteoDiario.objects.create(
                     sucursal=sucursal,
-                    empleado=request.user,  # Guardamos el usuario logueado como empleado
+                    usuario=request.user,  # Cambiado de empleado a usuario
                     producto=producto,
                     cantidad_contada=cantidad
                 )
             
             # Generar y enviar el archivo Excel
-            generar_y_enviar_excel(sucursal=sucursal, empleado=request.user, email_destino='luchoviteri1990@gmail.com')
+            generar_y_enviar_excel(sucursal=sucursal, usuario=request.user, email_destino='luchoviteri1990@gmail.com')  # Cambiado a usuario
             
             return redirect('conteo_exitoso')  # Redirigir a una página de éxito o similar
     else:
@@ -59,7 +59,6 @@ def registrar_conteo(request):
     }
 
     return render(request, 'conteo/registrar_conteo.html', context)
-
 
 # Vista de Conteo Exitoso
 

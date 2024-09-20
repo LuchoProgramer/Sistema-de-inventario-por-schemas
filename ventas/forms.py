@@ -28,7 +28,7 @@ class SeleccionVentaForm(forms.Form):
         if sucursal_id:
             productos_disponibles = Producto.objects.filter(inventario__sucursal_id=sucursal_id)
             if not productos_disponibles.exists():
-                self.fields['producto'].empty_label = "No hay productos disponibles"  # Cambia el mensaje si no hay productos
+                self.fields['producto'].empty_label = "No hay productos disponibles"
             self.fields['producto'].queryset = productos_disponibles
     
     def clean(self):
@@ -44,6 +44,9 @@ class SeleccionVentaForm(forms.Form):
                     raise forms.ValidationError(f"No hay suficiente stock. Disponible: {inventario.cantidad} unidades.")
             except Inventario.DoesNotExist:
                 raise forms.ValidationError("No hay inventario disponible para este producto en la sucursal seleccionada.")
+            except Exception as e:
+                raise forms.ValidationError(f"Error al verificar el inventario: {str(e)}")
+
 
 
 class MetodoPagoForm(forms.Form):

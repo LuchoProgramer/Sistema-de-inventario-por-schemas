@@ -8,13 +8,13 @@ from django.db import transaction
 from django.core.exceptions import ValidationError
 from decimal import Decimal
 from facturacion.models import Cliente, Pago
-from empleados.models import RegistroTurno
+from RegistroTurnos.models import RegistroTurno
 from facturacion.pdf.factura_pdf import generar_pdf_factura
 import os
 from django.conf import settings
 
 
-def crear_factura(cliente, sucursal, empleado, carrito_items):
+def crear_factura(cliente, sucursal, usuario, carrito_items):
     print("Iniciando la creación de la factura...")  # Depuración
     iva = Impuesto.objects.filter(codigo_impuesto='2', activo=True).first()
 
@@ -46,7 +46,7 @@ def crear_factura(cliente, sucursal, empleado, carrito_items):
             factura = Factura.objects.create(
                 sucursal=sucursal,
                 cliente=cliente,
-                empleado=empleado,
+                usuario=usuario,  # Cambiar empleado por usuario
                 numero_autorizacion=sucursal.secuencial_actual.zfill(9),
                 total_sin_impuestos=total_sin_impuestos,
                 total_con_impuestos=total_con_impuestos,
@@ -108,7 +108,6 @@ def crear_factura(cliente, sucursal, empleado, carrito_items):
         print(f"Error general en la transacción: {e}")  # Captura cualquier error general en la transacción
         raise e
 
-
 # Función para validar o crear un cliente
 def obtener_o_crear_cliente(cliente_id, identificacion, data_cliente):
     try:
@@ -125,9 +124,9 @@ def obtener_o_crear_cliente(cliente_id, identificacion, data_cliente):
     except Cliente.DoesNotExist:
         raise ValidationError("Cliente no encontrado.")
 
-# Función para verificar si el empleado tiene un turno activo
-def verificar_turno_activo(empleado):
-    turno_activo = RegistroTurno.objects.filter(empleado=empleado, fin_turno__isnull=True).first()
+# Función para verificar si el usuario tiene un turno activo
+def verificar_turno_activo(usuario):
+    turno_activo = RegistroTurno.objects.filter(usuario=usuario, fin_turno__isnull=True).first()
     if not turno_activo:
         raise ValidationError("No tienes un turno activo. Por favor inicia un turno.")
     return turno_activo

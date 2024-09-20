@@ -2,7 +2,7 @@ from django.test import TestCase
 from django.utils import timezone
 from django.contrib.auth.models import User
 from ventas.models import Carrito
-from empleados.models import Empleado, RegistroTurno
+from RegistroTurnos.models import Empleado, RegistroTurno
 from sucursales.models import Sucursal
 from inventarios.models import Producto, Inventario
 from facturacion.models import Cliente, Impuesto, DetalleFactura, Factura

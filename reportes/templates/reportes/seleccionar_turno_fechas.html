@@ -1,4 +1,3 @@
-<!-- templates/reportes/seleccionar_turno_fechas.html -->
 <h1>Seleccionar Turno</h1>
 <form method="GET" action="{% url 'seleccionar_turno_por_fechas' %}">
   <label for="fecha_inicio">Fecha Inicio:</label>
@@ -7,10 +6,10 @@
   <label for="fecha_fin">Fecha Fin:</label>
   <input type="date" name="fecha_fin" required>
   
-  <label for="empleado_id">Empleado:</label>
-  <select name="empleado_id">
-    {% for empleado in empleados %}
-      <option value="{{ empleado.id }}">{{ empleado.nombre }}</option>
+  <label for="user_id">Usuario:</label> <!-- Cambiado de empleado_id a user_id -->
+  <select name="user_id">
+    {% for user in users %} <!-- Cambiado de empleados a users -->
+      <option value="{{ user.id }}">{{ user.get_full_name }}</option> <!-- Cambiado a get_full_name para mostrar nombre completo -->
     {% endfor %}
   </select>
   

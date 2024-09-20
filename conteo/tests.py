@@ -11,7 +11,7 @@ class ConteoDiarioModelTest(TestCase):
         self.producto = Producto.objects.create(nombre="Producto Test", precio_compra=10, precio_venta=20)
         self.conteo = ConteoDiario.objects.create(
             sucursal="Sucursal Test",
-            empleado=self.user,
+            usuario=self.user,  # Cambiado de empleado a usuario
             producto=self.producto,
             cantidad_contada=100
         )
@@ -23,7 +23,7 @@ class ConteoDiarioModelTest(TestCase):
     def test_conteo_diario_invalid(self):
         conteo = ConteoDiario(
             sucursal="",
-            empleado=self.user,
+            usuario=self.user,  # Cambiado de empleado a usuario
             producto=self.producto,
             cantidad_contada=-10  # Cantidad inválida
         )
@@ -47,3 +47,4 @@ class ConteoProductoFormTest(TestCase):
         }
         form = ConteoProductoForm(data=form_data, productos=[self.producto])
         self.assertTrue(form.is_valid())
+

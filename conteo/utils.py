@@ -5,17 +5,17 @@ from .models import ConteoDiario
 import tempfile
 import os
 
-def generar_y_enviar_excel(sucursal, empleado, email_destino):
+def generar_y_enviar_excel(sucursal, usuario, email_destino):  # Cambiado a usuario
     # Crear un nuevo libro de trabajo
     workbook = openpyxl.Workbook()
     sheet = workbook.active
     sheet.title = f"Conteo de {sucursal}"
 
-    # Agregar la sucursal y el empleado en las primeras filas
+    # Agregar la sucursal y el usuario en las primeras filas
     sheet['A1'] = 'Sucursal:'
     sheet['B1'] = sucursal
-    sheet['A2'] = 'Empleado:'
-    sheet['B2'] = empleado.get_full_name()  # Usamos el nombre completo del empleado
+    sheet['A2'] = 'Usuario:'
+    sheet['B2'] = usuario.get_full_name()  # Usamos el nombre completo del usuario
 
     # Crear los encabezados
     headers = ['Producto', 'Cantidad Contada', 'Fecha de Conteo']
@@ -23,8 +23,8 @@ def generar_y_enviar_excel(sucursal, empleado, email_destino):
         col_letter = get_column_letter(col_num)
         sheet[f'{col_letter}4'] = header  # Los encabezados comienzan en la fila 4
 
-    # Obtener los datos del conteo para la sucursal y empleado específicos
-    conteos = ConteoDiario.objects.filter(sucursal=sucursal, empleado=empleado)
+    # Obtener los datos del conteo para la sucursal y usuario específicos
+    conteos = ConteoDiario.objects.filter(sucursal=sucursal, usuario=usuario)  # Cambiado a usuario
 
     # Llenar el archivo Excel con los datos
     for row_num, conteo in enumerate(conteos, start=5):  # Los datos comienzan en la fila 5
@@ -40,7 +40,7 @@ def generar_y_enviar_excel(sucursal, empleado, email_destino):
     # Enviar el archivo Excel por correo electrónico
     email = EmailMessage(
         subject=f'Reporte de Conteo Diario - {sucursal}',
-        body=f'Adjunto encontrarás el reporte del conteo diario realizado por {empleado.get_full_name()}.',
+        body=f'Adjunto encontrarás el reporte del conteo diario realizado por {usuario.get_full_name()}.',  # Cambiado a usuario
         from_email='tucorreo@example.com',
         to=[email_destino],
     )

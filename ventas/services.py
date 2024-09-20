@@ -1,14 +1,10 @@
-from ventas.models import Venta, CierreCaja
-from inventarios.models import Producto
-from empleados.models import RegistroTurno
+from ventas.models import Venta, CierreCaja, Carrito
+from inventarios.models import Producto, Inventario
+from RegistroTurnos.models import RegistroTurno
+from facturacion.models import Factura
 from django.utils import timezone
 from django.db import transaction
-from ventas.models import Venta, Carrito
-from facturacion.models import Factura
-from inventarios.models import Inventario
 from decimal import Decimal
-from django.db import transaction
-
 
 class VentaService:
     @staticmethod
@@ -27,7 +23,7 @@ class VentaService:
         venta = Venta.objects.create(
             turno=turno_activo,
             sucursal=turno_activo.sucursal,
-            empleado=turno_activo.empleado,
+            usuario=turno_activo.usuario,  # Cambiado de empleado a usuario
             producto=producto,
             cantidad=cantidad,
             precio_unitario=precio_unitario,
@@ -66,7 +62,7 @@ class VentaService:
                 Venta.objects.create(
                     turno=turno,
                     sucursal=turno.sucursal,
-                    empleado=turno.empleado,
+                    usuario=turno.usuario,  # Cambiado de empleado a usuario
                     producto=item.producto,
                     cantidad=item.cantidad,
                     precio_unitario=item.producto.precio,
@@ -86,8 +82,8 @@ class VentaService:
         # Crear la factura
         factura = Factura.objects.create(
             sucursal=turno.sucursal,
-            cliente=turno.empleado.cliente,
-            empleado=turno.empleado,
+            cliente=turno.usuario.cliente,  # Cambiado de empleado.cliente a usuario.cliente
+            usuario=turno.usuario,  # Cambiado de empleado a usuario
             total_sin_impuestos=total_sin_impuestos,
             total_con_impuestos=total_con_impuestos,
             estado='AUTORIZADA',
@@ -97,7 +93,7 @@ class VentaService:
         carrito_items.delete()  # Vaciar el carrito después de completar la venta
 
         return factura
-    
+
 
 class TurnoService:
     @staticmethod
@@ -105,7 +101,7 @@ class TurnoService:
     def cerrar_turno(turno, cierre_form_data):
         # Guardar cierre de caja
         cierre_caja = CierreCaja.objects.create(
-            empleado=turno.empleado,
+            usuario=turno.usuario,  # Cambiado de empleado a usuario
             sucursal=turno.sucursal,
             fecha_cierre=timezone.now(),
             efectivo_total=cierre_form_data.get('efectivo_total'),  # Corregido a efectivo_total

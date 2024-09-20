@@ -1,12 +1,12 @@
 from .models import Carrito
-from empleados.models import Empleado, RegistroTurno
+from RegistroTurnos.models import RegistroTurno
 import logging
 
 logger = logging.getLogger(__name__)
 
 def obtener_turno_activo(usuario):
     """
-    Busca el empleado correspondiente al usuario y su turno activo.
+    Busca el turno activo para el usuario.
 
     Args:
         usuario (User): El usuario para el cual se desea buscar el turno activo.
@@ -15,11 +15,8 @@ def obtener_turno_activo(usuario):
         RegistroTurno or None: El turno activo si existe, None en caso contrario.
     """
     try:
-        empleado = Empleado.objects.get(usuario=usuario)
-        return RegistroTurno.objects.filter(empleado=empleado, fin_turno__isnull=True).first()
-    except Empleado.DoesNotExist:
-        logger.warning(f"No se encontró un empleado para el usuario: {usuario}")
-        return None
+        # Ahora buscamos el turno directamente con el usuario
+        return RegistroTurno.objects.filter(usuario=usuario, fin_turno__isnull=True).first()
     except Exception as e:
         logger.error(f"Error al obtener el turno activo: {e}")
         return None
@@ -56,3 +53,4 @@ def vaciar_carrito(usuario):
         carrito_items.delete()
     else:
         logger.warning(f"Intento de vaciar carrito sin turno activo para el usuario: {usuario}")
+

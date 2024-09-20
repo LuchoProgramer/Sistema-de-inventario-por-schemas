@@ -1,13 +1,16 @@
-# reportes/services.py
 from ventas.models import Venta
-from empleados.models import RegistroTurno
+from RegistroTurnos.models import RegistroTurno
 from django.db.models import Sum
+from django.shortcuts import get_object_or_404
 
 def generar_reporte_ventas_por_turno(turno_id):
-    turno = RegistroTurno.objects.get(id=turno_id)
-    ventas = turno.ventas.all()  # Obtener todas las ventas asociadas al turno
-    
-    total_ventas = ventas.aggregate(total=Sum('total_venta'))['total']
-    total_ventas = total_ventas if total_ventas is not None else 0
+    # Obtener el turno o lanzar una excepción 404 si no se encuentra
+    turno = get_object_or_404(RegistroTurno, id=turno_id)
+
+    # Obtener todas las ventas asociadas al turno
+    ventas = turno.ventas.all()
+
+    # Calcular el total de ventas, asegurándose de que no sea None
+    total_ventas = ventas.aggregate(total=Sum('total_venta'))['total'] or 0
 
     return ventas, total_ventas
