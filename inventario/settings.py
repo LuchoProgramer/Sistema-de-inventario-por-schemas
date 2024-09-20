@@ -171,3 +171,43 @@ MEDIA_URL = '/media/'
 
 # La ruta absoluta en el sistema de archivos donde se guardarán los archivos cargados por los usuarios.
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+
+
+from logging.handlers import RotatingFileHandler
+
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'verbose': {
+            'format': '{levelname} {asctime} {module} {message}',
+            'style': '{',
+        },
+        'simple': {
+            'format': '{levelname} {message}',
+            'style': '{',
+        },
+    },
+    'handlers': {
+        'console': {
+            'level': 'ERROR',  # Solo mostrar errores graves en la consola
+            'class': 'logging.StreamHandler',
+            'formatter': 'simple',
+        },
+        'file': {
+            'level': 'INFO',  # Registrar desde 'INFO' en adelante en el archivo
+            'class': 'logging.handlers.RotatingFileHandler',
+            'filename': os.path.join(BASE_DIR, 'debug.log'),
+            'formatter': 'verbose',
+            'maxBytes': 1024 * 1024 * 3,  # Máximo 3 MB por archivo
+            'backupCount': 2,  # Mantener un máximo de 2 archivos (1 actual y 1 de respaldo)
+        },
+    },
+    'loggers': {
+        'django': {
+            'handlers': ['console', 'file'],
+            'level': 'INFO',  # Solo registrar eventos importantes
+            'propagate': True,
+        },
+    },
+}

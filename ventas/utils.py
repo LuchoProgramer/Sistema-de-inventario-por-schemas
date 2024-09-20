@@ -1,55 +1,58 @@
 from .models import Carrito
-from empleados.models import Empleado
-from empleados.models import RegistroTurno
+from empleados.models import Empleado, RegistroTurno
+import logging
+
+logger = logging.getLogger(__name__)
+
+def obtener_turno_activo(usuario):
+    """
+    Busca el empleado correspondiente al usuario y su turno activo.
+
+    Args:
+        usuario (User): El usuario para el cual se desea buscar el turno activo.
+
+    Returns:
+        RegistroTurno or None: El turno activo si existe, None en caso contrario.
+    """
+    try:
+        empleado = Empleado.objects.get(usuario=usuario)
+        return RegistroTurno.objects.filter(empleado=empleado, fin_turno__isnull=True).first()
+    except Empleado.DoesNotExist:
+        logger.warning(f"No se encontró un empleado para el usuario: {usuario}")
+        return None
+    except Exception as e:
+        logger.error(f"Error al obtener el turno activo: {e}")
+        return None
 
 def obtener_carrito(usuario):
     """
-    Obtiene el carrito asociado al usuario actual.
+    Obtiene el carrito asociado al usuario actual, basado en su turno activo.
+
+    Args:
+        usuario (User): El usuario actual.
+
+    Returns:
+        QuerySet: Un queryset del modelo Carrito relacionado con el turno activo.
     """
-    try:
-        # Buscar el empleado correspondiente al usuario
-        empleado = Empleado.objects.get(usuario=usuario)
-        
-        # Buscar el turno activo para ese empleado
-        turno_activo = RegistroTurno.objects.filter(empleado=empleado, fin_turno__isnull=True).first()
+    turno_activo = obtener_turno_activo(usuario)
 
-        if turno_activo:
-            # Obtener los elementos del carrito asociados con el turno activo
-            return Carrito.objects.filter(turno=turno_activo)
-        else:
-            # Si no hay turno activo, retornar un queryset vacío y loggear
-            return Carrito.objects.none()
-    
-    except Empleado.DoesNotExist:
-        # Si no existe el empleado o turno, retornar un queryset vacío
+    if turno_activo:
+        return Carrito.objects.filter(turno=turno_activo)
+    else:
         return Carrito.objects.none()
-    except Exception as e:
-        # Capturar cualquier otra excepción
-        print(f"Error al obtener el carrito: {e}")
-        return Carrito.objects.none()
-
 
 def vaciar_carrito(usuario):
     """
-    Vacia el carrito asociado al usuario actual después de procesar la factura.
-    """
-    try:
-        # Buscar el empleado correspondiente al usuario
-        empleado = Empleado.objects.get(usuario=usuario)
-        
-        # Buscar el turno activo para ese empleado
-        turno_activo = RegistroTurno.objects.filter(empleado=empleado, fin_turno__isnull=True).first()
-        
-        if turno_activo:
-            # Obtener todos los elementos del carrito asociados con el turno activo
-            carrito_items = Carrito.objects.filter(turno=turno_activo)
-            
-            # Eliminar los elementos del carrito
-            carrito_items.delete()
+    Vacía el carrito asociado al usuario actual después de procesar la factura.
 
-    except Empleado.DoesNotExist:
-        # Si el empleado no existe, no se hace nada
-        pass
-    except Exception as e:
-        # Capturar cualquier otra excepción
-        print(f"Error al vaciar el carrito: {e}")
+    Args:
+        usuario (User): El usuario actual.
+
+    """
+    turno_activo = obtener_turno_activo(usuario)
+
+    if turno_activo:
+        carrito_items = Carrito.objects.filter(turno=turno_activo)
+        carrito_items.delete()
+    else:
+        logger.warning(f"Intento de vaciar carrito sin turno activo para el usuario: {usuario}")

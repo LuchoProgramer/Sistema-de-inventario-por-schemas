@@ -27,7 +27,7 @@ class VentaService:
         venta = Venta.objects.create(
             turno=turno_activo,
             sucursal=turno_activo.sucursal,
-            empleado=turno_activo.empleado.usuario,
+            empleado=turno_activo.empleado,
             producto=producto,
             cantidad=cantidad,
             precio_unitario=precio_unitario,
@@ -66,7 +66,7 @@ class VentaService:
                 Venta.objects.create(
                     turno=turno,
                     sucursal=turno.sucursal,
-                    empleado=turno.empleado.usuario,
+                    empleado=turno.empleado,
                     producto=item.producto,
                     cantidad=item.cantidad,
                     precio_unitario=item.producto.precio,
@@ -105,7 +105,7 @@ class TurnoService:
     def cerrar_turno(turno, cierre_form_data):
         # Guardar cierre de caja
         cierre_caja = CierreCaja.objects.create(
-            empleado=turno.empleado.usuario,  # Usamos el usuario del empleado
+            empleado=turno.empleado,
             sucursal=turno.sucursal,
             fecha_cierre=timezone.now(),
             efectivo_total=cierre_form_data.get('efectivo_total'),  # Corregido a efectivo_total

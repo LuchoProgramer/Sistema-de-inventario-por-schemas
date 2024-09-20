@@ -59,7 +59,10 @@ def crear_factura(cliente, sucursal, empleado, carrito_items):
             for item in carrito_items:
                 try:
                     print(f"Creando detalle para el producto {item.producto.nombre}...")  # Depuración
-
+                    # Recalcular los valores para cada item
+                    valor_base, valor_iva = item.producto.obtener_valor_base_iva()
+                    subtotal_item = valor_base * item.cantidad
+                    iva_item = valor_iva * item.cantidad
                     total_item = subtotal_item + iva_item
 
                     print(f"Valores de detalle: cantidad={item.cantidad}, precio_unitario={item.producto.precio_venta}, subtotal={subtotal_item}, total={total_item}")
@@ -77,6 +80,7 @@ def crear_factura(cliente, sucursal, empleado, carrito_items):
                     print(f"Detalle creado: {detalle}")
                 except Exception as e:
                     print(f"Error al crear el detalle: {e}")
+                    raise e  # Importante: Propagar la excepción para que la transacción se pueda revertir
 
                 # Actualiza el inventario
                 inventario = Inventario.objects.select_for_update().get(sucursal=sucursal, producto=item.producto)
@@ -103,6 +107,7 @@ def crear_factura(cliente, sucursal, empleado, carrito_items):
     except Exception as e:
         print(f"Error general en la transacción: {e}")  # Captura cualquier error general en la transacción
         raise e
+
 
 # Función para validar o crear un cliente
 def obtener_o_crear_cliente(cliente_id, identificacion, data_cliente):
@@ -137,33 +142,15 @@ def asignar_pagos_a_factura(factura, metodos_pago, montos_pago):
         '17': 'Dinero Electrónico'
     }
 
-    # Depuración: Mostrar la factura y los datos que se reciben
-    print(f"Asignando pagos para la factura: {factura.numero_autorizacion}")
-    print(f"Métodos de pago recibidos: {metodos_pago}")
-    print(f"Montos de pago recibidos: {montos_pago}")
-
     for metodo_pago, monto_pago in zip(metodos_pago, montos_pago):
         descripcion = metodo_descripciones.get(metodo_pago, 'Método de Pago Desconocido')
+        Pago.objects.create(
+            factura=factura,
+            codigo_sri=metodo_pago,
+            total=Decimal(monto_pago),
+            descripcion=f"Pago con {descripcion}"
+        )
 
-        # Depuración: Mostrar los detalles antes de crear el pago
-        print(f"Creando pago de {monto_pago} con método {metodo_pago} - {descripcion}")
-
-        try:
-            pago_creado = Pago.objects.create(
-                factura=factura,
-                codigo_sri=metodo_pago,
-                total=Decimal(monto_pago),
-                descripcion=f"Pago con {descripcion}"
-            )
-
-            # Depuración: Confirmar que el pago fue creado
-            print(f"Pago creado: {pago_creado}")
-        except Exception as e:
-            # Depuración: Capturar cualquier error al crear el pago
-            print(f"Error al crear el pago: {e}")
-
-    # Depuración: Mostrar los pagos asociados a la factura después de crear los nuevos pagos
-    print(f"Pagos asociados a la factura {factura.numero_autorizacion}: {factura.pagos.all()}")
 
 # Función para generar el PDF de la factura
 def generar_pdf_factura_y_guardar(factura):

@@ -5,12 +5,13 @@ from django.contrib.auth.models import User  # Asumiendo que los empleados está
 from django.db.models import Sum
 from django.core.exceptions import ValidationError
 from decimal import Decimal
+from empleados.models import Empleado
 
 class Venta(models.Model):
     # Definición de los campos
     turno = models.ForeignKey('empleados.RegistroTurno', on_delete=models.CASCADE, related_name='ventas')
     sucursal = models.ForeignKey(Sucursal, on_delete=models.CASCADE)
-    empleado = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
+    empleado = models.ForeignKey(Empleado, on_delete=models.SET_NULL, null=True, blank=True)
     producto = models.ForeignKey(Producto, on_delete=models.CASCADE)
     cantidad = models.IntegerField()
     precio_unitario = models.DecimalField(max_digits=10, decimal_places=2)
@@ -82,7 +83,7 @@ class Venta(models.Model):
 
 #Cierra de caja
 class CierreCaja(models.Model):
-    empleado = models.ForeignKey(User, on_delete=models.CASCADE)
+    empleado = models.ForeignKey(Empleado, on_delete=models.CASCADE)  # Cambiado de User a Empleado
     sucursal = models.ForeignKey(Sucursal, on_delete=models.CASCADE)
     efectivo_total = models.DecimalField(max_digits=10, decimal_places=2)
     tarjeta_total = models.DecimalField(max_digits=10, decimal_places=2)
@@ -95,14 +96,13 @@ class CierreCaja(models.Model):
 
     @transaction.atomic
     def verificar_montos(self):
-        # Importar aquí para evitar el ciclo de importación
-        from ventas.models import Venta
+        from ventas.models import Venta  # Evitar ciclos de importación
 
         # Filtrar las ventas para la fecha, sucursal y empleado específicos
         ventas = Venta.objects.filter(
             fecha__date=self.fecha_cierre.date(),
             sucursal=self.sucursal,
-            empleado=self.empleado
+            empleado=self.empleado  # Ahora se relaciona con Empleado
         )
 
         # Realizar agregaciones para calcular los totales directamente en la base de datos
