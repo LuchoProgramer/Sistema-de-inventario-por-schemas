@@ -7,7 +7,6 @@ urlpatterns = [
     path('login/', LoginView.as_view(), name='login'),
     path('dashboard/', dashboard, name='dashboard'),
     path('usuario-creado/', usuario_creado_exitosamente, name='usuario_creado_exitosamente'),
-    path('asignar-turno/<int:sucursal>/', asignar_turno, name='asignar_turno'),
     path('turno-exito/<int:turno_id>/', turno_exito, name='turno_exito'),
 ]
 

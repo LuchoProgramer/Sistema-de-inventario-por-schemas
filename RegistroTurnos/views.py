@@ -18,6 +18,8 @@ import traceback
 def is_ajax(request):
     return request.headers.get('x-requested-with') == 'XMLHttpRequest'
 
+from django.http import JsonResponse
+
 @login_required
 def dashboard(request):
     usuario = request.user
@@ -26,34 +28,51 @@ def dashboard(request):
     turno_activo = RegistroTurno.objects.filter(usuario=usuario, fin_turno__isnull=True).first()
 
     if turno_activo:
+        if is_ajax(request):
+            return JsonResponse({'success': True, 'turno_id': turno_activo.id})
         return redirect('ventas:inicio_turno', turno_id=turno_activo.id)
 
-    # Obtener las sucursales del usuario
     sucursales_usuario = Sucursal.objects.filter(usuarios=usuario)
 
-    # Si no tiene sucursales asignadas
     if sucursales_usuario.count() == 0:
-        messages.error(request, "No tienes ninguna sucursal asignada. Contacta al administrador.")
+        if is_ajax(request):
+            return JsonResponse({'success': False, 'message': "No tienes ninguna sucursal asignada."})
+        messages.error(request, "No tienes ninguna sucursal asignada.")
         return redirect('dashboard')
 
-    # Si tiene una sola sucursal, seleccionarla automáticamente
     if sucursales_usuario.count() == 1:
-        sucursal_unica = sucursales_usuario.first()
-        turno = RegistroTurno(usuario=usuario, sucursal=sucursal_unica, inicio_turno=timezone.now())
-        turno.save()
-        return redirect('ventas:inicio_turno', turno_id=turno.id)
+        try:
+            sucursal_unica = sucursales_usuario.first()
+            turno = RegistroTurno(usuario=usuario, sucursal=sucursal_unica, inicio_turno=timezone.now())
+            turno.save()
+            if is_ajax(request):
+                return JsonResponse({'success': True, 'turno_id': turno.id})
+            return redirect('ventas:inicio_turno', turno_id=turno.id)
+        except Exception as e:
+            if is_ajax(request):
+                return JsonResponse({'success': False, 'message': f"Error al iniciar el turno: {str(e)}"})
+            messages.error(request, f"Error al asignar el turno: {str(e)}")
+            return redirect('dashboard')
 
-    # Si tiene más de una sucursal, mostrar el formulario
     if request.method == 'POST':
         form = RegistroTurnoForm(request.POST, usuario=request.user)
         if form.is_valid():
-            turno = form.save(commit=False)
-            turno.usuario = request.user 
-            turno.inicio_turno = timezone.now()
-            turno.save()
-            return redirect('ventas:inicio_turno', turno_id=turno.id)
+            try:
+                turno = form.save(commit=False)
+                turno.usuario = request.user
+                turno.inicio_turno = timezone.now()
+                turno.save()
+                if is_ajax(request):
+                    return JsonResponse({'success': True, 'turno_id': turno.id})
+                return redirect('ventas:inicio_turno', turno_id=turno.id)
+            except Exception as e:
+                if is_ajax(request):
+                    return JsonResponse({'success': False, 'message': f"Error al iniciar el turno: {str(e)}"})
+                messages.error(request, f"Error al iniciar el turno: {str(e)}")
+                return redirect('dashboard')
         else:
-            print(form.errors)
+            if is_ajax(request):
+                return JsonResponse({'success': False, 'message': "Error en el formulario.", 'errors': form.errors})
             messages.error(request, "Error en el formulario.")
     else:
         form = RegistroTurnoForm(usuario=request.user)
@@ -81,45 +100,6 @@ def crear_usuario(request):
 def usuario_creado_exitosamente(request):
     return render(request, 'registro-turnos/usuario_creado_exitosamente.html')
 
-
-
-@login_required
-def asignar_turno(request):
-    usuario = request.user  # Usuario autenticado
-
-    # Verificar si ya tiene un turno activo
-    turno_activo = RegistroTurno.objects.filter(usuario=usuario, fin_turno__isnull=True).first()
-    if turno_activo:
-        messages.info(request, "Ya tienes un turno activo.")
-        return redirect('ventas:inicio_turno', turno_id=turno_activo.id)
-
-    if request.method == 'POST':
-        # Mostrar lo que se está enviando en el formulario
-        print(f"Datos POST enviados: {request.POST}")
-
-        # Inicializar el formulario con los datos del POST
-        form = RegistroTurnoForm(request.POST, usuario=usuario)
-
-        if form.is_valid():
-            print("El formulario es válido")
-
-            # Asignar el turno
-            turno = form.save(commit=False)
-            turno.usuario = usuario
-            turno.sucursal = form.cleaned_data['sucursal']
-            turno.inicio_turno = timezone.now()
-            turno.save()
-
-            messages.success(request, "Turno asignado correctamente.")
-            return redirect('ventas:inicio_turno', turno_id=turno.id)
-        else:
-            # Mostrar los errores del formulario
-            print(f"Errores del formulario: {form.errors}")
-            messages.error(request, "Formulario no válido.")
-    else:
-        form = RegistroTurnoForm(usuario=usuario)
-
-    return render(request, 'registro-turnos/asignar_turno.html', {'form': form})
 
 
 from .models import RegistroTurno
