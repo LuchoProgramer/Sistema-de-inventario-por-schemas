@@ -4,6 +4,7 @@ from django.shortcuts import get_object_or_404
 from .forms import CompraForm, ProductoForm, CategoriaForm, TransferenciaForm
 from sucursales.models import Sucursal
 from django.core.paginator import Paginator
+from django.contrib import messages
 
 def seleccionar_sucursal(request):
     # Obtener el usuario autenticado
@@ -33,27 +34,36 @@ def agregar_producto_inventario(request):
     if request.method == 'POST':
         producto_id = request.POST.get('producto_id')
         sucursal_id = request.POST.get('sucursal_id')
-        cantidad = int(request.POST.get('cantidad'))
+        cantidad = request.POST.get('cantidad')
 
-        producto = Producto.objects.get(id=producto_id)
-        sucursal = Sucursal.objects.get(id=sucursal_id)
+        # Validar que 'cantidad' no sea nulo ni vacío
+        if not cantidad:
+            messages.error(request, 'La cantidad es requerida.')
+            return redirect('inventarios:agregar_producto_inventario')
 
-        # Buscar si ya existe el inventario para ese producto y sucursal
-        inventario, created = Inventario.objects.get_or_create(
-            producto=producto,
-            sucursal=sucursal
-        )
+        # Intentar convertir 'cantidad' a entero y manejar el error si no es válido
+        try:
+            cantidad = int(cantidad)
+        except ValueError:
+            messages.error(request, 'La cantidad debe ser un número válido.')
+            return redirect('inventarios:agregar_producto_inventario')
 
-        # Actualizamos la cantidad en el inventario
-        inventario.cantidad += cantidad
-        inventario.save()
+        # Ahora puedes proceder a guardar la cantidad en el inventario
+        try:
+            inventario, created = Inventario.objects.get_or_create(
+                producto_id=producto_id, 
+                sucursal_id=sucursal_id,
+                defaults={'cantidad': cantidad}
+            )
+            if not created:
+                inventario.cantidad += cantidad  # Sumar cantidad si ya existe el producto
+                inventario.save()
 
-        # Redirigir al inventario de la sucursal seleccionada, pasando el sucursal_id
+            messages.success(request, 'Producto agregado al inventario.')
+        except Exception as e:
+            messages.error(request, f'Error al agregar el producto: {e}')
         return redirect('inventarios:ver_inventario', sucursal_id=sucursal_id)
 
-    productos = Producto.objects.all()
-    sucursales = Sucursal.objects.all()
-    return render(request, 'inventarios/agregar_producto_inventario.html', {'productos': productos, 'sucursales': sucursales})
 
 
 def ajustar_inventario(request, producto_id, sucursal_id):
