@@ -70,9 +70,9 @@ def seleccionar_turno_por_fechas(request):
     }
     return render(request, 'reportes/seleccionar_turno.html', context)
 
-def listar_empleados(request):
-    empleados = User.objects.all()  # Cambiado a User
-    return render(request, 'reportes/seleccionar_turno_fechas.html', {'empleados': empleados})
+def listar_usuarios(request):
+    usuarios = User.objects.all()  # Cambiado a User
+    return render(request, 'reportes/seleccionar_turno_fechas.html', {'usuarios': usuarios})
 
 
 def buscar_turno_por_id(request):

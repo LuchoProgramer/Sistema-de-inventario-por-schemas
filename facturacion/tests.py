@@ -2,7 +2,7 @@ from django.test import TestCase
 from django.utils import timezone
 from django.contrib.auth.models import User
 from ventas.models import Carrito
-from RegistroTurnos.models import Empleado, RegistroTurno
+from RegistroTurnos.models import RegistroTurno
 from sucursales.models import Sucursal
 from inventarios.models import Producto, Inventario
 from facturacion.models import Cliente, Impuesto, DetalleFactura, Factura
@@ -12,9 +12,8 @@ from decimal import Decimal, ROUND_HALF_UP
 
 class TestFacturaRegistroTurno(TestCase):
     def setUp(self):
-        # Crear un usuario y empleado
+        # Crear un usuario
         self.usuario = User.objects.create(username='testuser', password='testpassword')
-        self.empleado = Empleado.objects.create(usuario=self.usuario, nombre='Empleado Test')
 
         # Crear una sucursal con los campos obligatorios
         self.sucursal = Sucursal.objects.create(
@@ -49,9 +48,9 @@ class TestFacturaRegistroTurno(TestCase):
             razon_social='Consumidor Final'
         )
 
-        # Crear un turno para el empleado
+        # Crear un turno para el usuario
         self.turno = RegistroTurno.objects.create(
-            empleado=self.empleado,
+            usuario=self.usuario,  # Cambiado de empleado a usuario
             sucursal=self.sucursal,
             inicio_turno=timezone.now(), 
             fin_turno=None
@@ -73,7 +72,7 @@ class TestFacturaRegistroTurno(TestCase):
         carrito_items = Carrito.objects.filter(turno=self.turno)
 
         # Llamar al servicio para crear la factura
-        factura = crear_factura(cliente=self.cliente, sucursal=self.sucursal, empleado=self.empleado, carrito_items=carrito_items)
+        factura = crear_factura(cliente=self.cliente, sucursal=self.sucursal, usuario=self.usuario, carrito_items=carrito_items)
 
         # Validar que la factura se ha creado correctamente
         self.assertIsNotNone(factura)
