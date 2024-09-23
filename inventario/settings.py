@@ -159,8 +159,8 @@ CELERY_RESULT_SERIALIZER = 'json'  # Serializador de resultados
 CELERY_TIMEZONE = 'America/Guayaquil'  # Ajusta según tu zona horaria, si es necesario
 
 
-LOGIN_URL = '/empleados/dashboard/'
-LOGIN_REDIRECT_URL = '/empleados/dashboard/'
+LOGIN_URL = '/registro-turnos/dashboard/'
+LOGIN_REDIRECT_URL = '/registro-turnos/dashboard/'
 LOGOUT_REDIRECT_URL = '/accounts/login/'
 
 

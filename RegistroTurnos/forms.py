@@ -1,25 +1,15 @@
 from django import forms
-from django.contrib.auth.models import User, Group
-from .models import RegistroTurno
+from RegistroTurnos.models import RegistroTurno
 from sucursales.models import Sucursal
-
 
 class RegistroTurnoForm(forms.ModelForm):
     class Meta:
         model = RegistroTurno
-        fields = ['sucursal']
+        fields = ['sucursal']  # Solo incluir la sucursal
 
     def __init__(self, *args, **kwargs):
-        usuario = kwargs.pop('usuario', None)
+        usuario = kwargs.pop('usuario', None)  # Extraer el usuario de kwargs
         super().__init__(*args, **kwargs)
         if usuario:
-            sucursales = Sucursal.objects.filter(usuarios__id=usuario.id)
-            if not sucursales.exists():
-                # Si el usuario no tiene sucursales asociadas, mostrar un error
-                self.fields['sucursal'].queryset = Sucursal.objects.none()
-                self.fields['sucursal'].widget.attrs['disabled'] = 'disabled'
-                self.fields['sucursal'].help_text = 'No tienes sucursales asignadas.'
-            else:
-                # Filtrar las sucursales a las que el usuario tiene acceso
-                self.fields['sucursal'].queryset = sucursales
-
+            # Filtrar las sucursales asignadas al usuario
+            self.fields['sucursal'].queryset = Sucursal.objects.filter(usuarios=usuario)

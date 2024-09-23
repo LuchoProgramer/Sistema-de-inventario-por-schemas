@@ -12,7 +12,7 @@
 
     <h2>Acciones Disponibles</h2>
     <ul>
-        <li><a href="{% url 'registro' %}">Agregar Nuevo Empleado</a></li>
+        <a href="{% url 'crear_usuario' %}">Agregar Nuevo Empleado</a>
         <li><a href="#">Ver Inventarios (Próximamente)</a></li>
         <li><a href="#">Gestionar Ventas (Próximamente)</a></li>
     </ul>
@@ -60,11 +60,15 @@
                         // Redirigir a la URL dinámica con el turno_id
                         window.location.href = `/ventas/inicio_turno/${response.turno_id}/`;
                     } else {
-                        alert(response.message || 'Error al iniciar el turno. Por favor, inténtelo de nuevo.');
+                        // Mostrar el mensaje de error devuelto por el servidor
+                        alert(response.message || 'Error al iniciar el turno.');
+                        console.error('Traceback:', response.traceback);  // Mostrar el traceback en la consola
                     }
                 },
                 error: function(xhr, status, error) {
                     console.error('Error:', error);
+                    console.log('Status:', status);
+                    console.log('XHR Response:', xhr.responseText);
                     alert('Ocurrió un error al procesar la solicitud.');
                 }
             });
@@ -72,3 +76,4 @@
     </script>
 </body>
 </html>
+

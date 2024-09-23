@@ -28,6 +28,7 @@ urlpatterns = [
     path('facturacion/', include('facturacion.urls')),
     path('inventarios/', include('inventarios.urls', namespace='inventarios')),
     path('reportes/', include('reportes.urls')),
+    path('sucursales/', include('sucursales.urls')),
 ]
 
 if settings.DEBUG:
