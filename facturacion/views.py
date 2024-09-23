@@ -1,4 +1,4 @@
-from django.shortcuts import render, redirect
+from django.shortcuts import render, redirect, get_object_or_404
 from .models import Factura, Cotizacion, Cliente, DetalleFactura, Impuesto, Pago   
 from django.http import HttpResponse, FileResponse
 from ventas.utils import obtener_carrito, vaciar_carrito
@@ -11,6 +11,7 @@ from django.db import transaction
 from decimal import Decimal
 from .services import crear_factura
 from sucursales.models import Sucursal
+from .forms import ImpuestoForm
 import os
 from django.conf import settings
 from .pdf.factura_pdf import generar_pdf_factura
@@ -163,3 +164,38 @@ def ver_pdf_factura(request, numero_autorizacion):
     else:
         logger.warning(f"El PDF factura_{numero_autorizacion}.pdf no se encontró en {settings.MEDIA_ROOT}")
         return HttpResponse("El PDF no se encuentra disponible.", status=404)
+    
+
+
+def actualizar_impuesto(request, impuesto_id):
+    impuesto = get_object_or_404(Impuesto, id=impuesto_id)
+    if request.method == 'POST':
+        form = ImpuestoForm(request.POST, instance=impuesto)
+        if form.is_valid():
+            form.save()
+            return redirect('lista_productos')  # O la vista que quieras redirigir
+    else:
+        form = ImpuestoForm(instance=impuesto)
+    
+    return render(request, 'facturacion/actualizar_impuesto.html', {'form': form})
+
+def lista_impuestos(request):
+    impuestos = Impuesto.objects.all()
+    return render(request, 'facturacion/lista_impuestos.html', {'impuestos': impuestos})
+
+
+def crear_impuesto(request):
+    if request.method == 'POST':
+        form = ImpuestoForm(request.POST)
+        if form.is_valid():
+            form.save()
+            return redirect('facturacion/lista_impuestos.html')
+    else:
+        form = ImpuestoForm()
+    
+    return render(request, 'facturacion/crear_impuesto.html', {'form': form})
+
+def eliminar_impuesto(request, impuesto_id):
+    impuesto = get_object_or_404(Impuesto, id=impuesto_id)
+    impuesto.delete()
+    return redirect('lista_impuestos')

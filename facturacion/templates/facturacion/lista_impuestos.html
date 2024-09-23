@@ -1,0 +1,11 @@
+<h1>Lista de Impuestos</h1>
+<a href="{% url 'facturacion:crear_impuesto' %}">Crear nuevo impuesto</a>
+<ul>
+    {% for impuesto in impuestos %}
+        <li>
+            {{ impuesto.nombre }} - {{ impuesto.porcentaje }}%
+            <a href="{% url 'facturacion:actualizar_impuesto' impuesto.id %}">Editar</a>
+            <a href="{% url 'facturacion:eliminar_impuesto' impuesto.id %}" onclick="return confirm('¿Estás seguro de eliminar este impuesto?');">Eliminar</a>
+        </li>
+    {% endfor %}
+</ul>

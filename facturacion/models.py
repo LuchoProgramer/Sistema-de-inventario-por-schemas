@@ -185,6 +185,13 @@ class Impuesto(models.Model):
     def __str__(self):
         return f'{self.nombre} - {self.porcentaje}%'
 
+    def save(self, *args, **kwargs):
+        if self.activo:
+            # Desactiva otros impuestos antes de guardar este como activo
+            Impuesto.objects.filter(activo=True).update(activo=False)
+        super(Impuesto, self).save(*args, **kwargs)
+
+
 class FacturaImpuesto(models.Model):
     factura = models.ForeignKey(Factura, on_delete=models.CASCADE, related_name='impuestos')
     impuesto = models.ForeignKey(Impuesto, on_delete=models.CASCADE)

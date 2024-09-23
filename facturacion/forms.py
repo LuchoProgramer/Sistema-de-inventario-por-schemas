@@ -1,4 +1,5 @@
 from django import forms
+from .models import Impuesto
 
 class PagoMixtoForm(forms.Form):
     metodo_pago = forms.ChoiceField(
@@ -11,3 +12,10 @@ class PagoMixtoForm(forms.Form):
     monto = forms.DecimalField(
         max_digits=10, decimal_places=2, widget=forms.NumberInput(attrs={'class': 'form-control'})
     )
+
+
+
+class ImpuestoForm(forms.ModelForm):
+    class Meta:
+        model = Impuesto
+        fields = ['codigo_impuesto', 'nombre', 'porcentaje', 'activo']
