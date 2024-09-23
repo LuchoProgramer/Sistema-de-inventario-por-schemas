@@ -20,8 +20,8 @@ from datetime import timedelta
 
 @login_required
 def registrar_venta(request):
-    usuario = request.user  # Cambiado de empleado a usuario
-    turno_activo = RegistroTurno.objects.filter(usuario=usuario, fin_turno__isnull=True).first()  # Cambiado a usuario
+    # Usar request.user directamente para obtener el turno activo
+    turno_activo = RegistroTurno.objects.filter(usuario=request.user, fin_turno__isnull=True).first()
 
     if not turno_activo:
         return render(request, 'ventas/error.html', {'mensaje': 'No tienes un turno activo. Inicia un turno para registrar ventas.'})
@@ -34,7 +34,7 @@ def registrar_venta(request):
             metodo_pago = request.POST.get('metodo_pago')
 
             try:
-                # Usar el servicio para registrar la venta
+                # Usar turno_activo (encontrado usando request.user)
                 VentaService.registrar_venta(turno_activo, producto, cantidad, metodo_pago)
                 return redirect('dashboard')
             except ValueError as e:

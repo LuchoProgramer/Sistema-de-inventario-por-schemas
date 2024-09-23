@@ -38,8 +38,6 @@ class VentaService:
 
         return venta
 
-
-class VentaService:
     @staticmethod
     @transaction.atomic
     def finalizar_venta(turno, metodo_pago):
@@ -94,24 +92,24 @@ class VentaService:
 
         return factura
 
-
 class TurnoService:
     @staticmethod
     @transaction.atomic
     def cerrar_turno(turno, cierre_form_data):
-        # Guardar cierre de caja
-        cierre_caja = CierreCaja.objects.create(
-            usuario=turno.usuario,  # Cambiado de empleado a usuario
-            sucursal=turno.sucursal,
-            fecha_cierre=timezone.now(),
-            efectivo_total=cierre_form_data.get('efectivo_total'),  # Corregido a efectivo_total
-            tarjeta_total=cierre_form_data.get('tarjeta_total'),  # Corregido a tarjeta_total
-            transferencia_total=cierre_form_data.get('transferencia_total'),  # Corregido a transferencia_total
-            salidas_caja=cierre_form_data.get('salidas_caja', 0),  # Añadido salidas_caja con valor por defecto
-        )
+        try:
+            cierre_caja = CierreCaja.objects.create(
+                usuario=turno.usuario,
+                sucursal=turno.sucursal,
+                fecha_cierre=timezone.now(),
+                efectivo_total=cierre_form_data.get('efectivo_total'),
+                tarjeta_total=cierre_form_data.get('tarjeta_total'),
+                transferencia_total=cierre_form_data.get('transferencia_total'),
+                salidas_caja=cierre_form_data.get('salidas_caja', 0),
+            )
+            turno.fin_turno = timezone.now()
+            turno.save()
 
-        # Marcar el turno como cerrado
-        turno.fin_turno = timezone.now()
-        turno.save()
+            return cierre_caja
 
-        return cierre_caja
+        except Exception as e:
+            raise ValueError(f"Error al cerrar el turno: {str(e)}")
