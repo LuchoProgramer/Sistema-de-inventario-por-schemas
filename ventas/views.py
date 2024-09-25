@@ -20,9 +20,7 @@ from datetime import timedelta
 
 @login_required
 def registrar_venta(request):
-    # Usar request.user directamente para obtener el turno activo
     turno_activo = RegistroTurno.objects.filter(usuario=request.user, fin_turno__isnull=True).first()
-
     if not turno_activo:
         return render(request, 'ventas/error.html', {'mensaje': 'No tienes un turno activo. Inicia un turno para registrar ventas.'})
 
@@ -31,19 +29,47 @@ def registrar_venta(request):
         if form.is_valid():
             producto = form.cleaned_data['producto']
             cantidad = form.cleaned_data['cantidad']
-            metodo_pago = request.POST.get('metodo_pago')
+            metodo_pago_seleccionado = request.POST.get('metodo_pago')
 
-            try:
-                # Usar turno_activo (encontrado usando request.user)
-                VentaService.registrar_venta(turno_activo, producto, cantidad, metodo_pago)
-                return redirect('dashboard')
-            except ValueError as e:
-                form.add_error(None, str(e))
+            # Verificar si el método de pago seleccionado es válido
+            metodo_pago_valido = dict(Pago.METODOS_PAGO_SRI).get(metodo_pago_seleccionado)
+
+            if not metodo_pago_valido:
+                form.add_error(None, f"Método de pago no válido: {metodo_pago_seleccionado}")
+                return render(request, 'ventas/registrar_venta.html', {'form': form})
+
+            # Crear la factura antes de registrar la venta
+            total_sin_impuestos = Decimal('100.00')  # Ajusta según tu lógica
+            total_con_impuestos = total_sin_impuestos * Decimal('1.12')
+
+            factura = Factura.objects.create(
+                sucursal=turno_activo.sucursal,
+                cliente=turno_activo.usuario.cliente,
+                usuario=turno_activo.usuario,
+                total_sin_impuestos=total_sin_impuestos,
+                total_con_impuestos=total_con_impuestos,
+                estado='AUTORIZADA',
+                turno=turno_activo
+            )
+
+            # Crear el pago asociado a la factura
+            Pago.objects.create(
+                factura=factura,
+                codigo_sri=metodo_pago_seleccionado,  # El código del método de pago
+                descripcion=metodo_pago_valido,  # La descripción del método de pago
+                total=total_con_impuestos
+            )
+
+            # Llamar a VentaService para registrar la venta
+            VentaService.registrar_venta(turno_activo, producto, cantidad, metodo_pago_seleccionado, factura)
+
+            return redirect('dashboard')
 
     else:
         form = SeleccionVentaForm(sucursal_id=turno_activo.sucursal.id)
 
     return render(request, 'ventas/registrar_venta.html', {'form': form})
+
 
 
 @login_required
@@ -61,21 +87,29 @@ def inicio_turno(request, turno_id):
         'sucursal': turno.sucursal  # Mostrar la sucursal asociada al turno
     })
 
+
+
 @login_required
 def agregar_al_carrito(request, producto_id):
     producto = get_object_or_404(Producto, id=producto_id)
     
-    # Cambiado de empleado=request.user.empleado a usuario=request.user
+    # Obtener el turno activo del usuario
     turno = RegistroTurno.objects.filter(usuario=request.user, fin_turno__isnull=True).first()
+    print(f"Turno activo obtenido: {turno}")
 
     if turno:
         carrito_item, created = Carrito.objects.get_or_create(turno=turno, producto=producto)
         if not created:
             carrito_item.cantidad += 1
+            print(f"Producto ya existente en el carrito. Nueva cantidad: {carrito_item.cantidad}")
+        else:
+            print(f"Producto {producto.nombre} agregado al carrito.")
         carrito_item.save()
         return redirect('ventas:inicio_turno', turno_id=turno.id)
     else:
+        print("No hay turno activo para este usuario.")
         return render(request, 'ventas/error.html', {'mensaje': 'No tienes un turno activo.'})
+
     
 
 @login_required
@@ -106,25 +140,32 @@ def ver_carrito(request):
 def finalizar_venta(request):
     # Cambiado de empleado=request.user.empleado a usuario=request.user
     turno = RegistroTurno.objects.filter(usuario=request.user, fin_turno__isnull=True).first()
+    print(f"Turno activo obtenido: {turno}")
 
     if not turno:
+        print("No hay turno activo para este usuario.")
         return render(request, 'ventas/error.html', {'mensaje': 'No tienes un turno activo.'})
 
     if request.method == 'POST':
         metodo_pago = request.POST.get('metodo_pago', 'Efectivo')  # Selecciona el método de pago
+        print(f"Método de pago seleccionado: {metodo_pago}")
 
         try:
             # Usar el servicio para finalizar la venta
             factura = VentaService.finalizar_venta(turno, metodo_pago)
+            print(f"Venta finalizada con éxito. Factura ID: {factura.id}")
             return redirect('ventas:inicio_turno', turno_id=turno.id)
         except ValueError as e:
+            print(f"Error al finalizar la venta: {str(e)}")
             return render(request, 'ventas/ver_carrito.html', {
                 'errores': str(e), 
                 'carrito_items': Carrito.objects.filter(turno=turno),
                 'total': sum(item.subtotal() for item in Carrito.objects.filter(turno=turno))
             })
     
+    print("Redirigiendo al carrito, no se envió el formulario POST.")
     return redirect('ventas:ver_carrito')
+
 
 @login_required
 def cerrar_turno(request):

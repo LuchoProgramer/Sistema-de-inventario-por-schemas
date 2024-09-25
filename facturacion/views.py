@@ -71,6 +71,7 @@ from django.urls import reverse
 from django.http import JsonResponse
 from django.db import transaction
 import logging
+from ventas.services import VentaService
 logger = logging.getLogger(__name__)
 
 
@@ -98,7 +99,7 @@ def generar_factura(request):
             cliente = obtener_o_crear_cliente(cliente_id, identificacion, data_cliente)
 
             # Verificar que el usuario tiene un turno activo
-            usuario = request.user  # Usamos directamente User
+            usuario = request.user
             turno_activo = verificar_turno_activo(usuario)
 
             # Obtener la sucursal y el carrito
@@ -106,6 +107,12 @@ def generar_factura(request):
             carrito_items = obtener_carrito(usuario)
             if not carrito_items.exists():
                 return JsonResponse({'error': 'El carrito está vacío. No se puede generar una factura.'}, status=400)
+
+            # Registrar la venta para cada producto en el carrito
+            for item in carrito_items:
+                # Registrar la venta en el sistema
+                VentaService.registrar_venta(turno_activo, item.producto, item.cantidad, request.POST.get('metodo_pago', 'Efectivo'))
+                print(f"Venta registrada para el producto {item.producto.nombre} con cantidad {item.cantidad}")
 
             # Obtener métodos y montos de pago del formulario
             metodos_pago = request.POST.getlist('metodos_pago')
@@ -150,6 +157,7 @@ def generar_factura(request):
             'clientes': Cliente.objects.all(),
             'total_factura': total_factura,
         })
+
    
 
 def ver_pdf_factura(request, numero_autorizacion):

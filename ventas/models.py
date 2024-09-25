@@ -5,6 +5,7 @@ from django.contrib.auth.models import User  # Asumiendo que los empleados está
 from django.db.models import Sum
 from django.core.exceptions import ValidationError
 from decimal import Decimal
+from facturacion.models import Pago
 
 class Venta(models.Model):
     # Definición de los campos
@@ -17,6 +18,12 @@ class Venta(models.Model):
     total_venta = models.DecimalField(max_digits=10, decimal_places=2, editable=False)
     factura = models.ForeignKey('facturacion.Factura', on_delete=models.CASCADE, related_name='ventas', null=False, blank=False)
     fecha = models.DateTimeField(auto_now_add=True)
+    metodo_pago = models.CharField(
+        max_length=2, 
+        choices=Pago.METODOS_PAGO_SRI, 
+        default='01', 
+        help_text="Método de pago utilizado para la venta"
+    )
 
     def clean(self):
         # Validaciones personalizadas
@@ -33,8 +40,12 @@ class Venta(models.Model):
 
     @transaction.atomic
     def save(self, *args, **kwargs):
+        try:
         # Validar antes de guardar
-        self.full_clean()  # Ejecutar validaciones
+            self.full_clean()  # Ejecutar validaciones
+        except ValidationError as e:
+            print(f"Error de validación: {str(e)}")
+            raise e
 
         # Calcular el total de la venta con precisión
         self.total_venta = (self.cantidad * self.precio_unitario).quantize(Decimal('0.01'))

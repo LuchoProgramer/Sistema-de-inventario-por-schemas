@@ -10,40 +10,57 @@ class VentaService:
     @staticmethod
     @transaction.atomic
     def registrar_venta(turno_activo, producto, cantidad, metodo_pago):
+        print("Iniciando el registro de la venta...")
+        
         # Verificar inventario
         inventario = producto.inventario_set.filter(sucursal=turno_activo.sucursal).first()
         if not inventario or inventario.cantidad < cantidad:
-            raise ValueError(f"No hay suficiente inventario disponible. Solo hay {inventario.cantidad} unidades.")
+            raise ValueError(f"No hay suficiente inventario disponible para {producto.nombre}.")
+        
+        print(f"Inventario verificado para {producto.nombre}. Cantidad disponible: {inventario.cantidad}")
 
-        # Calcular total de la venta
-        precio_unitario = producto.precio
+        # Calcular el total de la venta
+        precio_unitario = producto.precio_venta
         total_venta = cantidad * precio_unitario
+        print(f"Total de la venta calculado: {total_venta} para {cantidad} unidades de {producto.nombre}")
 
-        # Registrar la venta
-        venta = Venta.objects.create(
-            turno=turno_activo,
-            sucursal=turno_activo.sucursal,
-            usuario=turno_activo.usuario,  # Cambiado de empleado a usuario
-            producto=producto,
-            cantidad=cantidad,
-            precio_unitario=precio_unitario,
-            total_venta=total_venta,
-            metodo_pago=metodo_pago,
-            fecha=timezone.now(),
-        )
+        # Registrar la venta con el método de pago
+        try:
+            venta = Venta.objects.create(
+                turno=turno_activo,
+                sucursal=turno_activo.sucursal,
+                usuario=turno_activo.usuario,
+                producto=producto,
+                cantidad=cantidad,
+                precio_unitario=precio_unitario,
+                total_venta=total_venta,
+                metodo_pago=metodo_pago,  # Ahora se guarda el método de pago
+                fecha=timezone.now(),
+            )
+            print(f"Venta registrada exitosamente con ID: {venta.id} para el producto {producto.nombre}")
+        except Exception as e:
+            print(f"Error al registrar la venta: {str(e)}")
+            raise ValueError(f"Error al registrar la venta: {str(e)}")
 
         # Actualizar el inventario
         inventario.cantidad -= cantidad
         inventario.save()
+        print(f"Inventario actualizado. Nueva cantidad disponible para {producto.nombre}: {inventario.cantidad}")
 
         return venta
 
     @staticmethod
     @transaction.atomic
     def finalizar_venta(turno, metodo_pago):
+        print(f"Iniciando el proceso de finalizar venta para el turno: {turno.id}")
         carrito_items = Carrito.objects.filter(turno=turno)
+        print(f"Carrito para el turno {turno.id}, productos en el carrito: {carrito_items.count()}")
+        
         if not carrito_items.exists():
+            print("El carrito está vacío. No se puede finalizar la venta.")
             raise ValueError("El carrito está vacío. No se puede finalizar la venta.")
+        
+        print("Procesando el carrito...")
 
         total_venta = Decimal('0.00')
         total_sin_impuestos = Decimal('0.00')
@@ -51,30 +68,40 @@ class VentaService:
         errores = []
 
         for item in carrito_items:
+            print(f"Procesando producto: {item.producto.nombre}, cantidad: {item.cantidad}")
             inventario = item.producto.inventario_set.filter(sucursal=turno.sucursal).first()
             if not inventario or inventario.cantidad < item.cantidad:
+                print(f"Error: No hay suficiente inventario para {item.producto.nombre}.")
                 errores.append(f"No hay suficiente inventario para {item.producto.nombre}.")
             else:
-                # Registrar la venta
-                total_item = item.subtotal()  # El subtotal ya incluye el precio unitario * cantidad
-                Venta.objects.create(
-                    turno=turno,
-                    sucursal=turno.sucursal,
-                    usuario=turno.usuario,  # Cambiado de empleado a usuario
-                    producto=item.producto,
-                    cantidad=item.cantidad,
-                    precio_unitario=item.producto.precio,
-                    total_venta=total_item,
-                    metodo_pago=metodo_pago
-                )
+                try:
+                    # Registrar la venta
+                    total_item = item.subtotal()  # El subtotal ya incluye el precio unitario * cantidad
+                    nueva_venta = Venta.objects.create(
+                        turno=turno,
+                        sucursal=turno.sucursal,
+                        usuario=turno.usuario,  # Cambiado de empleado a usuario
+                        producto=item.producto,
+                        cantidad=item.cantidad,
+                        precio_unitario=item.producto.precio_venta,
+                        total_venta=total_item,
+                        metodo_pago=metodo_pago
+                    )
+                    print(f"Venta creada: {nueva_venta.id} para el producto: {item.producto.nombre}")
+                except Exception as e:
+                    print(f"Error al crear la venta para {item.producto.nombre}: {str(e)}")
+                    errores.append(f"No se pudo registrar la venta para {item.producto.nombre}")
+
                 # Actualizar inventario
                 inventario.cantidad -= item.cantidad
                 inventario.save()
+                print(f"Inventario actualizado para {item.producto.nombre}. Nueva cantidad: {inventario.cantidad}")
 
                 total_sin_impuestos += total_item
-                total_con_impuestos += total_item * Decimal('1.12')  # Ejemplo: con IVA 12%
+                total_con_impuestos += total_item * Decimal('1.12')  # Ejemplo con IVA 12%
 
         if errores:
+            print(f"Errores al registrar ventas: {'; '.join(errores)}")
             raise ValueError("\n".join(errores))
 
         # Crear la factura
@@ -87,10 +114,13 @@ class VentaService:
             estado='AUTORIZADA',
             turno=turno
         )
+        print(f"Factura creada exitosamente con ID: {factura.id} para el turno {turno.id}")
 
         carrito_items.delete()  # Vaciar el carrito después de completar la venta
+        print("Carrito vaciado después de la venta.")
 
         return factura
+
 
 class TurnoService:
     @staticmethod

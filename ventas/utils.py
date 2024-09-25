@@ -21,22 +21,22 @@ def obtener_turno_activo(usuario):
         logger.error(f"Error al obtener el turno activo: {e}")
         return None
 
+
 def obtener_carrito(usuario):
     """
     Obtiene el carrito asociado al usuario actual, basado en su turno activo.
-
-    Args:
-        usuario (User): El usuario actual.
-
-    Returns:
-        QuerySet: Un queryset del modelo Carrito relacionado con el turno activo.
     """
     turno_activo = obtener_turno_activo(usuario)
+    print(f"Turno activo para el usuario {usuario.username}: {turno_activo}")
 
     if turno_activo:
-        return Carrito.objects.filter(turno=turno_activo)
+        carrito_items = Carrito.objects.filter(turno=turno_activo)
+        print(f"Productos en el carrito para el turno {turno_activo.id}: {carrito_items.count()}")
+        return carrito_items
     else:
+        print("No hay turno activo para este usuario.")
         return Carrito.objects.none()
+
 
 def vaciar_carrito(usuario):
     """
