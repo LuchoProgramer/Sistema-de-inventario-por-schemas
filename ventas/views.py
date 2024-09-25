@@ -16,13 +16,15 @@ from sucursales.models import Sucursal
 from ventas.services import VentaService
 from ventas.services import TurnoService 
 from datetime import timedelta
+from django.http import JsonResponse
+from django.db import transaction
 
 
-@login_required
+@transaction.atomic
 def registrar_venta(request):
     turno_activo = RegistroTurno.objects.filter(usuario=request.user, fin_turno__isnull=True).first()
     if not turno_activo:
-        return render(request, 'ventas/error.html', {'mensaje': 'No tienes un turno activo. Inicia un turno para registrar ventas.'})
+        return render(request, 'ventas/error.html', {'mensaje': 'No tienes un turno activo.'})
 
     if request.method == 'POST':
         form = SeleccionVentaForm(request.POST, sucursal_id=turno_activo.sucursal.id)
@@ -31,39 +33,56 @@ def registrar_venta(request):
             cantidad = form.cleaned_data['cantidad']
             metodo_pago_seleccionado = request.POST.get('metodo_pago')
 
-            # Verificar si el método de pago seleccionado es válido
-            metodo_pago_valido = dict(Pago.METODOS_PAGO_SRI).get(metodo_pago_seleccionado)
+            # Obtener el código SRI del método de pago
+            metodo_pago = dict(Pago.METODOS_PAGO_SRI).get(metodo_pago_seleccionado)
 
-            if not metodo_pago_valido:
+            if not metodo_pago:
                 form.add_error(None, f"Método de pago no válido: {metodo_pago_seleccionado}")
                 return render(request, 'ventas/registrar_venta.html', {'form': form})
 
-            # Crear la factura antes de registrar la venta
-            total_sin_impuestos = Decimal('100.00')  # Ajusta según tu lógica
-            total_con_impuestos = total_sin_impuestos * Decimal('1.12')
+            try:
+                # Comenzamos una transacción atómica
+                with transaction.atomic():
+                    # Verificar si el cliente existe
+                    cliente = getattr(turno_activo.usuario, 'cliente', None)
+                    if not cliente:
+                        form.add_error(None, "No se encontró un cliente asociado al usuario.")
+                        return render(request, 'ventas/registrar_venta.html', {'form': form})
 
-            factura = Factura.objects.create(
-                sucursal=turno_activo.sucursal,
-                cliente=turno_activo.usuario.cliente,
-                usuario=turno_activo.usuario,
-                total_sin_impuestos=total_sin_impuestos,
-                total_con_impuestos=total_con_impuestos,
-                estado='AUTORIZADA',
-                turno=turno_activo
-            )
+                    # Crear la factura
+                    total_sin_impuestos = Decimal('100.00')  # Ajusta según tu lógica
+                    total_con_impuestos = total_sin_impuestos * Decimal('1.12')
 
-            # Crear el pago asociado a la factura
-            Pago.objects.create(
-                factura=factura,
-                codigo_sri=metodo_pago_seleccionado,  # El código del método de pago
-                descripcion=metodo_pago_valido,  # La descripción del método de pago
-                total=total_con_impuestos
-            )
+                    # Asignación segura de factura
+                    factura = Factura.objects.create(
+                        sucursal=turno_activo.sucursal,
+                        cliente=cliente,
+                        usuario=turno_activo.usuario,
+                        total_sin_impuestos=total_sin_impuestos,
+                        total_con_impuestos=total_con_impuestos,
+                        estado='AUTORIZADA',
+                        registroturno=turno_activo
+                    )
 
-            # Llamar a VentaService para registrar la venta
-            VentaService.registrar_venta(turno_activo, producto, cantidad, metodo_pago_seleccionado, factura)
+                    if not factura:
+                        return JsonResponse({'error': 'Error al crear la factura. No se pudo registrar la venta.'}, status=500)
 
-            return redirect('dashboard')
+                    # Registrar el pago
+                    Pago.objects.create(
+                        factura=factura,
+                        codigo_sri=metodo_pago_seleccionado,  # Código SRI de pago (como '01' para efectivo)
+                        descripcion=metodo_pago,
+                        total=total_con_impuestos
+                    )
+
+                    # Registrar la venta, asegurando que la factura esté asignada
+                    VentaService.registrar_venta(turno_activo, producto, cantidad, factura)
+
+                    return redirect('dashboard')
+
+            except Exception as e:
+                # Capturar el error y mostrarlo
+                return JsonResponse({'error': f'Error al generar la factura o registrar la venta: {str(e)}'}, status=500)
 
     else:
         form = SeleccionVentaForm(sucursal_id=turno_activo.sucursal.id)
@@ -136,35 +155,41 @@ def ver_carrito(request):
     else:
         return render(request, 'ventas/error.html', {'mensaje': 'No tienes un turno activo.'})
     
-@login_required
 def finalizar_venta(request):
-    # Cambiado de empleado=request.user.empleado a usuario=request.user
-    turno = RegistroTurno.objects.filter(usuario=request.user, fin_turno__isnull=True).first()
-    print(f"Turno activo obtenido: {turno}")
-
-    if not turno:
-        print("No hay turno activo para este usuario.")
+    turno_activo = RegistroTurno.objects.filter(usuario=request.user, fin_turno__isnull=True).first()
+    if not turno_activo:
         return render(request, 'ventas/error.html', {'mensaje': 'No tienes un turno activo.'})
 
-    if request.method == 'POST':
-        metodo_pago = request.POST.get('metodo_pago', 'Efectivo')  # Selecciona el método de pago
-        print(f"Método de pago seleccionado: {metodo_pago}")
+    # Obtener productos en el carrito
+    carrito_items = Carrito.objects.filter(turno=turno_activo)
 
-        try:
-            # Usar el servicio para finalizar la venta
-            factura = VentaService.finalizar_venta(turno, metodo_pago)
-            print(f"Venta finalizada con éxito. Factura ID: {factura.id}")
-            return redirect('ventas:inicio_turno', turno_id=turno.id)
-        except ValueError as e:
-            print(f"Error al finalizar la venta: {str(e)}")
-            return render(request, 'ventas/ver_carrito.html', {
-                'errores': str(e), 
-                'carrito_items': Carrito.objects.filter(turno=turno),
-                'total': sum(item.subtotal() for item in Carrito.objects.filter(turno=turno))
-            })
-    
-    print("Redirigiendo al carrito, no se envió el formulario POST.")
-    return redirect('ventas:ver_carrito')
+    if not carrito_items.exists():
+        return render(request, 'ventas/error.html', {'mensaje': 'El carrito está vacío. No se puede finalizar la venta.'})
+
+    # Calcular totales
+    total_sin_impuestos = sum(item.subtotal() for item in carrito_items)
+    total_con_impuestos = total_sin_impuestos * Decimal('1.12')  # Aplicar IVA del 12%
+
+    # Crear la factura antes de registrar las ventas
+    factura = Factura.objects.create(
+        sucursal=turno_activo.sucursal,
+        cliente=turno_activo.usuario.cliente,  # Asegúrate de que el cliente está asociado
+        usuario=turno_activo.usuario,
+        total_sin_impuestos=total_sin_impuestos,
+        total_con_impuestos=total_con_impuestos,
+        estado='AUTORIZADA',
+        registroturno=turno_activo
+    )
+
+    # Registrar cada venta en base a los productos del carrito
+    for item in carrito_items:
+        VentaService.registrar_venta(turno_activo, item.producto, item.cantidad, factura)
+
+    # Vaciar el carrito después de completar la venta
+    carrito_items.delete()
+
+    return redirect('ventas:inicio_turno', turno_id=turno_activo.id)
+
 
 
 @login_required

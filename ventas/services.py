@@ -9,7 +9,7 @@ from decimal import Decimal
 class VentaService:
     @staticmethod
     @transaction.atomic
-    def registrar_venta(turno_activo, producto, cantidad, metodo_pago):
+    def registrar_venta(turno_activo, producto, cantidad, factura):
         print("Iniciando el registro de la venta...")
         
         # Verificar inventario
@@ -24,7 +24,7 @@ class VentaService:
         total_venta = cantidad * precio_unitario
         print(f"Total de la venta calculado: {total_venta} para {cantidad} unidades de {producto.nombre}")
 
-        # Registrar la venta con el método de pago
+        # Registrar la venta, incluyendo la factura
         try:
             venta = Venta.objects.create(
                 turno=turno_activo,
@@ -34,8 +34,8 @@ class VentaService:
                 cantidad=cantidad,
                 precio_unitario=precio_unitario,
                 total_venta=total_venta,
-                metodo_pago=metodo_pago,  # Ahora se guarda el método de pago
-                fecha=timezone.now(),
+                factura=factura,  # Aquí pasamos la factura
+                fecha=timezone.now(),  # Registrar la fecha actual
             )
             print(f"Venta registrada exitosamente con ID: {venta.id} para el producto {producto.nombre}")
         except Exception as e:
@@ -49,9 +49,10 @@ class VentaService:
 
         return venta
 
+
     @staticmethod
     @transaction.atomic
-    def finalizar_venta(turno, metodo_pago):
+    def finalizar_venta(turno):
         print(f"Iniciando el proceso de finalizar venta para el turno: {turno.id}")
         carrito_items = Carrito.objects.filter(turno=turno)
         print(f"Carrito para el turno {turno.id}, productos en el carrito: {carrito_items.count()}")
@@ -62,7 +63,6 @@ class VentaService:
         
         print("Procesando el carrito...")
 
-        total_venta = Decimal('0.00')
         total_sin_impuestos = Decimal('0.00')
         total_con_impuestos = Decimal('0.00')
         errores = []
@@ -75,7 +75,7 @@ class VentaService:
                 errores.append(f"No hay suficiente inventario para {item.producto.nombre}.")
             else:
                 try:
-                    # Registrar la venta
+                    # Registrar la venta sin metodo_pago
                     total_item = item.subtotal()  # El subtotal ya incluye el precio unitario * cantidad
                     nueva_venta = Venta.objects.create(
                         turno=turno,
@@ -84,8 +84,7 @@ class VentaService:
                         producto=item.producto,
                         cantidad=item.cantidad,
                         precio_unitario=item.producto.precio_venta,
-                        total_venta=total_item,
-                        metodo_pago=metodo_pago
+                        total_venta=total_item
                     )
                     print(f"Venta creada: {nueva_venta.id} para el producto: {item.producto.nombre}")
                 except Exception as e:

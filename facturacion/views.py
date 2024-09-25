@@ -79,10 +79,13 @@ logger = logging.getLogger(__name__)
 @transaction.atomic
 def generar_factura(request):
     if request.method == 'POST':
+        print("POST request para generar factura")
+        
         # Datos del cliente proporcionados por la solicitud POST
         cliente_id = request.POST.get('cliente_id')
         identificacion = request.POST.get('identificacion')
-
+        print(f"Cliente ID: {cliente_id}, Identificación: {identificacion}")
+        
         if not cliente_id and not identificacion:
             return JsonResponse({'error': 'Debes seleccionar un cliente o ingresar los datos de un nuevo cliente.'}, status=400)
 
@@ -94,57 +97,74 @@ def generar_factura(request):
                 'telefono': request.POST.get('telefono'),
                 'email': request.POST.get('email')
             }
+            print(f"Datos del cliente: {data_cliente}")
 
             # Validar o crear el cliente
             cliente = obtener_o_crear_cliente(cliente_id, identificacion, data_cliente)
+            print(f"Cliente obtenido/creado: {cliente}")
 
             # Verificar que el usuario tiene un turno activo
             usuario = request.user
             turno_activo = verificar_turno_activo(usuario)
+            print(f"Turno activo: {turno_activo}")
 
             # Obtener la sucursal y el carrito
             sucursal = turno_activo.sucursal
             carrito_items = obtener_carrito(usuario)
+            print(f"Carrito del usuario {usuario}: {list(carrito_items)}")
+
             if not carrito_items.exists():
                 return JsonResponse({'error': 'El carrito está vacío. No se puede generar una factura.'}, status=400)
 
+            # Crear la factura y asociar los detalles del carrito
+            print(f"Creando factura para cliente {cliente} y sucursal {sucursal}")
+            factura = crear_factura(cliente, sucursal, usuario, carrito_items)
+            print(f"Factura creada: {factura}")
+
             # Registrar la venta para cada producto en el carrito
             for item in carrito_items:
-                # Registrar la venta en el sistema
-                VentaService.registrar_venta(turno_activo, item.producto, item.cantidad, request.POST.get('metodo_pago', 'Efectivo'))
-                print(f"Venta registrada para el producto {item.producto.nombre} con cantidad {item.cantidad}")
+                print(f"Producto: {item.producto.nombre}, Cantidad: {item.cantidad}")
+                VentaService.registrar_venta(turno_activo, item.producto, item.cantidad, factura)
+                print(f"Venta registrada para {item.producto.nombre} con cantidad {item.cantidad}")
 
             # Obtener métodos y montos de pago del formulario
             metodos_pago = request.POST.getlist('metodos_pago')
             montos_pago = request.POST.getlist('montos_pago')
+            print(f"Métodos de pago: {metodos_pago}, Montos de pago: {montos_pago}")
 
             if len(metodos_pago) != len(montos_pago):
                 return JsonResponse({'error': 'Métodos de pago y montos no coinciden.'}, status=400)
 
-            # Crear la factura y asociar los detalles del carrito
-            factura = crear_factura(cliente, sucursal, usuario, carrito_items)
-
             # Verificar si la factura tiene detalles asociados
             detalles = factura.detalles.all()
+            print(f"Detalles de la factura: {detalles}")
+
             if not detalles.exists():
                 return JsonResponse({'error': 'La factura no tiene detalles asociados.'}, status=400)
 
             # Asignar los pagos a la factura
+            print(f"Asignando pagos a la factura {factura}")
             asignar_pagos_a_factura(factura, metodos_pago, montos_pago)
 
             # Generar el PDF de la factura y guardarlo
+            print(f"Generando PDF para la factura {factura}")
             pdf_url = generar_pdf_factura_y_guardar(factura)
+            print(f"PDF generado: {pdf_url}")
 
             # Eliminar los artículos del carrito después de generar la factura
+            print(f"Eliminando artículos del carrito para el usuario {usuario}")
             carrito_items.delete()
 
             # Redirigir al turno activo
             redirect_url = reverse('ventas:inicio_turno', args=[turno_activo.id])
+            print(f"Redirigiendo a {redirect_url}")
             return JsonResponse({'pdf_url': pdf_url, 'redirect_url': redirect_url})
 
         except ValidationError as e:
+            print(f"ValidationError: {e.messages}")
             return JsonResponse({'error': e.messages}, status=400)
         except Exception as e:
+            print(f"Error general al generar la factura: {str(e)}")
             logger.error(f"Error al generar la factura: {str(e)}")
             return JsonResponse({'error': 'Ocurrió un error al generar la factura.'}, status=500)
 
@@ -153,10 +173,14 @@ def generar_factura(request):
         carrito_items = obtener_carrito(request.user)
         total_factura = sum(item.subtotal() for item in carrito_items)
 
+        print(f"Detalles del carrito (GET): {list(carrito_items)}, Total factura: {total_factura}")
+
         return render(request, 'facturacion/generar_factura.html', {
             'clientes': Cliente.objects.all(),
             'total_factura': total_factura,
         })
+
+
 
    
 
