@@ -150,3 +150,43 @@ def seleccionar_turno_detallado(request):
         }
 
     return render(request, 'reportes/seleccionar_turno_detallado.html', context)
+
+
+from django.shortcuts import render
+from ventas.models import Venta  # Asegúrate de importar el modelo correcto
+from facturacion.models import Pago
+
+
+from django.shortcuts import render
+from ventas.models import Venta
+from facturacion.models import Pago, Factura
+
+
+def reporte_ventas(request):
+    # Obtener todas las ventas
+    ventas = Venta.objects.select_related('factura', 'factura__cliente').prefetch_related('factura__pagos', 'factura__detalles').all()
+
+    # Calcular los totales
+    subtotal_acumulado = sum(venta.factura.total_sin_impuestos for venta in ventas)
+    total_iva = sum(venta.factura.valor_iva for venta in ventas)
+    total_a_pagar = sum(venta.factura.total_con_impuestos for venta in ventas)
+    total_descuentos = sum(detalle.descuento for venta in ventas for detalle in venta.factura.detalles.all())
+
+    # Calcular los totales por método de pago
+    total_por_forma_pago = {}
+    for venta in ventas:
+        for pago in venta.factura.pagos.all():
+            if pago.descripcion not in total_por_forma_pago:
+                total_por_forma_pago[pago.descripcion] = 0
+            total_por_forma_pago[pago.descripcion] += pago.total
+
+    # Pasar los datos al contexto
+    context = {
+        'ventas': ventas,
+        'subtotal_acumulado': subtotal_acumulado,
+        'total_iva': total_iva,
+        'total_a_pagar': total_a_pagar,
+        'total_descuentos': total_descuentos,
+        'total_por_forma_pago': total_por_forma_pago,  # Totales por forma de pago
+    }
+    return render(request, 'reportes/reporte_ventas.html', context)

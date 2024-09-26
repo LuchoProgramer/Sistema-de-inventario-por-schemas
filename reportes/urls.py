@@ -8,4 +8,5 @@ urlpatterns = [
     path('usuarios/', views.listar_usuarios, name='listar_usuarios'),  # Cambiado de empleados a usuarios
     path('buscar_turno/', views.buscar_turno_por_id, name='buscar_turno_por_id'),
     path('filtro_turnos/', views.seleccionar_turno_detallado, name='seleccionar_turno_detallado'),
+    path('reporte-ventas/', views.reporte_ventas, name='reporte_ventas'),
 ]
