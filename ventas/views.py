@@ -18,6 +18,7 @@ from ventas.services import TurnoService
 from datetime import timedelta
 from django.http import JsonResponse
 from django.db import transaction
+from inventarios.models import Inventario
 
 
 @transaction.atomic
@@ -93,17 +94,23 @@ def registrar_venta(request):
 
 @login_required
 def inicio_turno(request, turno_id):
-    # Cargar el turno usando el turno_id y verificar que pertenece al usuario logueado
-    turno = get_object_or_404(RegistroTurno, id=turno_id, usuario=request.user)  # Cambiado de empleado a usuario
+    # Obtener el turno activo del usuario
+    turno = get_object_or_404(RegistroTurno, id=turno_id, usuario=request.user)
 
-    # Filtrar los productos disponibles en la sucursal del turno y con inventario mayor a 0
-    productos = Producto.objects.filter(inventario__sucursal=turno.sucursal, inventario__cantidad__gt=0)
+    # Obtener los productos disponibles en la sucursal del turno activo
+    inventarios = Inventario.objects.filter(sucursal=turno.sucursal)
 
-    # Renderizar la plantilla mostrando los detalles del turno y los productos disponibles
+    # Verificar si los productos en el carrito ya alcanzaron su stock máximo
+    carrito_items = Carrito.objects.filter(turno=turno)
+    for item in carrito_items:
+        if item.cantidad >= Inventario.objects.get(producto=item.producto, sucursal=turno.sucursal).cantidad:
+            messages.warning(request, f'El producto {item.producto.nombre} ya tiene todo su stock agregado al carrito.')
+
+    # Renderizar la vista y pasar los inventarios a la plantilla
     return render(request, 'ventas/inicio_turno.html', {
-        'turno': turno,  # Pasar el turno activo a la plantilla
-        'productos': productos,  # Pasar la lista de productos a la plantilla filtrados
-        'sucursal': turno.sucursal  # Mostrar la sucursal asociada al turno
+        'turno': turno,
+        'inventarios': inventarios,
+        'carrito_items': carrito_items  # Pasamos los items del carrito para verificar el stock
     })
 
 
@@ -114,21 +121,37 @@ def agregar_al_carrito(request, producto_id):
     
     # Obtener el turno activo del usuario
     turno = RegistroTurno.objects.filter(usuario=request.user, fin_turno__isnull=True).first()
-    print(f"Turno activo obtenido: {turno}")
 
     if turno:
-        carrito_item, created = Carrito.objects.get_or_create(turno=turno, producto=producto)
-        if not created:
-            carrito_item.cantidad += 1
-            print(f"Producto ya existente en el carrito. Nueva cantidad: {carrito_item.cantidad}")
-        else:
-            print(f"Producto {producto.nombre} agregado al carrito.")
-        carrito_item.save()
-        return redirect('ventas:inicio_turno', turno_id=turno.id)
-    else:
-        print("No hay turno activo para este usuario.")
-        return render(request, 'ventas/error.html', {'mensaje': 'No tienes un turno activo.'})
+        cantidad = int(request.POST.get('cantidad', 1))  # Obtener la cantidad del formulario, por defecto 1
+        inventario_disponible = Inventario.objects.get(producto=producto, sucursal=turno.sucursal).cantidad
 
+        # Validar que la cantidad solicitada no exceda el stock disponible
+        if cantidad > inventario_disponible:
+            messages.error(request, f'No hay suficiente stock de {producto.nombre}. Solo quedan {inventario_disponible} en stock.')
+            return redirect('ventas:inicio_turno', turno_id=turno.id)  # Se asegura de pasar 'turno_id'
+
+        # Obtener o crear un ítem en el carrito
+        carrito_item, created = Carrito.objects.get_or_create(turno=turno, producto=producto)
+
+        # Actualizar la cantidad en el carrito
+        if not created:
+            nueva_cantidad = carrito_item.cantidad + cantidad
+            if nueva_cantidad > inventario_disponible:
+                messages.error(request, f'No puedes agregar más de {inventario_disponible} de {producto.nombre}.')
+                return redirect('ventas:inicio_turno', turno_id=turno.id)  # Se asegura de pasar 'turno_id'
+            carrito_item.cantidad = nueva_cantidad
+        else:
+            carrito_item.cantidad = cantidad
+
+        carrito_item.save()
+
+        messages.success(request, f'Se ha agregado {cantidad} de {producto.nombre} al carrito.')
+        return redirect('ventas:inicio_turno', turno_id=turno.id)  # Se asegura de pasar 'turno_id'
+    else:
+        messages.error(request, 'No tienes un turno activo.')
+        # Corregir el redireccionamiento para usar 'turno_id' si existe, o redirigir de otra forma
+        return redirect('ventas:inicio_turno', turno_id=request.POST.get('turno_id', 0))
     
 
 @login_required

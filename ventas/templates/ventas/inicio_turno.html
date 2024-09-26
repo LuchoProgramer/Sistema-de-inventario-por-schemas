@@ -1,34 +1,77 @@
-<!-- ventas/templates/ventas/inicio_turno.html -->
-
 <!DOCTYPE html>
 <html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Inicio de Turno</title>
+    <style>
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+        }
+        th {
+            background-color: #f2f2f2;
+            text-align: left;
+        }
+    </style>
 </head>
 <body>
     <h1>Turno Iniciado en {{ turno.sucursal.nombre }}</h1>
     
     <h2>Productos Disponibles</h2>
-    <ul>
-        {% for producto in productos %}
-            <li>
-                {{ producto.nombre }} - {{ producto.precio_venta }} USD
-                <a href="{% url 'ventas:agregar_al_carrito' producto.id %}">Agregar al Carrito</a>
-            </li>
-        {% endfor %}
-    </ul>
+
+    <!-- Mostrar mensajes de advertencia -->
+    {% if messages %}
+        <ul>
+            {% for message in messages %}
+                <li{% if message.tags %} class="{{ message.tags }}"{% endif %}>{{ message }}</li>
+            {% endfor %}
+        </ul>
+    {% endif %}
+
+    {% if inventarios %}
+        <table>
+            <thead>
+                <tr>
+                    <th>Nombre del Producto</th>
+                    <th>Precio de Venta (USD)</th>
+                    <th>Stock Disponible</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for inventario in inventarios %}
+                    <tr>
+                        <td>{{ inventario.producto.nombre }}</td>
+                        <td>{{ inventario.producto.precio_venta }}</td>
+                        <td>{{ inventario.cantidad }} unidades</td>
+                        <td>
+                            <!-- Formulario para agregar al carrito -->
+                            <form method="POST" action="{% url 'ventas:agregar_al_carrito' inventario.producto.id %}">
+                                {% csrf_token %}
+                                <label for="cantidad_{{ inventario.producto.id }}">Cantidad:</label>
+                                <input type="number" name="cantidad" id="cantidad_{{ inventario.producto.id }}" min="1" max="{{ inventario.cantidad }}" value="1" required>
+                                <button type="submit">Agregar al Carrito</button>
+                            </form>
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p>No hay productos disponibles en inventario para esta sucursal.</p>
+    {% endif %}
 
     <h3>Carrito de Ventas</h3>
     <a href="{% url 'ventas:ver_carrito' %}">Ver Carrito</a>
 
     <!-- Botón para cerrar el turno -->
-    {% if turno %}
     <form action="{% url 'ventas:cerrar_turno' %}" method="get">
         <button type="submit" class="btn btn-danger">Cerrar Turno</button>
     </form>
-    {% endif %} 
-
 </body>
 </html>
