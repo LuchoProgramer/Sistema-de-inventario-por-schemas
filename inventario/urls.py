@@ -21,13 +21,14 @@ from django.conf.urls.static import static
 
 urlpatterns = [
     path("admin/", admin.site.urls),
-    path('empleados/', include('empleados.urls')),
+    path('registro-turnos/', include('RegistroTurnos.urls')),
     path('conteo/', include('conteo.urls')),
     path('ventas/', include('ventas.urls')),
     path('accounts/', include('django.contrib.auth.urls')),
     path('facturacion/', include('facturacion.urls')),
     path('inventarios/', include('inventarios.urls', namespace='inventarios')),
     path('reportes/', include('reportes.urls')),
+    path('sucursales/', include('sucursales.urls')),
 ]
 
 if settings.DEBUG:

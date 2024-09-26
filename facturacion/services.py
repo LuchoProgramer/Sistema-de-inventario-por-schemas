@@ -5,71 +5,88 @@ from django.core.exceptions import ValidationError
 from .utils.xml_generator import generar_xml_para_sri
 from .utils.clave_acceso import generar_clave_acceso
 from django.db import transaction
+from django.core.exceptions import ValidationError
+from decimal import Decimal
+from facturacion.models import Cliente, Pago
+from RegistroTurnos.models import RegistroTurno
+from facturacion.pdf.factura_pdf import generar_pdf_factura
+import os
+from django.conf import settings
 
-def crear_factura(cliente, sucursal, empleado, carrito_items):
-    # Obtener el IVA activo
-    iva = Impuesto.objects.filter(codigo_impuesto='2', activo=True).first()  # Código '2' para IVA
+
+def crear_factura(cliente, sucursal, usuario, carrito_items):
+    print("Iniciando la creación de la factura...")  # Depuración
+    iva = Impuesto.objects.filter(codigo_impuesto='2', activo=True).first()
 
     if not iva:
+        print("No se encontró un IVA activo.")  # Depuración
         raise ValidationError("No se encontró un IVA activo en la base de datos")
 
-    # Calcular el total sin impuestos y redondear a 2 decimales
-    total_sin_impuestos = sum((item.subtotal() / (1 + (iva.porcentaje / Decimal(100)))).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP) for item in carrito_items)
+    total_sin_impuestos = Decimal('0.00')
+    total_iva = Decimal('0.00')
+    total_con_impuestos = Decimal('0.00')
 
-    # Calcular el valor del IVA y redondear a 2 decimales
-    valor_iva = sum(((item.subtotal() - (item.subtotal() / (1 + (iva.porcentaje / Decimal(100))))) for item in carrito_items))
-    valor_iva = Decimal(valor_iva).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+    # Recorrer cada item del carrito para calcular totales
+    for item in carrito_items:
+        print(f"Procesando producto {item.producto.nombre}...")  # Depuración
+        valor_base, valor_iva = item.producto.obtener_valor_base_iva()  # Método del modelo Producto
+        subtotal_item = valor_base * item.cantidad
+        iva_item = valor_iva * item.cantidad
 
-    # El total con impuestos sigue siendo el subtotal de los productos, redondeado a 2 decimales
-    total_con_impuestos = sum(item.subtotal().quantize(Decimal('0.01'), rounding=ROUND_HALF_UP) for item in carrito_items)
+        total_sin_impuestos += subtotal_item
+        total_iva += iva_item
+        total_con_impuestos += subtotal_item + iva_item
 
     try:
         with transaction.atomic():
-            # Incrementar el secuencial de la sucursal ANTES de crear la factura
+            print("Iniciando transacción para crear la factura y los detalles...")  # Depuración
             sucursal.incrementar_secuencial()
-            sucursal.save()  # Guardamos el nuevo secuencial en la base de datos
-            secuencial = sucursal.secuencial_actual.zfill(9)
+            sucursal.save()
 
-            # Crear la factura con el secuencial actual
             factura = Factura.objects.create(
                 sucursal=sucursal,
                 cliente=cliente,
-                empleado=empleado,
-                numero_autorizacion=secuencial,
+                usuario=usuario,  # Cambiar empleado por usuario
+                numero_autorizacion=sucursal.secuencial_actual.zfill(9),
                 total_sin_impuestos=total_sin_impuestos,
                 total_con_impuestos=total_con_impuestos,
-                valor_iva=valor_iva,  # Guardar el valor del IVA redondeado
+                valor_iva=total_iva,
                 estado='EN_PROCESO'
             )
+            print(f"Factura creada con número de autorización {factura.numero_autorizacion}...")  # Depuración
 
             # Crear los detalles de la factura
             for item in carrito_items:
-                # Verificar si hay suficiente stock en el inventario
+                try:
+                    print(f"Creando detalle para el producto {item.producto.nombre}...")  # Depuración
+                    # Recalcular los valores para cada item
+                    valor_base, valor_iva = item.producto.obtener_valor_base_iva()
+                    subtotal_item = valor_base * item.cantidad
+                    iva_item = valor_iva * item.cantidad
+                    total_item = subtotal_item + iva_item
+
+                    print(f"Valores de detalle: cantidad={item.cantidad}, precio_unitario={item.producto.precio_venta}, subtotal={subtotal_item}, total={total_item}")
+
+                    detalle = DetalleFactura.objects.create(
+                        factura=factura,
+                        producto=item.producto,
+                        cantidad=item.cantidad,
+                        precio_unitario=item.producto.precio_venta,
+                        subtotal=subtotal_item,
+                        descuento=0,
+                        total=total_item.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP),
+                        valor_iva=iva_item
+                    )
+                    print(f"Detalle creado: {detalle}")
+                except Exception as e:
+                    print(f"Error al crear el detalle: {e}")
+                    raise e  # Importante: Propagar la excepción para que la transacción se pueda revertir
+
+                # Actualiza el inventario
                 inventario = Inventario.objects.select_for_update().get(sucursal=sucursal, producto=item.producto)
-                if inventario.cantidad < item.cantidad:
-                    raise ValidationError(f"No hay suficiente stock para el producto: {item.producto.nombre}")
-
-                # Calcular el subtotal sin impuestos y el IVA por cada ítem
-                subtotal_sin_impuestos = (item.subtotal() / (1 + (iva.porcentaje / Decimal(100)))).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
-                valor_iva_item = (item.subtotal() - subtotal_sin_impuestos).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
-
-                # Crear detalle de factura
-                DetalleFactura.objects.create(
-                    factura=factura,
-                    producto=item.producto,
-                    cantidad=item.cantidad,
-                    precio_unitario=item.producto.precio_venta,
-                    subtotal=subtotal_sin_impuestos,  # Guardar el subtotal sin IVA
-                    descuento=0,
-                    total=item.subtotal().quantize(Decimal('0.01'), rounding=ROUND_HALF_UP),  # El total sigue siendo el subtotal original que incluye IVA
-                    valor_iva=valor_iva_item  # Guardar el IVA redondeado a dos decimales
-                )
-
-                # Descontar stock del inventario
                 inventario.cantidad -= item.cantidad
                 inventario.save()
 
-                # Registrar movimiento de inventario
                 MovimientoInventario.objects.create(
                     producto=item.producto,
                     sucursal=sucursal,
@@ -77,23 +94,66 @@ def crear_factura(cliente, sucursal, empleado, carrito_items):
                     cantidad=-item.cantidad
                 )
 
-            # Generar clave de acceso y el XML para SRI
-            clave_acceso = generar_clave_acceso(
-                fecha_emision=factura.fecha_emision.strftime('%d%m%Y'),
-                tipo_comprobante='01',
-                ruc=sucursal.ruc,
-                ambiente='1',  # Ambiente de pruebas
-                estab=sucursal.codigo_establecimiento,
-                pto_emi=sucursal.punto_emision,
-                secuencial=secuencial,
-                tipo_emision='1'
-            )
+            factura.refresh_from_db()
+            print(f"Detalles asociados a la factura {factura.numero_autorizacion}: {factura.detalles.all()}")  # Verifica los detalles de la factura
 
-            # Generar el XML para la factura
-            xml_factura = generar_xml_para_sri(factura)
+            if factura.detalles.count() == 0:
+                print("Error: La factura no tiene detalles asociados.")  # Depuración
+                raise ValidationError("La factura no tiene detalles asociados.")
+            print(f"Factura {factura.numero_autorizacion} completada con {factura.detalles.count()} detalles.")  # Depuración
 
             return factura
 
-    except ValidationError as e:
-        print(f"Error al crear la factura: {e}")
+    except Exception as e:
+        print(f"Error general en la transacción: {e}")  # Captura cualquier error general en la transacción
         raise e
+
+# Función para validar o crear un cliente
+def obtener_o_crear_cliente(cliente_id, identificacion, data_cliente):
+    try:
+        if cliente_id:
+            cliente = Cliente.objects.get(id=cliente_id)
+        else:
+            cliente, created = Cliente.objects.get_or_create(
+                identificacion=identificacion,
+                defaults=data_cliente
+            )
+            if not created and not cliente.razon_social:
+                raise ValidationError("Cliente incompleto. Por favor revisa los datos ingresados.")
+        return cliente
+    except Cliente.DoesNotExist:
+        raise ValidationError("Cliente no encontrado.")
+
+# Función para verificar si el usuario tiene un turno activo
+def verificar_turno_activo(usuario):
+    turno_activo = RegistroTurno.objects.filter(usuario=usuario, fin_turno__isnull=True).first()
+    if not turno_activo:
+        raise ValidationError("No tienes un turno activo. Por favor inicia un turno.")
+    return turno_activo
+
+# Función para asignar los métodos de pago
+def asignar_pagos_a_factura(factura, metodos_pago, montos_pago):
+    metodo_descripciones = {
+        '01': 'Efectivo',
+        '16': 'Tarjeta de Débito',
+        '19': 'Tarjeta de Crédito',
+        '20': 'Transferencias',
+        '17': 'Dinero Electrónico'
+    }
+
+    for metodo_pago, monto_pago in zip(metodos_pago, montos_pago):
+        descripcion = metodo_descripciones.get(metodo_pago, 'Método de Pago Desconocido')
+        Pago.objects.create(
+            factura=factura,
+            codigo_sri=metodo_pago,
+            total=Decimal(monto_pago),
+            descripcion=f"Pago con {descripcion}"
+        )
+
+
+# Función para generar el PDF de la factura
+def generar_pdf_factura_y_guardar(factura):
+    nombre_archivo = f"factura_{factura.numero_autorizacion}.pdf"
+    ruta_pdf = os.path.join(settings.MEDIA_ROOT, nombre_archivo)
+    generar_pdf_factura(factura, ruta_pdf)
+    return f"/media/{nombre_archivo}"

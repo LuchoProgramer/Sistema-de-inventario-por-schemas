@@ -1,0 +1,15 @@
+{% extends 'base.html' %}
+
+{% block content %}
+  <h2>Lista de Sucursales</h2>
+  <a href="{% url 'sucursales:crear_sucursal' %}">Crear nueva sucursal</a>
+  <ul>
+    {% for sucursal in sucursales %}
+      <li>
+        {{ sucursal.nombre }} - {{ sucursal.direccion }}
+        <a href="{% url 'sucursales:editar_sucursal' sucursal.id %}">Editar</a> |
+        <a href="{% url 'sucursales:eliminar_sucursal' sucursal.id %}">Eliminar</a>
+      </li>
+    {% endfor %}
+  </ul>
+{% endblock %}

@@ -1,12 +1,18 @@
 from django.shortcuts import render, redirect
-from .models import Producto, Inventario, Sucursal, Compra, Categoria, Transferencia, MovimientoInventario
+from .models import Producto, Inventario, Compra, Categoria, Transferencia, MovimientoInventario
 from django.shortcuts import get_object_or_404
 from .forms import CompraForm, ProductoForm, CategoriaForm, TransferenciaForm
-
+from sucursales.models import Sucursal
+from django.core.paginator import Paginator
+from django.contrib import messages
 
 def seleccionar_sucursal(request):
-    empleado = request.user.empleado
-    sucursales = empleado.sucursales.all()  # Obtener todas las sucursales del empleado
+    # Obtener el usuario autenticado
+    usuario = request.user
+
+    # Asumiendo que el usuario está relacionado con sucursales directamente
+    # Si tienes un campo de relación entre Usuario y Sucursal
+    sucursales = usuario.sucursales.all()  # Obtener las sucursales del usuario
 
     if request.method == 'POST':
         sucursal_id = request.POST.get('sucursal_id')
@@ -23,41 +29,64 @@ def ver_inventario(request, sucursal_id):
 
     return render(request, 'inventarios/ver_inventario.html', {'inventarios': inventarios, 'sucursal': sucursal})
 
+
 def agregar_producto_inventario(request):
     if request.method == 'POST':
         producto_id = request.POST.get('producto_id')
         sucursal_id = request.POST.get('sucursal_id')
-        cantidad = int(request.POST.get('cantidad'))
+        cantidad = request.POST.get('cantidad')
 
-        producto = Producto.objects.get(id=producto_id)
-        sucursal = Sucursal.objects.get(id=sucursal_id)
+        # Validar que 'cantidad' no sea nulo ni vacío
+        if not cantidad:
+            messages.error(request, 'La cantidad es requerida.')
+            return redirect('inventarios:agregar_producto_inventario')
 
-        # Buscar si ya existe el inventario para ese producto y sucursal
-        inventario, created = Inventario.objects.get_or_create(
-            producto=producto,
-            sucursal=sucursal
-        )
+        # Intentar convertir 'cantidad' a entero y manejar el error si no es válido
+        try:
+            cantidad = int(cantidad)
+        except ValueError:
+            messages.error(request, 'La cantidad debe ser un número válido.')
+            return redirect('inventarios:agregar_producto_inventario')
 
-        # Actualizamos la cantidad en el inventario
-        inventario.cantidad += cantidad
-        inventario.save()
+        # Ahora puedes proceder a guardar la cantidad en el inventario
+        try:
+            inventario, created = Inventario.objects.get_or_create(
+                producto_id=producto_id, 
+                sucursal_id=sucursal_id,
+                defaults={'cantidad': cantidad}
+            )
+            if not created:
+                inventario.cantidad += cantidad  # Sumar cantidad si ya existe el producto
+                inventario.save()
 
-        # Redirigir al inventario de la sucursal seleccionada, pasando el sucursal_id
+            messages.success(request, 'Producto agregado al inventario.')
+        except Exception as e:
+            messages.error(request, f'Error al agregar el producto: {e}')
         return redirect('inventarios:ver_inventario', sucursal_id=sucursal_id)
 
-    productos = Producto.objects.all()
-    sucursales = Sucursal.objects.all()
-    return render(request, 'inventarios/agregar_producto_inventario.html', {'productos': productos, 'sucursales': sucursales})
 
 
 def ajustar_inventario(request, producto_id, sucursal_id):
     producto = get_object_or_404(Producto, id=producto_id)
     sucursal = get_object_or_404(Sucursal, id=sucursal_id)
-
     inventario = get_object_or_404(Inventario, producto=producto, sucursal=sucursal)
 
     if request.method == 'POST':
-        nueva_cantidad = int(request.POST.get('nueva_cantidad'))
+        nueva_cantidad = request.POST.get('nueva_cantidad')
+
+        # Validar que la nueva cantidad es un número entero válido
+        try:
+            nueva_cantidad = int(nueva_cantidad)
+            if nueva_cantidad < 0:
+                raise ValueError("La cantidad no puede ser negativa")
+        except ValueError:
+            # Si la cantidad no es válida, podrías mostrar un mensaje de error
+            return render(request, 'inventarios/ajustar_inventario.html', {
+                'inventario': inventario,
+                'producto': producto,
+                'sucursal': sucursal,
+                'error': 'La cantidad debe ser un número entero válido y no negativo.'
+            })
 
         # Actualizamos la cantidad en el inventario
         inventario.cantidad = nueva_cantidad
@@ -72,6 +101,7 @@ def ajustar_inventario(request, producto_id, sucursal_id):
         'sucursal': sucursal
     })
 
+
 def agregar_compra(request):
     if request.method == 'POST':
         form = CompraForm(request.POST)
@@ -80,6 +110,9 @@ def agregar_compra(request):
             compra.save()
             # Redirigir al inventario de la sucursal después de la compra
             return redirect('inventarios:ver_inventario', sucursal_id=compra.sucursal.id)
+        else:
+            # Si el formulario no es válido, mostrar los errores
+            return render(request, 'inventarios/agregar_compra.html', {'form': form, 'errors': form.errors})
 
     else:
         form = CompraForm()
@@ -89,7 +122,13 @@ def agregar_compra(request):
 
 def ver_compras(request):
     compras = Compra.objects.all().order_by('-fecha')  # Ordenar por fecha más reciente
-    return render(request, 'inventarios/ver_compras.html', {'compras': compras})
+
+    # Agregar paginación
+    paginator = Paginator(compras, 10)  # Muestra 10 compras por página
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+
+    return render(request, 'inventarios/ver_compras.html', {'page_obj': page_obj})
 
 def agregar_producto(request):
     if request.method == 'POST':

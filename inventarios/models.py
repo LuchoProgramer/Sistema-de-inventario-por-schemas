@@ -1,6 +1,7 @@
 from django.db import models, transaction
-from sucursales.models import Sucursal
 from django.core.exceptions import ValidationError
+from decimal import Decimal
+
 
 class Categoria(models.Model):
     nombre = models.CharField(max_length=200, unique=True)
@@ -15,11 +16,11 @@ class Producto(models.Model):
     precio_compra = models.DecimalField(max_digits=10, decimal_places=2)
     precio_venta = models.DecimalField(max_digits=10, decimal_places=2)
     unidad_medida = models.CharField(max_length=50)
-    categoria = models.ForeignKey(Categoria, on_delete=models.SET_NULL, null=True, blank=True)
-    sucursal = models.ForeignKey(Sucursal, on_delete=models.CASCADE, null=True, blank=True)
+    categoria = models.ForeignKey('Categoria', on_delete=models.SET_NULL, null=True, blank=True)
+    sucursal = models.ForeignKey('sucursales.Sucursal', on_delete=models.CASCADE, null=True, blank=True)
     codigo_producto = models.CharField(max_length=50, unique=True, null=True, blank=True)
     impuesto = models.ForeignKey('facturacion.Impuesto', on_delete=models.SET_NULL, null=True, blank=True)
-    image = models.ImageField(upload_to='productos/', null=True, blank=True)  # Campo de imagen para productos
+    image = models.ImageField(upload_to='productos/', null=True, blank=True)
     stock_minimo = models.IntegerField(default=0)
     activo = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -31,12 +32,23 @@ class Producto(models.Model):
     def calcular_margen(self):
         return self.precio_venta - self.precio_compra
 
+    def obtener_valor_base_iva(self):
+        """
+        Calcula el valor sin impuestos y el valor del IVA,
+        asumiendo que el precio de venta ya incluye IVA.
+        Si no hay impuesto, retorna el precio de venta como valor base y 0 como IVA.
+        """
+        if self.impuesto and self.impuesto.porcentaje > 0:
+            valor_base = (self.precio_venta / (1 + self.impuesto.porcentaje / 100)).quantize(Decimal('0.01'))
+            valor_iva = (self.precio_venta - valor_base).quantize(Decimal('0.01'))
+            return valor_base, valor_iva
+        return self.precio_venta.quantize(Decimal('0.01')), Decimal('0.00')
+
     def calcular_precio_final(self):
         """
-        Calcula el precio final del producto, incluyendo impuestos si están aplicados.
+        Retorna el precio final del producto, que en este caso es el precio de venta
+        que ya incluye el IVA.
         """
-        if self.impuesto:
-            return self.precio_venta * (1 + self.impuesto.porcentaje / 100)
         return self.precio_venta
 
     def clean(self):
@@ -45,11 +57,13 @@ class Producto(models.Model):
         if self.precio_venta <= 0:
             raise ValidationError("El precio de venta debe ser mayor que cero.")
         if self.precio_venta <= self.precio_compra:
-            raise ValidationError("El precio de venta debe ser mayor que el precio de compra.")
+            raise ValidationError("El precio de venta debe ser mayor que el precio de compra para generar un margen positivo.")
+
+
 
 class Inventario(models.Model):
     producto = models.ForeignKey(Producto, on_delete=models.CASCADE)
-    sucursal = models.ForeignKey(Sucursal, on_delete=models.CASCADE)
+    sucursal = models.ForeignKey('sucursales.Sucursal', on_delete=models.CASCADE)
     cantidad = models.IntegerField()
 
     class Meta:
@@ -63,7 +77,7 @@ class Inventario(models.Model):
             raise ValidationError("La cantidad en inventario no puede ser negativa.")
 
 class Compra(models.Model):
-    sucursal = models.ForeignKey(Sucursal, on_delete=models.CASCADE)
+    sucursal = models.ForeignKey('sucursales.Sucursal', on_delete=models.CASCADE)
     producto = models.ForeignKey(Producto, on_delete=models.CASCADE)
     cantidad = models.IntegerField()
     precio_unitario = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)  # Permitir que sea nulo inicialmente
@@ -111,8 +125,8 @@ class Compra(models.Model):
         return f"Compra de {self.cantidad} {self.producto.unidad_medida} de {self.producto.nombre} para {self.sucursal.nombre}"
 
 class Transferencia(models.Model):
-    sucursal_origen = models.ForeignKey(Sucursal, on_delete=models.CASCADE, related_name='transferencias_salida')
-    sucursal_destino = models.ForeignKey(Sucursal, on_delete=models.CASCADE, related_name='transferencias_entrada')
+    sucursal_origen = models.ForeignKey('sucursales.Sucursal', on_delete=models.CASCADE, related_name='transferencias_salida')
+    sucursal_destino = models.ForeignKey('sucursales.Sucursal', on_delete=models.CASCADE, related_name='transferencias_entrada')
     producto = models.ForeignKey(Producto, on_delete=models.CASCADE)
     cantidad = models.IntegerField()
     fecha = models.DateTimeField(auto_now_add=True)
@@ -160,7 +174,7 @@ class MovimientoInventario(models.Model):
     ]
 
     producto = models.ForeignKey(Producto, on_delete=models.CASCADE)
-    sucursal = models.ForeignKey(Sucursal, on_delete=models.CASCADE)
+    sucursal = models.ForeignKey('sucursales.Sucursal', on_delete=models.CASCADE)
     tipo_movimiento = models.CharField(max_length=25, choices=TIPOS_MOVIMIENTO)
     cantidad = models.IntegerField()
     fecha = models.DateTimeField(auto_now_add=True)

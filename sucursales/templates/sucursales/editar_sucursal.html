@@ -1,0 +1,14 @@
+{% extends 'base.html' %}
+
+{% block content %}
+  <h2>{% if sucursal %}Editar Sucursal{% else %}Crear Sucursal{% endif %}</h2>
+
+  <form method="POST">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit">{% if sucursal %}Actualizar{% else %}Crear{% endif %}</button>
+  </form>
+
+  <!-- Enlace para regresar a la lista de sucursales -->
+  <a href="{% url 'sucursales:lista_sucursales' %}">Volver a la lista de sucursales</a>
+{% endblock %}

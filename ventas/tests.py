@@ -1,14 +1,13 @@
 from django.test import TestCase
 from django.utils import timezone
 from django.contrib.auth.models import User
-from empleados.models import Empleado, RegistroTurno
+from RegistroTurnos.models import RegistroTurno
 from sucursales.models import Sucursal
 
 class TurnoTest(TestCase):
     def setUp(self):
-        # Crear un usuario y empleado
+        # Crear un usuario
         self.usuario = User.objects.create(username='testuser', password='testpassword')
-        self.empleado = Empleado.objects.create(usuario=self.usuario, nombre='Empleado Test')
 
         # Crear una sucursal
         self.sucursal = Sucursal.objects.create(
@@ -24,28 +23,27 @@ class TurnoTest(TestCase):
 
     def test_iniciar_turno(self):
         # Verificar que no hay un turno activo antes de iniciar
-        turno_activo = RegistroTurno.objects.filter(empleado=self.empleado, fin_turno__isnull=True).exists()
+        turno_activo = RegistroTurno.objects.filter(usuario=self.usuario, fin_turno__isnull=True).exists()
         self.assertFalse(turno_activo)
 
         # Iniciar turno
         turno = RegistroTurno.objects.create(
-            empleado=self.empleado,
+            usuario=self.usuario,  # Cambiado a usuario
             sucursal=self.sucursal,
             inicio_turno=timezone.now()
         )
 
         # Verificar que ahora sí hay un turno activo
-        turno_activo = RegistroTurno.objects.filter(empleado=self.empleado, fin_turno__isnull=True).exists()
+        turno_activo = RegistroTurno.objects.filter(usuario=self.usuario, fin_turno__isnull=True).exists()
         self.assertTrue(turno_activo)
-        self.assertEqual(turno.empleado, self.empleado)
+        self.assertEqual(turno.usuario, self.usuario)
         self.assertEqual(turno.sucursal, self.sucursal)
 
 
 class CierreTurnoTest(TestCase):
     def setUp(self):
-        # Crear un usuario y empleado
+        # Crear un usuario
         self.usuario = User.objects.create(username='testuser', password='testpassword')
-        self.empleado = Empleado.objects.create(usuario=self.usuario, nombre='Empleado Test')
 
         # Crear una sucursal
         self.sucursal = Sucursal.objects.create(
@@ -61,7 +59,7 @@ class CierreTurnoTest(TestCase):
 
         # Iniciar un turno
         self.turno = RegistroTurno.objects.create(
-            empleado=self.empleado,
+            usuario=self.usuario,  # Cambiado a usuario
             sucursal=self.sucursal,
             inicio_turno=timezone.now()
         )
@@ -77,4 +75,4 @@ class CierreTurnoTest(TestCase):
         # Verificar que ahora el turno tiene una fecha de fin
         turno_cerrado = RegistroTurno.objects.get(id=self.turno.id)
         self.assertIsNotNone(turno_cerrado.fin_turno)
-        self.assertEqual(turno_cerrado.empleado, self.empleado)
+        self.assertEqual(turno_cerrado.usuario, self.usuario)

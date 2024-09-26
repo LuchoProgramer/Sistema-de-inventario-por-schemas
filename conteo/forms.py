@@ -34,7 +34,7 @@ class ConteoProductoForm(forms.Form):
             cantidad = cleaned_data.get(f'cantidad_{producto.id}')
 
             if producto_marcado and (cantidad is None or cantidad <= 0):
-                self.add_error(f'cantidad_{producto.id}', 'Debes ingresar una cantidad válida para el producto marcado.')
+                self.add_error(f'cantidad_{producto.id}', f'Debes ingresar una cantidad válida para el producto {producto.nombre} marcado.')
             elif not producto_marcado and (cantidad is not None and cantidad > 0):
                 self.add_error(f'producto_{producto.id}', 'Este producto no está marcado, no puedes asignar una cantidad.')
 

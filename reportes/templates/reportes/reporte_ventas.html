@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LA HUEQUITA QUITEÑA - Listado de Ventas</title>
+    <style>
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            border: 1px solid black;
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+        tfoot td {
+            font-weight: bold;
+            text-align: right;
+        }
+        .table-container {
+            overflow-x: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>LA HUEQUITA QUITEÑA</h1>
+    <h2>LISTADO DE VENTAS</h2>
+
+    <div class="table-container">
+        <table>
+            <thead>
+                <tr>
+                    <th>Fecha Emisión</th>
+                    <th>Hora</th>
+                    <th>Tipo</th>
+                    <th>Num.Factura</th>
+                    <th>Cliente</th>
+                    <th>Sub Total</th>
+                    <th>Desc.</th>
+                    <th>IVA</th>
+                    <th>Total</th>
+                    <th>Retención</th>
+                    <th>Total Pagar</th>
+                    <th>Forma de Pago</th>
+                    <th>Monto de Pago</th> <!-- Nueva columna para el monto -->
+                </tr>
+            </thead>
+            <tbody>
+                {% for venta in ventas %}
+                <tr>
+                    <td>{{ venta.factura.fecha_emision|date:"d/m/Y" }}</td>
+                    <td>{{ venta.factura.fecha_emision|time:"H:i:s" }}</td>
+                    <td>Factura</td>
+                    <td>{{ venta.factura.numero_autorizacion }}</td>
+                    <td>{{ venta.factura.cliente.razon_social }}</td>
+                    <td>{{ venta.factura.total_sin_impuestos }}</td> <!-- Subtotal -->
+                    <td>
+                        {% for detalle in venta.factura.detalles.all %}
+                            {{ detalle.descuento }}<br> <!-- Descuento -->
+                        {% endfor %}
+                    </td>
+                    <td>{{ venta.factura.valor_iva }}</td> <!-- IVA -->
+                    <td>{{ venta.factura.total_con_impuestos }}</td> <!-- Total -->
+                    <td>0.00</td> <!-- Retención (si no existe, por defecto 0.00) -->
+                    <td>{{ venta.factura.total_con_impuestos }}</td> <!-- Total a pagar -->
+                    <td>
+                        {% for pago in venta.factura.pagos.all %}
+                            {{ pago.descripcion }}<br> <!-- Forma de Pago -->
+                        {% endfor %}
+                    </td>
+                    <td>
+                        {% for pago in venta.factura.pagos.all %}
+                            {{ pago.total }}<br> <!-- Monto de Pago -->
+                        {% endfor %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+            <tfoot>
+                <!-- Fila de Totales Generales -->
+                <tr>
+                    <td colspan="5"></td>
+                    <td>{{ subtotal_acumulado }}</td> <!-- Subtotal acumulado -->
+                    <td>{{ total_descuentos }}</td> <!-- Total descuentos -->
+                    <td>{{ total_iva }}</td> <!-- Total IVA -->
+                    <td>{{ total_a_pagar }}</td> <!-- Total -->
+                    <td>0.00</td> <!-- Retención total -->
+                    <td>{{ total_a_pagar }}</td> <!-- Total a pagar acumulado -->
+                    <td colspan="2"></td> <!-- Espacio para Formas de Pago -->
+                </tr>
+                <!-- Fila para "TOTALES FORMAS DE PAGO" -->
+                <tr>
+                    <td colspan="11"></td> <!-- Abarca todas las celdas hasta "Formas de Pago" -->
+                    <td colspan="2">TOTALES FORMAS DE PAGO</td> <!-- Se coloca en "Formas de Pago" y "Monto de Pago" -->
+                </tr>
+                <!-- Mostrar cada método de pago en una celda separada -->
+                {% for forma_pago, total in total_por_forma_pago.items %}
+                <tr>
+                    <td colspan="11"></td> <!-- Abarca todas las celdas hasta "Formas de Pago" -->
+                    <td>{{ forma_pago }}</td> <!-- Nombre del método de pago -->
+                    <td>{{ total }}</td> <!-- Total por forma de pago -->
+                </tr>
+                {% endfor %}
+                <!-- Fila para Total General -->
+                <tr>
+                    <td colspan="11"></td> <!-- Abarca todas las celdas hasta "Formas de Pago" -->
+                    <td>TOTAL:</td>
+                    <td>{{ total_a_pagar }}</td> <!-- Total final -->
+                </tr>
+            </tfoot>
+        </table>
+    </div>
+</body>
+</html>

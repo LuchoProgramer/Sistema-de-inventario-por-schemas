@@ -1,12 +1,9 @@
 from django.db import models
-from sucursales.models import Sucursal
-from inventarios.models import Producto
 from django.core.exceptions import ValidationError
 from django.core.validators import RegexValidator
 from decimal import Decimal
 from django.dispatch import receiver
 from django.db.models.signals import post_save
-from ventas.models import Venta
 
 class Cliente(models.Model):
     TIPO_IDENTIFICACION_OPCIONES = [
@@ -67,9 +64,9 @@ class Factura(models.Model):
         ('07', 'Comprobante de retención'),
     ]
 
-    sucursal = models.ForeignKey(Sucursal, on_delete=models.CASCADE)
+    sucursal = models.ForeignKey('sucursales.Sucursal', on_delete=models.CASCADE)
     cliente = models.ForeignKey(Cliente, on_delete=models.CASCADE)
-    empleado = models.ForeignKey('empleados.Empleado', on_delete=models.SET_NULL, null=True, blank=True)
+    usuario = models.ForeignKey('auth.User', on_delete=models.SET_NULL, null=True, blank=True)
     fecha_emision = models.DateTimeField(auto_now_add=True)
     numero_autorizacion = models.CharField(max_length=49)
     clave_acceso = models.CharField(max_length=49, unique=True, null=True, blank=True)
@@ -83,13 +80,13 @@ class Factura(models.Model):
     estado_pago = models.CharField(max_length=20, choices=ESTADOS_PAGO, default='PENDIENTE')
     valor_iva = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))
         # Agregar la relación con RegistroTurno
-    registroturno = models.ForeignKey('empleados.RegistroTurno', on_delete=models.CASCADE, null=True, blank=True)
+    registroturno = models.ForeignKey('RegistroTurnos.RegistroTurno', on_delete=models.CASCADE, null=True, blank=True)
 
     class Meta:
         unique_together = ('sucursal', 'numero_autorizacion')
 
     def calcular_total_pagado(self):
-        return sum(pago.valor for pago in self.pagos.all())
+        return sum(pago.total for pago in self.pagos.all())
 
     def actualizar_estado_pago(self):
         total_pagado = self.calcular_total_pagado()
@@ -119,7 +116,7 @@ class Factura(models.Model):
 
 class DetalleFactura(models.Model):
     factura = models.ForeignKey('facturacion.Factura', on_delete=models.CASCADE, related_name='detalles')
-    producto = models.ForeignKey(Producto, on_delete=models.CASCADE)
+    producto = models.ForeignKey('inventarios.Producto', on_delete=models.CASCADE)
     codigo_principal = models.CharField(max_length=20, null=True, blank=True)  # Código único del producto
     cantidad = models.IntegerField()
     precio_unitario = models.DecimalField(max_digits=10, decimal_places=2)
@@ -129,6 +126,9 @@ class DetalleFactura(models.Model):
     valor_iva = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))
 
     def clean(self):
+        print(f"Cantidad: {self.cantidad}, Precio Unitario: {self.precio_unitario}, Subtotal esperado: {(self.cantidad * self.precio_unitario) - self.descuento}, Subtotal actual: {self.subtotal}, Descuento: {self.descuento}")
+        print(f"Total esperado: {self.subtotal}, Total actual: {self.total}")
+
         # Validación de cantidad
         if self.cantidad <= 0:
             raise ValidationError("La cantidad debe ser mayor que cero.")
@@ -147,8 +147,6 @@ class DetalleFactura(models.Model):
 
         super(DetalleFactura, self).clean()
 
-    def __str__(self):
-        return f'{self.producto.nombre} - {self.cantidad} unidades'
 
 
 class Pago(models.Model):
@@ -187,6 +185,13 @@ class Impuesto(models.Model):
     def __str__(self):
         return f'{self.nombre} - {self.porcentaje}%'
 
+    def save(self, *args, **kwargs):
+        if self.activo:
+            # Desactiva otros impuestos antes de guardar este como activo
+            Impuesto.objects.filter(activo=True).update(activo=False)
+        super(Impuesto, self).save(*args, **kwargs)
+
+
 class FacturaImpuesto(models.Model):
     factura = models.ForeignKey(Factura, on_delete=models.CASCADE, related_name='impuestos')
     impuesto = models.ForeignKey(Impuesto, on_delete=models.CASCADE)
@@ -205,9 +210,9 @@ class FacturaImpuesto(models.Model):
     
 
 class Cotizacion(models.Model):
-    sucursal = models.ForeignKey(Sucursal, on_delete=models.CASCADE)
+    sucursal = models.ForeignKey('sucursales.Sucursal', on_delete=models.CASCADE)
     cliente = models.ForeignKey(Cliente, on_delete=models.SET_NULL, null=True, blank=True)
-    empleado = models.ForeignKey('empleados.Empleado', on_delete=models.SET_NULL, null=True, blank=True)
+    usuario = models.ForeignKey('auth.User', on_delete=models.SET_NULL, null=True, blank=True)
     fecha_emision = models.DateTimeField(auto_now_add=True)
     total_sin_impuestos = models.DecimalField(max_digits=10, decimal_places=2)
     total_con_impuestos = models.DecimalField(max_digits=10, decimal_places=2)
@@ -216,15 +221,3 @@ class Cotizacion(models.Model):
     def __str__(self):
         return f'Cotización #{self.id} para {self.cliente.razon_social if self.cliente else "Sin cliente"}'
     
-
-class ComprobantePago(models.Model):
-    sucursal = models.ForeignKey(Sucursal, on_delete=models.CASCADE)
-    cliente = models.CharField(max_length=200, null=True, blank=True)
-    empleado = models.ForeignKey('empleados.Empleado', on_delete=models.SET_NULL, null=True, blank=True)
-    fecha_emision = models.DateTimeField(auto_now_add=True)
-    numero_autorizacion = models.CharField(max_length=49, unique=True, null=True, blank=True)
-    total = models.DecimalField(max_digits=10, decimal_places=2)
-    observaciones = models.TextField(null=True, blank=True)
-
-    def __str__(self):
-        return f'Comprobante de Pago {self.numero_autorizacion} - {self.cliente}'

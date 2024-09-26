@@ -1,11 +1,16 @@
 from django.db import models
 from django.core.exceptions import ValidationError
 from django.core.validators import RegexValidator
+from django.contrib.auth.models import User 
+
+from django.db import models
+from django.core.validators import RegexValidator
+from django.contrib.auth.models import User
 
 class Sucursal(models.Model):
     nombre = models.CharField(max_length=200, unique=True)
     razon_social = models.CharField(max_length=200, unique=True)
-    ruc = models.CharField(max_length=13, unique=True, blank=True, null=True, validators=[
+    ruc = models.CharField(max_length=13, blank=True, null=True, validators=[
         RegexValidator(regex='^\d{13}$', message='El RUC debe tener exactamente 13 dígitos numéricos.')
     ])
     direccion = models.TextField()
@@ -14,6 +19,7 @@ class Sucursal(models.Model):
     punto_emision = models.CharField(max_length=3, blank=True, null=True)
     es_matriz = models.BooleanField(default=False)
     secuencial_actual = models.CharField(max_length=9, default="000000001")  # Secuencial para facturas
+    usuarios = models.ManyToManyField(User, related_name='sucursales')
 
     class Meta:
         unique_together = ('codigo_establecimiento', 'punto_emision')  # Unicidad combinada
@@ -26,7 +32,7 @@ class Sucursal(models.Model):
         # Validar que el RUC sea obligatorio si se especifican código de establecimiento o punto de emisión
         if not self.ruc and (self.codigo_establecimiento or self.punto_emision):
             raise ValidationError('El RUC es obligatorio si se especifica código de establecimiento o punto de emisión.')
-        
+
         # Validar que el RUC tiene exactamente 13 dígitos
         if self.ruc and len(self.ruc) != 13:
             raise ValidationError('El RUC debe tener exactamente 13 dígitos.')

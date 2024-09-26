@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard</title>
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+</head>
+<body>
+    <h1>Bienvenido al Dashboard</h1>
+    <p>Usuario: {{ request.user.username }}</p>
+
+    <h2>Acciones Disponibles</h2>
+    <ul>
+        <a href="{% url 'crear_usuario' %}">Agregar Nuevo Empleado</a>
+        <li><a href="#">Ver Inventarios (Próximamente)</a></li>
+        <li><a href="#">Gestionar Ventas (Próximamente)</a></li>
+    </ul>
+
+    <h2>Selecciona tu Sucursal para Iniciar el Turno</h2>
+    <form id="form-inicio-turno" method="POST">
+        {% csrf_token %}
+        <label for="sucursal_id">Seleccionar Sucursal:</label>
+        {{ form.sucursal }} <!-- Renderiza el campo select del formulario -->
+        <button type="submit">Iniciar Turno</button>
+    </form>
+
+    <!-- Formulario de Logout -->
+    <form id="logout-form" action="{% url 'logout' %}" method="POST">
+        {% csrf_token %}
+        <button type="submit">Cerrar Sesión</button>
+    </form>
+
+    <!-- Mensajes de Éxito o Error -->
+    {% if messages %}
+    <ul class="messages">
+        {% for message in messages %}
+        <li class="{{ message.tags }}">{{ message }}</li>
+        {% endfor %}
+    </ul>
+    {% endif %}
+
+    <script>
+        // AJAX para enviar el formulario de inicio de turno sin recargar la página
+        $('#form-inicio-turno').on('submit', function(event) {
+            event.preventDefault();
+            const formData = new FormData(this);
+    
+            $.ajax({
+                url: "{% url 'dashboard' %}",  // Asegúrate de que la URL esté correcta
+                type: 'POST',
+                data: formData,
+                processData: false,
+                contentType: false,
+                headers: {
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                },
+                success: function(response) {
+                    if (response.success) {
+                        // Redirigir a la URL dinámica con el turno_id
+                        window.location.href = `/ventas/inicio_turno/${response.turno_id}/`;
+                    } else {
+                        // Mostrar el mensaje de error devuelto por el servidor
+                        alert(response.message || 'Error al iniciar el turno.');
+                        console.error('Traceback:', response.traceback);  // Mostrar el traceback en la consola
+                    }
+                },
+                error: function(xhr, status, error) {
+                    console.error('Error:', error);
+                    console.log('Status:', status);
+                    console.log('XHR Response:', xhr.responseText);
+                    alert('Ocurrió un error al procesar la solicitud.');
+                }
+            });
+        });
+    </script>
+</body>
+</html>
+

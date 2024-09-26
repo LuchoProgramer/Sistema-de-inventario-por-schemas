@@ -1,8 +1,8 @@
-from django.shortcuts import render, redirect
-from .models import Factura, Cotizacion, Cliente, ComprobantePago, DetalleFactura, Impuesto, Pago   
+from django.shortcuts import render, redirect, get_object_or_404
+from .models import Factura, Cotizacion, Cliente, DetalleFactura, Impuesto, Pago   
 from django.http import HttpResponse, FileResponse
 from ventas.utils import obtener_carrito, vaciar_carrito
-from empleados.models import RegistroTurno
+from RegistroTurnos.models import RegistroTurno
 from django.utils import timezone
 from django.core.exceptions import ValidationError
 from .utils.xml_generator import generar_xml_para_sri
@@ -11,6 +11,7 @@ from django.db import transaction
 from decimal import Decimal
 from .services import crear_factura
 from sucursales.models import Sucursal
+from .forms import ImpuestoForm
 import os
 from django.conf import settings
 from .pdf.factura_pdf import generar_pdf_factura
@@ -18,28 +19,50 @@ from django.http import JsonResponse
 from django.urls import reverse
 from django.contrib import messages
 from ventas.forms import MetodoPagoForm
+from facturacion.services import obtener_o_crear_cliente, verificar_turno_activo, asignar_pagos_a_factura, generar_pdf_factura_y_guardar
+from facturacion.services import crear_factura  # Si no lo tienes aún, importa la función que maneja la creación de facturas.
+
 
  
+@transaction.atomic
 def generar_cotizacion(request):
     if request.method == 'POST':
-        cliente_id = request.POST.get('cliente_id')
-        cliente = Cliente.objects.get(id=cliente_id) if cliente_id else None
+        try:
+            # Obtener el cliente (si existe)
+            cliente_id = request.POST.get('cliente_id')
+            cliente = Cliente.objects.get(id=cliente_id) if cliente_id else None
 
-        carrito_items = obtener_carrito(request.user)
+            # Obtener los productos en el carrito del usuario
+            carrito_items = obtener_carrito(request.user)
+            if not carrito_items.exists():
+                return JsonResponse({'error': 'El carrito está vacío. No se puede generar una cotización.'}, status=400)
 
-        total_sin_impuestos = sum(item.subtotal for item in carrito_items)
-        total_con_impuestos = total_sin_impuestos * 1.12  # Asumiendo 12% de IVA
+            # Calcular los totales
+            total_sin_impuestos = sum(item.subtotal() for item in carrito_items)
+            total_con_impuestos = total_sin_impuestos * 1.12  # Asumiendo 12% de IVA
 
-        cotizacion = Cotizacion.objects.create(
-            sucursal=request.user.empleado.sucursal_actual,
-            cliente=cliente,
-            empleado=request.user.empleado,
-            total_sin_impuestos=total_sin_impuestos,
-            total_con_impuestos=total_con_impuestos,
-            observaciones=request.POST.get('observaciones', '')
-        )
+            # Crear la cotización
+            cotizacion = Cotizacion.objects.create(
+                sucursal=request.user.sucursal_actual,  # Suponiendo que la relación está en el User
+                cliente=cliente,
+                empleado=request.user,  # Usar directamente el User
+                total_sin_impuestos=total_sin_impuestos,
+                total_con_impuestos=total_con_impuestos,
+                observaciones=request.POST.get('observaciones', '')
+            )
 
-        return redirect('ventas:cotizacion_exitosa')
+            # Redirigir a la página de éxito
+            return redirect('ventas:cotizacion_exitosa')
+
+        except Cliente.DoesNotExist:
+            logger.error("Cliente no encontrado.")
+            return JsonResponse({'error': 'Cliente no encontrado.'}, status=400)
+        except ValidationError as e:
+            logger.error(f"Error en la validación: {e}")
+            return JsonResponse({'error': e.messages}, status=400)
+        except Exception as e:
+            logger.error(f"Error inesperado: {e}")
+            return JsonResponse({'error': str(e)}, status=500)
 
     return render(request, 'facturacion/generar_cotizacion.html')
 
@@ -47,148 +70,164 @@ def generar_cotizacion(request):
 from django.urls import reverse
 from django.http import JsonResponse
 from django.db import transaction
-from decimal import Decimal
+import logging
+from ventas.services import VentaService
+logger = logging.getLogger(__name__)
+
 
 
 @transaction.atomic
 def generar_factura(request):
     if request.method == 'POST':
+        print("POST request para generar factura")
+        
+        # Datos del cliente proporcionados por la solicitud POST
         cliente_id = request.POST.get('cliente_id')
         identificacion = request.POST.get('identificacion')
-
-        # Validar que se ha seleccionado un cliente o proporcionado los datos de uno nuevo
+        print(f"Cliente ID: {cliente_id}, Identificación: {identificacion}")
+        
         if not cliente_id and not identificacion:
             return JsonResponse({'error': 'Debes seleccionar un cliente o ingresar los datos de un nuevo cliente.'}, status=400)
 
-        empleado = request.user.empleado
-        turno_activo = RegistroTurno.objects.filter(empleado=empleado, fin_turno__isnull=True).first()
-
-        if not turno_activo:
-            return JsonResponse({'error': 'No tienes un turno activo. Por favor inicia un turno.'}, status=400)
-
-        sucursal = turno_activo.sucursal
-
-        # Verificar si el cliente ya existe o crear uno nuevo
         try:
-            if cliente_id:
-                cliente = Cliente.objects.get(id=cliente_id)
-            else:
-                cliente, created = Cliente.objects.get_or_create(
-                    identificacion=identificacion,
-                    defaults={
-                        'tipo_identificacion': request.POST.get('tipo_identificacion'),
-                        'razon_social': request.POST.get('razon_social'),
-                        'direccion': request.POST.get('direccion'),
-                        'telefono': request.POST.get('telefono'),
-                        'email': request.POST.get('email')
-                    }
-                )
-                # Si el cliente ya existía pero no tiene todos los campos completos
-                if not created and not cliente.razon_social:
-                    return JsonResponse({'error': 'Cliente incompleto. Por favor revisa los datos ingresados.'}, status=400)
-        except Cliente.DoesNotExist:
-            return JsonResponse({'error': 'Cliente no encontrado.'}, status=400)
+            data_cliente = {
+                'tipo_identificacion': request.POST.get('tipo_identificacion'),
+                'razon_social': request.POST.get('razon_social'),
+                'direccion': request.POST.get('direccion'),
+                'telefono': request.POST.get('telefono'),
+                'email': request.POST.get('email')
+            }
+            print(f"Datos del cliente: {data_cliente}")
 
-        # Obtener el carrito de compras
-        carrito_items = obtener_carrito(request.user)
-        if not carrito_items.exists():
-            return JsonResponse({'error': 'El carrito está vacío. No se puede generar una factura.'}, status=400)
+            # Validar o crear el cliente
+            cliente = obtener_o_crear_cliente(cliente_id, identificacion, data_cliente)
+            print(f"Cliente obtenido/creado: {cliente}")
 
-        # Capturar los métodos de pago y montos desde el formulario
-        metodos_pago = request.POST.getlist('metodos_pago')
-        montos_pago = request.POST.getlist('montos_pago')
+            # Verificar que el usuario tiene un turno activo
+            usuario = request.user
+            turno_activo = verificar_turno_activo(usuario)
+            print(f"Turno activo: {turno_activo}")
 
-        # Descripciones para los métodos de pago
-        metodo_descripciones = {
-            '01': 'Efectivo',
-            '16': 'Tarjeta de Débito',
-            '19': 'Tarjeta de Crédito',
-            '20': 'Transferencias',
-            '17': 'Dinero Electrónico'
-        }
+            # Obtener la sucursal y el carrito
+            sucursal = turno_activo.sucursal
+            carrito_items = obtener_carrito(usuario)
+            print(f"Carrito del usuario {usuario}: {list(carrito_items)}")
 
-        try:
-            with transaction.atomic():
-                # Crear la factura
-                factura = crear_factura(cliente, sucursal, empleado, carrito_items)
+            if not carrito_items.exists():
+                return JsonResponse({'error': 'El carrito está vacío. No se puede generar una factura.'}, status=400)
 
-                # Asignar los pagos a la factura
-                for metodo_pago, monto_pago in zip(metodos_pago, montos_pago):
-                    descripcion = metodo_descripciones.get(metodo_pago, 'Método de Pago Desconocido')
-                    Pago.objects.create(
-                        factura=factura,
-                        codigo_sri=metodo_pago,
-                        total=Decimal(monto_pago),
-                        descripcion=f"Pago con {descripcion}"
-                    )
+            # Crear la factura y asociar los detalles del carrito
+            print(f"Creando factura para cliente {cliente} y sucursal {sucursal}")
+            factura = crear_factura(cliente, sucursal, usuario, carrito_items)
+            print(f"Factura creada: {factura}")
 
-                # Generar PDF de la factura
-                nombre_archivo = f"factura_{factura.numero_autorizacion}.pdf"
-                ruta_pdf = os.path.join(settings.MEDIA_ROOT, nombre_archivo)
-                generar_pdf_factura(factura, ruta_pdf)
+            # Registrar la venta para cada producto en el carrito
+            for item in carrito_items:
+                print(f"Producto: {item.producto.nombre}, Cantidad: {item.cantidad}")
+                VentaService.registrar_venta(turno_activo, item.producto, item.cantidad, factura)
+                print(f"Venta registrada para {item.producto.nombre} con cantidad {item.cantidad}")
 
-                # Vaciar el carrito después de generar la factura
-                carrito_items.delete()
+            # Obtener métodos y montos de pago del formulario
+            metodos_pago = request.POST.getlist('metodos_pago')
+            montos_pago = request.POST.getlist('montos_pago')
+            print(f"Métodos de pago: {metodos_pago}, Montos de pago: {montos_pago}")
 
-                # URLs de respuesta
-                pdf_url = f"/media/{nombre_archivo}"
-                # Aquí pasamos el turno_id al redirigir
-                redirect_url = reverse('ventas:inicio_turno', args=[turno_activo.id])
+            if len(metodos_pago) != len(montos_pago):
+                return JsonResponse({'error': 'Métodos de pago y montos no coinciden.'}, status=400)
 
-                return JsonResponse({'pdf_url': pdf_url, 'redirect_url': redirect_url})
+            # Verificar si la factura tiene detalles asociados
+            detalles = factura.detalles.all()
+            print(f"Detalles de la factura: {detalles}")
+
+            if not detalles.exists():
+                return JsonResponse({'error': 'La factura no tiene detalles asociados.'}, status=400)
+
+            # Asignar los pagos a la factura
+            print(f"Asignando pagos a la factura {factura}")
+            asignar_pagos_a_factura(factura, metodos_pago, montos_pago)
+
+            # Generar el PDF de la factura y guardarlo
+            print(f"Generando PDF para la factura {factura}")
+            pdf_url = generar_pdf_factura_y_guardar(factura)
+            print(f"PDF generado: {pdf_url}")
+
+            # Eliminar los artículos del carrito después de generar la factura
+            print(f"Eliminando artículos del carrito para el usuario {usuario}")
+            carrito_items.delete()
+
+            # Redirigir al turno activo
+            redirect_url = reverse('ventas:inicio_turno', args=[turno_activo.id])
+            print(f"Redirigiendo a {redirect_url}")
+            return JsonResponse({'pdf_url': pdf_url, 'redirect_url': redirect_url})
 
         except ValidationError as e:
+            print(f"ValidationError: {e.messages}")
             return JsonResponse({'error': e.messages}, status=400)
+        except Exception as e:
+            print(f"Error general al generar la factura: {str(e)}")
+            logger.error(f"Error al generar la factura: {str(e)}")
+            return JsonResponse({'error': 'Ocurrió un error al generar la factura.'}, status=500)
 
-    # Si el método es GET, cargamos la página con los datos del carrito
     else:
+        # Si la solicitud es GET, obtener los detalles del carrito y el total de la factura
         carrito_items = obtener_carrito(request.user)
-
-        # Calcular el total de la factura
         total_factura = sum(item.subtotal() for item in carrito_items)
+
+        print(f"Detalles del carrito (GET): {list(carrito_items)}, Total factura: {total_factura}")
 
         return render(request, 'facturacion/generar_factura.html', {
             'clientes': Cliente.objects.all(),
-            'total_factura': total_factura,  # Pasar el total al template
+            'total_factura': total_factura,
         })
 
 
-def generar_comprobante_pago(request):
-    if request.method == 'POST':
-        carrito_items = obtener_carrito(request.user)
-        total = sum(item.subtotal for item in carrito_items)
 
-        # Generar un número de autorización único
-        numero_autorizacion = f"CP-{request.user.id}-{int(timezone.now().timestamp())}"
-
-        comprobante_pago = ComprobantePago.objects.create(
-            sucursal=request.user.empleado.sucursal_actual,
-            cliente=request.POST.get('cliente', 'Consumidor Final'),
-            empleado=request.user.empleado,
-            numero_autorizacion=numero_autorizacion,
-            total=total,
-            observaciones=request.POST.get('observaciones', '')
-        )
-
-        # Actualizar el inventario aquí si es necesario
-        for item in carrito_items:
-            # Lógica para reducir el inventario
-            item.producto.reducir_inventario(item.cantidad)
-            item.producto.save()
-
-        return HttpResponse(f"Comprobante de Pago #{comprobante_pago.numero_autorizacion} generado correctamente.")
-    
-    return render(request, 'facturacion/generar_comprobante_pago.html')
-
-def factura_exitosa(request):
-    return render(request, 'facturacion/factura_exitosa.html')
-
-def error_view(request, message):
-    return render(request, 'facturacion/error.html', {'message': message})
+   
 
 def ver_pdf_factura(request, numero_autorizacion):
     ruta_pdf = os.path.join(settings.MEDIA_ROOT, f'factura_{numero_autorizacion}.pdf')
+    
     if os.path.exists(ruta_pdf):
-        return FileResponse(open(ruta_pdf, 'rb'), content_type='application/pdf')
+        try:
+            return FileResponse(open(ruta_pdf, 'rb'), content_type='application/pdf')
+        except Exception as e:
+            logger.error(f"Error al abrir el PDF {ruta_pdf}: {e}")
+            return HttpResponse("Error al intentar abrir el PDF.", status=500)
     else:
+        logger.warning(f"El PDF factura_{numero_autorizacion}.pdf no se encontró en {settings.MEDIA_ROOT}")
         return HttpResponse("El PDF no se encuentra disponible.", status=404)
+    
+
+
+def actualizar_impuesto(request, impuesto_id):
+    impuesto = get_object_or_404(Impuesto, id=impuesto_id)
+    if request.method == 'POST':
+        form = ImpuestoForm(request.POST, instance=impuesto)
+        if form.is_valid():
+            form.save()
+            return redirect('lista_productos')  # O la vista que quieras redirigir
+    else:
+        form = ImpuestoForm(instance=impuesto)
+    
+    return render(request, 'facturacion/actualizar_impuesto.html', {'form': form})
+
+def lista_impuestos(request):
+    impuestos = Impuesto.objects.all()
+    return render(request, 'facturacion/lista_impuestos.html', {'impuestos': impuestos})
+
+
+def crear_impuesto(request):
+    if request.method == 'POST':
+        form = ImpuestoForm(request.POST)
+        if form.is_valid():
+            form.save()
+            return redirect('facturacion/lista_impuestos.html')
+    else:
+        form = ImpuestoForm()
+    
+    return render(request, 'facturacion/crear_impuesto.html', {'form': form})
+
+def eliminar_impuesto(request, impuesto_id):
+    impuesto = get_object_or_404(Impuesto, id=impuesto_id)
+    impuesto.delete()
+    return redirect('lista_impuestos')

@@ -41,7 +41,6 @@
             {% if carrito_items %}
                 <div class="d-flex">
                     <a href="{% url 'facturacion:generar_cotizacion' %}" class="btn btn-primary">Generar Cotización</a>
-                    <a href="{% url 'facturacion:generar_comprobante_pago' %}" class="btn btn-success ml-2">Comprobante de Pago</a>
                     <a href="{% url 'facturacion:generar_factura' %}" class="btn btn-success ml-2">Generar Factura</a>
                 </div>
             {% endif %}

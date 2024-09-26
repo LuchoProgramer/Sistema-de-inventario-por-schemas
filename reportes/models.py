@@ -1,12 +1,10 @@
 from django.db import models
-from empleados.models import RegistroTurno
-from sucursales.models import Sucursal
-from ventas.models import Venta
-from facturacion.models import Pago
+from RegistroTurnos.models import RegistroTurno
+
 
 class Reporte(models.Model):
-    turno = models.ForeignKey(RegistroTurno, on_delete=models.CASCADE, related_name='reportes', null=True, blank=True)
-    sucursal = models.ForeignKey(Sucursal, on_delete=models.CASCADE)
+    turno = models.ForeignKey('RegistroTurnos.RegistroTurno', on_delete=models.CASCADE, related_name='reportes', null=True, blank=True)
+    sucursal = models.ForeignKey('sucursales.Sucursal', on_delete=models.CASCADE)
     total_ventas = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
     total_facturas = models.IntegerField(default=0)
     total_efectivo = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
@@ -23,7 +21,7 @@ class Reporte(models.Model):
 
 class MovimientoReporte(models.Model):
     venta = models.ForeignKey('ventas.Venta', on_delete=models.CASCADE)  # Usamos una cadena de texto
-    turno = models.ForeignKey('empleados.RegistroTurno', on_delete=models.CASCADE)
+    turno = models.ForeignKey('RegistroTurnos.RegistroTurno', on_delete=models.CASCADE)
     sucursal = models.ForeignKey('sucursales.Sucursal', on_delete=models.CASCADE)
     pago = models.ForeignKey('facturacion.Pago', on_delete=models.CASCADE, null=True, blank=True)  # Usamos una cadena de texto
     total_venta = models.DecimalField(max_digits=10, decimal_places=2)

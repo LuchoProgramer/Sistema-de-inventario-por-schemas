@@ -5,18 +5,25 @@ from django.contrib.auth.models import User  # Asumiendo que los empleados está
 from django.db.models import Sum
 from django.core.exceptions import ValidationError
 from decimal import Decimal
+from facturacion.models import Pago
 
 class Venta(models.Model):
     # Definición de los campos
-    turno = models.ForeignKey('empleados.RegistroTurno', on_delete=models.CASCADE, related_name='ventas')
+    turno = models.ForeignKey('RegistroTurnos.RegistroTurno', on_delete=models.CASCADE, related_name='ventas')
     sucursal = models.ForeignKey(Sucursal, on_delete=models.CASCADE)
-    empleado = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True)
+    usuario = models.ForeignKey('auth.User', on_delete=models.SET_NULL, null=True, blank=True)
     producto = models.ForeignKey(Producto, on_delete=models.CASCADE)
     cantidad = models.IntegerField()
     precio_unitario = models.DecimalField(max_digits=10, decimal_places=2)
     total_venta = models.DecimalField(max_digits=10, decimal_places=2, editable=False)
     factura = models.ForeignKey('facturacion.Factura', on_delete=models.CASCADE, related_name='ventas', null=False, blank=False)
     fecha = models.DateTimeField(auto_now_add=True)
+    metodo_pago = models.CharField(
+        max_length=2, 
+        choices=Pago.METODOS_PAGO_SRI, 
+        default='01', 
+        help_text="Método de pago utilizado para la venta"
+    )
 
     def clean(self):
         # Validaciones personalizadas
@@ -33,8 +40,12 @@ class Venta(models.Model):
 
     @transaction.atomic
     def save(self, *args, **kwargs):
+        try:
         # Validar antes de guardar
-        self.full_clean()  # Ejecutar validaciones
+            self.full_clean()  # Ejecutar validaciones
+        except ValidationError as e:
+            print(f"Error de validación: {str(e)}")
+            raise e
 
         # Calcular el total de la venta con precisión
         self.total_venta = (self.cantidad * self.precio_unitario).quantize(Decimal('0.01'))
@@ -82,7 +93,7 @@ class Venta(models.Model):
 
 #Cierra de caja
 class CierreCaja(models.Model):
-    empleado = models.ForeignKey(User, on_delete=models.CASCADE)
+    usuario = models.ForeignKey('auth.User', on_delete=models.CASCADE)
     sucursal = models.ForeignKey(Sucursal, on_delete=models.CASCADE)
     efectivo_total = models.DecimalField(max_digits=10, decimal_places=2)
     tarjeta_total = models.DecimalField(max_digits=10, decimal_places=2)
@@ -95,14 +106,13 @@ class CierreCaja(models.Model):
 
     @transaction.atomic
     def verificar_montos(self):
-        # Importar aquí para evitar el ciclo de importación
-        from ventas.models import Venta
+        from ventas.models import Venta  # Evitar ciclos de importación
 
         # Filtrar las ventas para la fecha, sucursal y empleado específicos
         ventas = Venta.objects.filter(
             fecha__date=self.fecha_cierre.date(),
             sucursal=self.sucursal,
-            empleado=self.empleado
+            usuario=self.usuario
         )
 
         # Realizar agregaciones para calcular los totales directamente en la base de datos
@@ -126,7 +136,7 @@ class CierreCaja(models.Model):
 
 
 class Carrito(models.Model):
-    turno = models.ForeignKey('empleados.RegistroTurno', on_delete=models.CASCADE, related_name='carritos')
+    turno = models.ForeignKey('RegistroTurnos.RegistroTurno', on_delete=models.CASCADE, related_name='carritos')
     producto = models.ForeignKey(Producto, on_delete=models.CASCADE)
     cantidad = models.PositiveIntegerField(default=1)
     agregado_el = models.DateTimeField(auto_now_add=True)
@@ -137,7 +147,8 @@ class Carrito(models.Model):
             raise ValidationError('La cantidad del producto debe ser mayor que cero.')
 
         # Verificar que haya suficiente inventario del producto
-        if self.producto.stock < self.cantidad:
+        inventario = Inventario.objects.filter(producto=self.producto, sucursal=self.turno.sucursal).first()
+        if not inventario or inventario.cantidad < self.cantidad:
             raise ValidationError(f'No hay suficiente stock para {self.producto.nombre}. Disponibles: {self.producto.stock}')
 
         super().clean()

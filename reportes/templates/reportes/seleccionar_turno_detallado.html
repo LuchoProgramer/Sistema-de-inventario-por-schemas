@@ -1,0 +1,20 @@
+<h1>Seleccionar Turno Específico</h1>
+
+{% if turnos %}
+  <ul>
+    {% for turno in turnos %}
+      <li>
+        <a href="{% url 'reporte_ventas_por_turno' %}?turno_id={{ turno.id }}">
+          Turno en {{ turno.sucursal.nombre }} de {{ turno.usuario.get_full_name }} - {{ turno.inicio_turno }}
+          {% if turno.fin_turno %}
+            hasta {{ turno.fin_turno }}
+          {% else %}
+            (Activo)
+          {% endif %}
+        </a>
+      </li>
+    {% endfor %}
+  </ul>
+{% else %}
+  <p>No se encontraron turnos para los filtros seleccionados.</p>
+{% endif %}

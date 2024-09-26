@@ -18,7 +18,7 @@ class CierreCajaForm(forms.ModelForm):
         }
 
 class SeleccionVentaForm(forms.Form):
-    producto = forms.ModelChoiceField(queryset=Producto.objects.none(), label="Producto")
+    producto = forms.ModelChoiceField(queryset=Producto.objects.none(), label="Producto", empty_label="Seleccione un producto")
     cantidad = forms.IntegerField(min_value=1, label="Cantidad")
     
     def __init__(self, *args, **kwargs):
@@ -26,7 +26,10 @@ class SeleccionVentaForm(forms.Form):
         self.sucursal_id = sucursal_id
         super().__init__(*args, **kwargs)
         if sucursal_id:
-            self.fields['producto'].queryset = Producto.objects.filter(inventario__sucursal_id=sucursal_id)
+            productos_disponibles = Producto.objects.filter(inventario__sucursal_id=sucursal_id)
+            if not productos_disponibles.exists():
+                self.fields['producto'].empty_label = "No hay productos disponibles"
+            self.fields['producto'].queryset = productos_disponibles
     
     def clean(self):
         cleaned_data = super().clean()
@@ -41,6 +44,10 @@ class SeleccionVentaForm(forms.Form):
                     raise forms.ValidationError(f"No hay suficiente stock. Disponible: {inventario.cantidad} unidades.")
             except Inventario.DoesNotExist:
                 raise forms.ValidationError("No hay inventario disponible para este producto en la sucursal seleccionada.")
+            except Exception as e:
+                raise forms.ValidationError(f"Error al verificar el inventario: {str(e)}")
+
+
 
 class MetodoPagoForm(forms.Form):
     METODOS_PAGO_SRI = [
