@@ -28,3 +28,7 @@ class TransferenciaForm(forms.ModelForm):
     class Meta:
         model = Transferencia
         fields = ['sucursal_origen', 'sucursal_destino', 'producto', 'cantidad']
+
+
+class UploadFileForm(forms.Form):
+    file = forms.FileField()

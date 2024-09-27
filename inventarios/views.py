@@ -5,6 +5,10 @@ from .forms import CompraForm, ProductoForm, CategoriaForm, TransferenciaForm
 from sucursales.models import Sucursal
 from django.core.paginator import Paginator
 from django.contrib import messages
+import pandas as pd
+from django.http import HttpResponse
+from facturacion.models import Impuesto
+from .forms import UploadFileForm
 
 def seleccionar_sucursal(request):
     # Obtener el usuario autenticado
@@ -62,7 +66,15 @@ def agregar_producto_inventario(request):
             messages.success(request, 'Producto agregado al inventario.')
         except Exception as e:
             messages.error(request, f'Error al agregar el producto: {e}')
+        
         return redirect('inventarios:ver_inventario', sucursal_id=sucursal_id)
+
+    # Si el request es GET, mostramos el formulario de agregar producto
+    else:
+        # Aquí puedes cargar cualquier dato necesario para el formulario, como la lista de productos o sucursales
+        productos = Producto.objects.all()
+        sucursales = Sucursal.objects.all()
+        return render(request, 'inventarios/agregar_producto.html', {'productos': productos, 'sucursales': sucursales})
 
 
 
@@ -216,3 +228,51 @@ def lista_transferencias(request):
 def lista_movimientos_inventario(request):
     movimientos = MovimientoInventario.objects.all().order_by('-fecha')  # Ordenados por fecha descendente
     return render(request, 'inventarios/lista_movimientos_inventario.html', {'movimientos': movimientos})
+
+#Cargar productos con excel
+def cargar_productos(request):
+    if request.method == 'POST':
+        form = UploadFileForm(request.POST, request.FILES)
+        if form.is_valid():
+            file = request.FILES['file']
+            try:
+                # Leer el archivo Excel
+                df = pd.read_excel(file)
+
+                # Definir los campos obligatorios y opcionales
+                required_columns = ['Nombre', 'Precio Compra', 'Precio Venta']
+                optional_columns = ['Descripción', 'Unidad de Medida', 'Categoria', 'Sucursal', 'Código Producto', 'Stock Mínimo']
+                allowed_columns = required_columns + optional_columns
+
+                # Verifica que los campos obligatorios estén presentes
+                for column in required_columns:
+                    if column not in df.columns:
+                        return HttpResponse(f"El archivo debe contener la columna obligatoria: {column}")
+
+                # Filtrar solo las columnas permitidas (ignorar las que no correspondan al modelo)
+                df = df[[col for col in df.columns if col in allowed_columns]]
+
+                # Procesar cada fila del DataFrame
+                for index, row in df.iterrows():
+                    # Asignar automáticamente el impuesto del 15%
+                    impuesto = Impuesto.objects.get(porcentaje=15.0)
+
+                    Producto.objects.create(
+                        nombre=row['Nombre'],  # Campo obligatorio
+                        precio_compra=row['Precio Compra'],  # Campo obligatorio
+                        precio_venta=row['Precio Venta'],  # Campo obligatorio
+                        impuesto=impuesto,  # Se asigna automáticamente el 15%
+                        # Campos opcionales, solo se cargan si están presentes en el archivo
+                        descripcion=row.get('Descripción', ''),  # Si no está, se asigna una cadena vacía
+                        unidad_medida=row.get('Unidad de Medida', ''),  # Si no está, se asigna una cadena vacía
+                        categoria=row.get('Categoria', None),  # Si no está, se asigna None
+                        sucursal=row.get('Sucursal', None),  # Si no está, se asigna None
+                        codigo_producto=row.get('Código Producto', None),  # Si no está, se asigna None
+                        stock_minimo=row.get('Stock Mínimo', 0),  # Si no está, se asigna 0 como valor por defecto
+                    )
+                return HttpResponse("Productos cargados con éxito")
+            except Exception as e:
+                return HttpResponse(f"Error al cargar productos: {e}")
+    else:
+        form = UploadFileForm()
+    return render(request, 'inventarios/cargar_productos.html', {'form': form})

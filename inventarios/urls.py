@@ -20,4 +20,5 @@ urlpatterns = [
     path('transferencias/', views.lista_transferencias, name='lista_transferencias'),
     path('transferencias/crear/', views.crear_transferencia, name='crear_transferencia'),
     path('movimientos/', views.lista_movimientos_inventario, name='lista_movimientos_inventario'),
+    path('cargar-productos/', views.cargar_productos, name='cargar_productos'),
 ]

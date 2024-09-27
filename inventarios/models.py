@@ -1,6 +1,7 @@
 from django.db import models, transaction
 from django.core.exceptions import ValidationError
 from decimal import Decimal
+from facturacion.models import Impuesto
 
 
 class Categoria(models.Model):
@@ -12,14 +13,14 @@ class Categoria(models.Model):
 
 class Producto(models.Model):
     nombre = models.CharField(max_length=200, unique=True)
-    descripcion = models.TextField()
+    descripcion = models.TextField(null=True, blank=True)
     precio_compra = models.DecimalField(max_digits=10, decimal_places=2)
     precio_venta = models.DecimalField(max_digits=10, decimal_places=2)
-    unidad_medida = models.CharField(max_length=50)
+    unidad_medida = models.CharField(max_length=50, null=True, blank=True)
     categoria = models.ForeignKey('Categoria', on_delete=models.SET_NULL, null=True, blank=True)
     sucursal = models.ForeignKey('sucursales.Sucursal', on_delete=models.CASCADE, null=True, blank=True)
     codigo_producto = models.CharField(max_length=50, unique=True, null=True, blank=True)
-    impuesto = models.ForeignKey('facturacion.Impuesto', on_delete=models.SET_NULL, null=True, blank=True)
+    impuesto = models.ForeignKey('facturacion.Impuesto', on_delete=models.CASCADE, default=Impuesto.objects.get(porcentaje=15.0).id)
     image = models.ImageField(upload_to='productos/', null=True, blank=True)
     stock_minimo = models.IntegerField(default=0)
     activo = models.BooleanField(default=True)
@@ -50,6 +51,12 @@ class Producto(models.Model):
         que ya incluye el IVA.
         """
         return self.precio_venta
+
+    def save(self, *args, **kwargs):
+        # Asignar impuesto del 15% si no se especifica
+        if not self.impuesto:
+            self.impuesto = Impuesto.objects.get(porcentaje=15.0)
+        super().save(*args, **kwargs)
 
     def clean(self):
         if self.precio_compra <= 0:
