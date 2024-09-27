@@ -166,3 +166,121 @@ INFO 2024-09-26 21:53:23,836 autoreload C:\Users\Toshiba\Desktop\Proyectos\inven
 INFO 2024-09-26 21:53:25,968 autoreload Watching for file changes with StatReloader
 INFO 2024-09-26 21:53:37,295 autoreload C:\Users\Toshiba\Desktop\Proyectos\inventario\inventarios\views.py changed, reloading.
 INFO 2024-09-26 21:53:38,801 autoreload Watching for file changes with StatReloader
+INFO 2024-09-27 12:38:20,877 autoreload Watching for file changes with StatReloader
+INFO 2024-09-27 12:38:28,177 basehttp "GET /inventarios/seleccionar-sucursal/ HTTP/1.1" 200 1137
+WARNING 2024-09-27 12:38:28,340 log Not Found: /favicon.ico
+WARNING 2024-09-27 12:38:28,342 basehttp "GET /favicon.ico HTTP/1.1" 404 3123
+INFO 2024-09-27 12:38:33,264 basehttp "POST /inventarios/seleccionar-sucursal/ HTTP/1.1" 302 0
+INFO 2024-09-27 12:38:33,386 basehttp "GET /inventarios/ver/1/ HTTP/1.1" 200 1323
+INFO 2024-09-27 12:55:20,015 autoreload Watching for file changes with StatReloader
+INFO 2024-09-27 13:00:39,554 basehttp "GET /inventarios/compras/ver/ HTTP/1.1" 200 1700
+INFO 2024-09-27 13:03:46,897 autoreload C:\Users\Toshiba\Desktop\Proyectos\inventario\inventarios\urls.py changed, reloading.
+INFO 2024-09-27 13:03:48,353 autoreload Watching for file changes with StatReloader
+INFO 2024-09-27 13:04:34,399 autoreload C:\Users\Toshiba\Desktop\Proyectos\inventario\inventarios\views.py changed, reloading.
+INFO 2024-09-27 13:04:35,836 autoreload Watching for file changes with StatReloader
+INFO 2024-09-27 13:09:26,596 autoreload C:\Users\Toshiba\Desktop\Proyectos\inventario\inventarios\models.py changed, reloading.
+INFO 2024-09-27 13:09:27,785 autoreload Watching for file changes with StatReloader
+INFO 2024-09-27 13:13:18,730 autoreload Watching for file changes with StatReloader
+INFO 2024-09-27 13:42:55,592 autoreload Watching for file changes with StatReloader
+INFO 2024-09-27 13:43:11,621 autoreload Watching for file changes with StatReloader
+INFO 2024-09-27 14:04:14,465 autoreload C:\Users\Toshiba\Desktop\Proyectos\inventario\inventarios\views.py changed, reloading.
+INFO 2024-09-27 14:04:16,125 autoreload Watching for file changes with StatReloader
+INFO 2024-09-27 14:04:55,306 autoreload C:\Users\Toshiba\Desktop\Proyectos\inventario\inventarios\views.py changed, reloading.
+INFO 2024-09-27 14:04:56,657 autoreload Watching for file changes with StatReloader
+INFO 2024-09-27 14:05:20,630 autoreload C:\Users\Toshiba\Desktop\Proyectos\inventario\inventarios\views.py changed, reloading.
+INFO 2024-09-27 14:05:22,058 autoreload Watching for file changes with StatReloader
+ERROR 2024-09-27 14:07:00,668 log Internal Server Error: /inventarios/ver/1/
+Traceback (most recent call last):
+  File "C:\Users\Toshiba\anaconda3\envs\inventario\lib\site-packages\django\core\handlers\exception.py", line 55, in inner
+    response = get_response(request)
+  File "C:\Users\Toshiba\anaconda3\envs\inventario\lib\site-packages\django\core\handlers\base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+  File "C:\Users\Toshiba\Desktop\Proyectos\inventario\inventarios\views.py", line 35, in ver_inventario
+    return render(request, 'inventarios/ver_inventario.html', {
+  File "C:\Users\Toshiba\anaconda3\envs\inventario\lib\site-packages\django\shortcuts.py", line 24, in render
+    content = loader.render_to_string(template_name, context, request, using=using)
+  File "C:\Users\Toshiba\anaconda3\envs\inventario\lib\site-packages\django\template\loader.py", line 62, in render_to_string
+    return template.render(context, request)
+  File "C:\Users\Toshiba\anaconda3\envs\inventario\lib\site-packages\django\template\backends\django.py", line 62, in render
+    return self.template.render(context)
+  File "C:\Users\Toshiba\anaconda3\envs\inventario\lib\site-packages\django\template\base.py", line 175, in render
+    return self._render(context)
+  File "C:\Users\Toshiba\anaconda3\envs\inventario\lib\site-packages\django\template\base.py", line 167, in _render
+    return self.nodelist.render(context)
+  File "C:\Users\Toshiba\anaconda3\envs\inventario\lib\site-packages\django\template\base.py", line 1005, in render
+    return SafeString("".join([node.render_annotated(context) for node in self]))
+  File "C:\Users\Toshiba\anaconda3\envs\inventario\lib\site-packages\django\template\base.py", line 1005, in <listcomp>
+    return SafeString("".join([node.render_annotated(context) for node in self]))
+  File "C:\Users\Toshiba\anaconda3\envs\inventario\lib\site-packages\django\template\base.py", line 966, in render_annotated
+    return self.render(context)
+  File "C:\Users\Toshiba\anaconda3\envs\inventario\lib\site-packages\django\template\defaulttags.py", line 472, in render
+    url = reverse(view_name, args=args, kwargs=kwargs, current_app=current_app)
+  File "C:\Users\Toshiba\anaconda3\envs\inventario\lib\site-packages\django\urls\base.py", line 88, in reverse
+    return resolver._reverse_with_prefix(view, prefix, *args, **kwargs)
+  File "C:\Users\Toshiba\anaconda3\envs\inventario\lib\site-packages\django\urls\resolvers.py", line 803, in _reverse_with_prefix
+    raise NoReverseMatch(msg)
+django.urls.exceptions.NoReverseMatch: Reverse for 'agregar_inventario_manual' not found. 'agregar_inventario_manual' is not a valid view function or pattern name.
+ERROR 2024-09-27 14:07:00,685 basehttp "GET /inventarios/ver/1/ HTTP/1.1" 500 128766
+INFO 2024-09-27 14:11:46,201 autoreload Watching for file changes with StatReloader
+INFO 2024-09-27 14:11:51,119 basehttp "GET /inventarios/ver/1/ HTTP/1.1" 200 1604
+INFO 2024-09-27 14:14:37,976 basehttp "GET /inventarios/seleccionar-sucursal/ HTTP/1.1" 200 1137
+INFO 2024-09-27 14:14:40,661 basehttp "POST /inventarios/seleccionar-sucursal/ HTTP/1.1" 302 0
+INFO 2024-09-27 14:14:40,755 basehttp "GET /inventarios/ver/2/ HTTP/1.1" 200 1594
+INFO 2024-09-27 14:14:45,009 basehttp "POST /inventarios/seleccionar-sucursal/ HTTP/1.1" 302 0
+INFO 2024-09-27 14:14:45,110 basehttp "GET /inventarios/ver/1/ HTTP/1.1" 200 1604
+INFO 2024-09-27 14:19:01,844 autoreload C:\Users\Toshiba\Desktop\Proyectos\inventario\inventarios\views.py changed, reloading.
+INFO 2024-09-27 14:19:03,458 autoreload Watching for file changes with StatReloader
+INFO 2024-09-27 14:19:59,801 autoreload C:\Users\Toshiba\Desktop\Proyectos\inventario\inventarios\views.py changed, reloading.
+INFO 2024-09-27 14:20:02,028 autoreload Watching for file changes with StatReloader
+INFO 2024-09-27 14:20:04,088 basehttp "GET /inventarios/ver/1/ HTTP/1.1" 200 1937
+INFO 2024-09-27 14:20:27,409 basehttp "GET /inventarios/agregar-inventario-manual/?sucursal=1 HTTP/1.1" 200 1494
+INFO 2024-09-27 14:20:48,682 basehttp "GET /inventarios/seleccionar-sucursal/ HTTP/1.1" 200 1137
+INFO 2024-09-27 14:23:20,359 basehttp "POST /inventarios/seleccionar-sucursal/ HTTP/1.1" 302 0
+INFO 2024-09-27 14:23:20,464 basehttp "GET /inventarios/ver/1/ HTTP/1.1" 200 1937
+INFO 2024-09-27 14:23:23,461 basehttp "GET /inventarios/agregar-inventario-manual/?sucursal=1 HTTP/1.1" 200 1494
+INFO 2024-09-27 14:25:29,099 basehttp "GET /inventarios/cargar-inventario-excel/?sucursal=1 HTTP/1.1" 200 411
+INFO 2024-09-27 14:25:36,433 basehttp "POST /inventarios/cargar-inventario-excel/?sucursal=1 HTTP/1.1" 200 45
+INFO 2024-09-27 14:26:07,611 basehttp "GET /inventarios/cargar-inventario-excel/?sucursal=1 HTTP/1.1" 200 411
+ERROR 2024-09-27 14:26:14,661 log Internal Server Error: /inventarios/cargar-inventario-excel/
+Traceback (most recent call last):
+  File "C:\Users\Toshiba\anaconda3\envs\inventario\lib\site-packages\django\core\handlers\exception.py", line 55, in inner
+    response = get_response(request)
+  File "C:\Users\Toshiba\anaconda3\envs\inventario\lib\site-packages\django\core\handlers\base.py", line 197, in _get_response
+    response = wrapped_callback(request, *callback_args, **callback_kwargs)
+  File "C:\Users\Toshiba\Desktop\Proyectos\inventario\inventarios\views.py", line 335, in cargar_inventario_excel
+    return redirect('ver_inventario', sucursal_id=sucursal.id)
+  File "C:\Users\Toshiba\anaconda3\envs\inventario\lib\site-packages\django\shortcuts.py", line 48, in redirect
+    return redirect_class(resolve_url(to, *args, **kwargs))
+  File "C:\Users\Toshiba\anaconda3\envs\inventario\lib\site-packages\django\shortcuts.py", line 145, in resolve_url
+    return reverse(to, args=args, kwargs=kwargs)
+  File "C:\Users\Toshiba\anaconda3\envs\inventario\lib\site-packages\django\urls\base.py", line 88, in reverse
+    return resolver._reverse_with_prefix(view, prefix, *args, **kwargs)
+  File "C:\Users\Toshiba\anaconda3\envs\inventario\lib\site-packages\django\urls\resolvers.py", line 803, in _reverse_with_prefix
+    raise NoReverseMatch(msg)
+django.urls.exceptions.NoReverseMatch: Reverse for 'ver_inventario' not found. 'ver_inventario' is not a valid view function or pattern name.
+ERROR 2024-09-27 14:26:14,667 basehttp "POST /inventarios/cargar-inventario-excel/?sucursal=1 HTTP/1.1" 500 96218
+INFO 2024-09-27 14:29:04,187 autoreload C:\Users\Toshiba\Desktop\Proyectos\inventario\inventarios\views.py changed, reloading.
+INFO 2024-09-27 14:29:05,643 autoreload Watching for file changes with StatReloader
+INFO 2024-09-27 14:29:13,874 autoreload C:\Users\Toshiba\Desktop\Proyectos\inventario\inventarios\views.py changed, reloading.
+INFO 2024-09-27 14:29:15,806 autoreload Watching for file changes with StatReloader
+INFO 2024-09-27 14:29:18,397 basehttp "POST /inventarios/cargar-inventario-excel/?sucursal=1 HTTP/1.1" 302 0
+INFO 2024-09-27 14:29:18,533 basehttp "GET /inventarios/ver/1/ HTTP/1.1" 200 5273
+INFO 2024-09-27 14:33:01,470 autoreload C:\Users\Toshiba\Desktop\Proyectos\inventario\inventarios\views.py changed, reloading.
+INFO 2024-09-27 14:33:02,871 autoreload Watching for file changes with StatReloader
+INFO 2024-09-27 14:33:08,612 basehttp "GET /inventarios/cargar-inventario-excel/?sucursal=1 HTTP/1.1" 200 411
+INFO 2024-09-27 14:33:33,160 basehttp "POST /inventarios/cargar-inventario-excel/?sucursal=1 HTTP/1.1" 302 0
+INFO 2024-09-27 14:33:33,295 basehttp "GET /inventarios/ver/1/ HTTP/1.1" 200 5273
+INFO 2024-09-27 15:46:04,207 basehttp "GET /inventarios/compras/ver/ HTTP/1.1" 200 1700
+INFO 2024-09-27 15:46:58,650 basehttp "GET /inventarios/compras/agregar/ HTTP/1.1" 200 2760
+INFO 2024-09-27 15:47:19,139 basehttp "POST /inventarios/compras/agregar/ HTTP/1.1" 302 0
+INFO 2024-09-27 15:47:19,261 basehttp "GET /inventarios/ver/1/ HTTP/1.1" 200 5273
+INFO 2024-09-27 15:47:33,146 basehttp "GET /inventarios/cargar-inventario-excel/?sucursal=1 HTTP/1.1" 200 411
+INFO 2024-09-27 15:47:50,554 basehttp "GET /inventarios/seleccionar-sucursal/ HTTP/1.1" 200 1137
+INFO 2024-09-27 15:47:53,644 basehttp "POST /inventarios/seleccionar-sucursal/ HTTP/1.1" 302 0
+INFO 2024-09-27 15:47:53,764 basehttp "GET /inventarios/ver/2/ HTTP/1.1" 200 1594
+INFO 2024-09-27 15:47:56,875 basehttp "GET /inventarios/cargar-inventario-excel/?sucursal=2 HTTP/1.1" 200 411
+INFO 2024-09-27 15:48:03,285 basehttp "POST /inventarios/cargar-inventario-excel/?sucursal=2 HTTP/1.1" 302 0
+INFO 2024-09-27 15:48:03,410 basehttp "GET /inventarios/ver/2/ HTTP/1.1" 200 4930
+INFO 2024-09-27 16:40:16,722 basehttp "GET /registro-turnos/login/ HTTP/1.1" 200 929
+INFO 2024-09-27 16:40:17,912 basehttp "GET /reportes/filtro_turnos/ HTTP/1.1" 200 4206
+INFO 2024-09-27 16:40:29,881 basehttp "GET /reportes/reporte-ventas/ HTTP/1.1" 200 30408

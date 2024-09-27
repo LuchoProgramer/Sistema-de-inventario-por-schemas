@@ -72,6 +72,7 @@ class Inventario(models.Model):
     producto = models.ForeignKey(Producto, on_delete=models.CASCADE)
     sucursal = models.ForeignKey('sucursales.Sucursal', on_delete=models.CASCADE)
     cantidad = models.IntegerField()
+    fecha_actualizacion = models.DateTimeField(auto_now=True)
 
     class Meta:
         unique_together = ('producto', 'sucursal')

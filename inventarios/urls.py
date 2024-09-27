@@ -21,4 +21,6 @@ urlpatterns = [
     path('transferencias/crear/', views.crear_transferencia, name='crear_transferencia'),
     path('movimientos/', views.lista_movimientos_inventario, name='lista_movimientos_inventario'),
     path('cargar-productos/', views.cargar_productos, name='cargar_productos'),
+    path('agregar-inventario-manual/', views.agregar_inventario_manual, name='agregar_inventario_manual'),
+    path('cargar-inventario-excel/', views.cargar_inventario_excel, name='cargar_inventario_excel'),
 ]

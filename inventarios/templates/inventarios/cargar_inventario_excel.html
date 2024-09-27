@@ -1,0 +1,6 @@
+<h2>Cargar Inventario desde Excel</h2>
+<form method="post" enctype="multipart/form-data">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <button type="submit">Cargar Inventario</button>
+</form>

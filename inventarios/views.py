@@ -9,6 +9,7 @@ import pandas as pd
 from django.http import HttpResponse
 from facturacion.models import Impuesto
 from .forms import UploadFileForm
+from django.urls import reverse
 
 def seleccionar_sucursal(request):
     # Obtener el usuario autenticado
@@ -26,12 +27,17 @@ def seleccionar_sucursal(request):
 
 
 def ver_inventario(request, sucursal_id):
+    # Obtener la sucursal seleccionada
     sucursal = get_object_or_404(Sucursal, id=sucursal_id)
-
-    # Obtener los inventarios solo para la sucursal seleccionada
+    
+    # Obtener el inventario para esa sucursal
     inventarios = Inventario.objects.filter(sucursal=sucursal)
 
-    return render(request, 'inventarios/ver_inventario.html', {'inventarios': inventarios, 'sucursal': sucursal})
+    return render(request, 'inventarios/ver_inventario.html', {
+        'sucursal': sucursal,
+        'inventarios': inventarios,  # Cambié 'inventario' a 'inventarios'
+    })
+
 
 
 def agregar_producto_inventario(request):
@@ -276,3 +282,60 @@ def cargar_productos(request):
     else:
         form = UploadFileForm()
     return render(request, 'inventarios/cargar_productos.html', {'form': form})
+
+from .forms import InventarioForm
+
+def agregar_inventario_manual(request):
+    sucursal_id = request.GET.get('sucursal')  # Obtener la sucursal desde el query string
+    sucursal = get_object_or_404(Sucursal, id=sucursal_id)
+
+    if request.method == 'POST':
+        form = InventarioForm(request.POST)
+        if form.is_valid():
+            inventario, created = Inventario.objects.get_or_create(
+                producto=form.cleaned_data['producto'],
+                sucursal=sucursal,
+                defaults={'cantidad': form.cleaned_data['cantidad']}
+            )
+            if not created:
+                inventario.cantidad += form.cleaned_data['cantidad']
+            inventario.save()
+            return redirect('ver_inventario', sucursal_id=sucursal.id)
+    else:
+        form = InventarioForm()
+
+    return render(request, 'inventarios/agregar_inventario_manual.html', {'form': form, 'sucursal': sucursal})
+
+
+def cargar_inventario_excel(request):
+    sucursal_id = request.GET.get('sucursal')  # Obtener la sucursal desde el query string
+    sucursal = get_object_or_404(Sucursal, id=sucursal_id)
+
+    if request.method == 'POST':
+        form = UploadFileForm(request.POST, request.FILES)
+        if form.is_valid():
+            file = request.FILES['file']
+            df = pd.read_excel(file)
+
+            required_columns = ['Producto', 'Cantidad']
+            for column in required_columns:
+                if column not in df.columns:
+                    return HttpResponse(f"El archivo debe contener la columna: {column}")
+
+            for index, row in df.iterrows():
+                producto = Producto.objects.get(nombre=row['Producto'])
+                inventario, created = Inventario.objects.get_or_create(
+                    producto=producto,
+                    sucursal=sucursal,
+                    defaults={'cantidad': row['Cantidad']}
+                )
+                # Si el inventario ya existe, sobrescribe la cantidad en lugar de sumarla
+                if not created:
+                    inventario.cantidad = row['Cantidad']
+                inventario.save()
+
+            return redirect(reverse('inventarios:ver_inventario', args=[sucursal.id]))
+    else:
+        form = UploadFileForm()
+
+    return render(request, 'inventarios/cargar_inventario_excel.html', {'form': form, 'sucursal': sucursal})

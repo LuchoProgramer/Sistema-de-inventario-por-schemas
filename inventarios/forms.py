@@ -32,3 +32,11 @@ class TransferenciaForm(forms.ModelForm):
 
 class UploadFileForm(forms.Form):
     file = forms.FileField()
+
+from .models import Inventario
+
+class InventarioForm(forms.ModelForm):
+    class Meta:
+        model = Inventario
+        fields = ['producto', 'sucursal', 'cantidad']
+
