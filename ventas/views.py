@@ -222,7 +222,7 @@ def cerrar_turno(request):
 
     if not turno_activo:
         messages.error(request, "No tienes un turno activo para cerrar.")
-        return redirect('ventas:inicio_turno')
+        return redirect('ventas:inicio_turno', turno_id=turno_activo.id)
 
     if request.method == 'POST':
         form = CierreCajaForm(request.POST)

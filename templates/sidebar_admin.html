@@ -1,0 +1,68 @@
+<div class="sidebar">
+    <h4 class="text-center">Admin Panel</h4>
+    <ul class="nav flex-column">
+        <li class="nav-item">
+            <a class="nav-link" href="{% url 'RegistroTurnos:dashboard' %}">Dashboard</a>
+        </li>
+        
+        <!-- Facturación -->
+        <li class="nav-item">
+            <a class="nav-link" href="{% url 'facturacion:generar_factura' %}">Generar Factura</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" href="{% url 'facturacion:lista_impuestos' %}">Lista de Impuestos</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" href="{% url 'facturacion:crear_impuesto' %}">Crear Impuesto</a>
+        </li>
+        
+        <!-- Inventarios -->
+        <li class="nav-item">
+            <a class="nav-link" href="{% url 'inventarios:lista_productos' %}">Lista de Productos</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" href="{% url 'inventarios:agregar_producto' %}">Agregar Producto</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" href="{% url 'inventarios:lista_categorias' %}">Lista de Categorías</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" href="{% url 'inventarios:agregar_categoria' %}">Agregar Categoría</a>
+        </li>
+
+        <!-- Reportes -->
+        <li class="nav-item">
+            <a class="nav-link" href="{% url 'reportes:reporte_ventas' %}">Reporte de Ventas</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" href="{% url 'reportes:buscar_turno_por_id' %}">Buscar Turno</a>
+        </li>
+
+        <!-- Sucursales -->
+        <li class="nav-item">
+            <a class="nav-link" href="{% url 'sucursales:lista_sucursales' %}">Lista de Sucursales</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" href="{% url 'sucursales:crear_sucursal' %}">Crear Sucursal</a>
+        </li>
+
+        <!-- Usuarios y Turnos -->
+        <li class="nav-item">
+            <a class="nav-link" href="{% url 'RegistroTurnos:crear_usuario' %}">Crear Usuario</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" href="{% url 'RegistroTurnos:dashboard' %}">Gestión de Turnos</a>
+        </li>
+
+        <!-- Ventas -->
+        <li class="nav-item">
+            <a class="nav-link" href="{% url 'ventas:registrar_venta' %}">Registrar Venta</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" href="{% url 'ventas:finalizar_venta' %}">Finalizar Venta</a>
+        </li>
+        <li class="nav-item">
+            <a class="nav-link" href="{% url 'ventas:cerrar_turno' %}">Cerrar Turno</a>
+        </li>
+    </ul>
+</div>
