@@ -284,3 +284,29 @@ INFO 2024-09-27 15:48:03,410 basehttp "GET /inventarios/ver/2/ HTTP/1.1" 200 493
 INFO 2024-09-27 16:40:16,722 basehttp "GET /registro-turnos/login/ HTTP/1.1" 200 929
 INFO 2024-09-27 16:40:17,912 basehttp "GET /reportes/filtro_turnos/ HTTP/1.1" 200 4206
 INFO 2024-09-27 16:40:29,881 basehttp "GET /reportes/reporte-ventas/ HTTP/1.1" 200 30408
+INFO 2024-09-27 20:04:59,571 autoreload Watching for file changes with StatReloader
+INFO 2024-09-27 20:07:25,972 autoreload C:\Users\Toshiba\Desktop\Proyectos\inventario\reportes\forms.py changed, reloading.
+INFO 2024-09-27 20:07:27,159 autoreload Watching for file changes with StatReloader
+INFO 2024-09-27 20:08:06,221 autoreload C:\Users\Toshiba\Desktop\Proyectos\inventario\reportes\forms.py changed, reloading.
+INFO 2024-09-27 20:08:07,697 autoreload Watching for file changes with StatReloader
+INFO 2024-09-27 20:08:32,316 autoreload C:\Users\Toshiba\Desktop\Proyectos\inventario\reportes\forms.py changed, reloading.
+INFO 2024-09-27 20:08:33,752 autoreload Watching for file changes with StatReloader
+INFO 2024-09-27 20:08:45,465 autoreload C:\Users\Toshiba\Desktop\Proyectos\inventario\reportes\forms.py changed, reloading.
+INFO 2024-09-27 20:08:46,621 autoreload Watching for file changes with StatReloader
+INFO 2024-09-27 20:12:15,073 autoreload C:\Users\Toshiba\Desktop\Proyectos\inventario\reportes\views.py changed, reloading.
+INFO 2024-09-27 20:12:16,404 autoreload Watching for file changes with StatReloader
+INFO 2024-09-27 20:12:32,893 autoreload C:\Users\Toshiba\Desktop\Proyectos\inventario\reportes\views.py changed, reloading.
+INFO 2024-09-27 20:12:34,088 autoreload Watching for file changes with StatReloader
+INFO 2024-09-27 20:16:20,091 autoreload Watching for file changes with StatReloader
+INFO 2024-09-27 20:16:54,592 basehttp "GET /reportes/reporte-ventas-filtrado/ HTTP/1.1" 200 15423
+INFO 2024-09-27 20:17:23,120 basehttp "GET /reportes/reporte-ventas-filtrado/?sucursal=2&fecha_inicio_month=2&fecha_inicio_day=1&fecha_inicio_year=2025&fecha_fin_month=2&fecha_fin_day=1&fecha_fin_year=&usuario=2&turno=8 HTTP/1.1" 200 15478
+INFO 2024-09-27 20:18:34,080 basehttp "GET /reportes/reporte-ventas-filtrado/?sucursal=2&fecha_inicio_month=9&fecha_inicio_day=6&fecha_inicio_year=2024&fecha_fin_month=9&fecha_fin_day=27&fecha_fin_year=2024&usuario=2&turno= HTTP/1.1" 200 7340
+INFO 2024-09-27 20:18:41,196 basehttp "GET /reportes/reporte-ventas-filtrado/?sucursal=1&fecha_inicio_month=9&fecha_inicio_day=6&fecha_inicio_year=2024&fecha_fin_month=9&fecha_fin_day=27&fecha_fin_year=2024&usuario=2&turno= HTTP/1.1" 200 15423
+INFO 2024-09-27 20:24:15,958 basehttp "GET /reportes/reporte-ventas-filtrado/?sucursal=1&fecha_inicio_month=9&fecha_inicio_day=6&fecha_inicio_year=2024&fecha_fin_month=9&fecha_fin_day=27&fecha_fin_year=2024&usuario=2&turno= HTTP/1.1" 200 15423
+INFO 2024-09-27 20:24:16,867 basehttp "GET /reportes/reporte-ventas-filtrado/?sucursal=1&fecha_inicio_month=9&fecha_inicio_day=6&fecha_inicio_year=2024&fecha_fin_month=9&fecha_fin_day=27&fecha_fin_year=2024&usuario=2&turno= HTTP/1.1" 200 15423
+INFO 2024-09-27 20:24:44,350 basehttp "GET /reportes/reporte-ventas-filtrado/?sucursal=1&fecha_inicio_month=9&fecha_inicio_day=24&fecha_inicio_year=2024&fecha_fin_month=9&fecha_fin_day=27&fecha_fin_year=2024&usuario=2&turno= HTTP/1.1" 200 10309
+INFO 2024-09-27 20:25:46,958 basehttp "GET /reportes/reporte-ventas-filtrado/?sucursal=1&fecha_inicio_month=&fecha_inicio_day=&fecha_inicio_year=&fecha_fin_month=&fecha_fin_day=&fecha_fin_year=&usuario=2&turno= HTTP/1.1" 200 15423
+INFO 2024-09-27 20:26:58,613 basehttp "GET /reportes/reporte-ventas-filtrado/?sucursal=1&fecha_inicio_month=9&fecha_inicio_day=24&fecha_inicio_year=2024&fecha_fin_month=&fecha_fin_day=&fecha_fin_year=&usuario=2&turno= HTTP/1.1" 200 15423
+INFO 2024-09-27 20:27:09,972 basehttp "GET /reportes/reporte-ventas-filtrado/?sucursal=1&fecha_inicio_month=9&fecha_inicio_day=24&fecha_inicio_year=2024&fecha_fin_month=9&fecha_fin_day=27&fecha_fin_year=2024&usuario=2&turno= HTTP/1.1" 200 10309
+INFO 2024-09-27 20:39:35,926 basehttp "GET /reportes/reporte-ventas-filtrado/?sucursal=1&fecha_inicio_month=9&fecha_inicio_day=24&fecha_inicio_year=2024&fecha_fin_month=9&fecha_fin_day=27&fecha_fin_year=2024&usuario=2&turno= HTTP/1.1" 200 10309
+INFO 2024-09-27 20:50:07,865 autoreload Watching for file changes with StatReloader
