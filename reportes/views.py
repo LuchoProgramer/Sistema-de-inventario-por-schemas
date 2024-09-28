@@ -2,10 +2,12 @@ from django.shortcuts import render
 from .services import generar_reporte_ventas_por_turno
 from RegistroTurnos.models import RegistroTurno
 from django.contrib.auth.models import User
-
+import pandas as pd
 from django.shortcuts import render, get_object_or_404
 from .services import generar_reporte_ventas_por_turno
 from RegistroTurnos.models import RegistroTurno
+from django.http import HttpResponse
+from .forms import FiltroReporteVentasForm
 
 def reporte_ventas_por_turno(request):
     turno_id = request.GET.get('turno_id')
@@ -190,3 +192,49 @@ def reporte_ventas(request):
         'total_por_forma_pago': total_por_forma_pago,  # Totales por forma de pago
     }
     return render(request, 'reportes/reporte_ventas.html', context)
+
+
+def reporte_ventas_filtrado(request):
+    ventas = Venta.objects.all()  # Inicialmente seleccionar todas las ventas
+
+    # Aplicar filtros según los parámetros enviados en la solicitud
+    if request.method == 'GET':
+        form = FiltroReporteVentasForm(request.GET)
+        if form.is_valid():
+            if form.cleaned_data['sucursal']:
+                ventas = ventas.filter(sucursal=form.cleaned_data['sucursal'])  # Filtro por sucursal
+            if form.cleaned_data['fecha_inicio'] and form.cleaned_data['fecha_fin']:
+                ventas = ventas.filter(fecha__range=[form.cleaned_data['fecha_inicio'], form.cleaned_data['fecha_fin']])  # Filtro por fecha
+            if form.cleaned_data['usuario']:
+                ventas = ventas.filter(usuario=form.cleaned_data['usuario'])  # Filtro por usuario
+            if form.cleaned_data['turno']:
+                ventas = ventas.filter(turno=form.cleaned_data['turno'])  # Filtro por turno
+    else:
+        form = FiltroReporteVentasForm()
+
+    # Manejar la exportación a Excel
+    if 'exportar_excel' in request.GET:
+        # Crear un DataFrame de Pandas con las ventas filtradas
+        data = []
+        for venta in ventas:
+            data.append({
+                'Producto': venta.producto.nombre,  # Asegúrate de que 'producto' tiene 'nombre'
+                'Cantidad': venta.cantidad,
+                'Precio Unitario': venta.precio_unitario,
+                'Total Venta': venta.total_venta,
+                'Sucursal': venta.sucursal.nombre,  # 'sucursal' tiene relación con 'Sucursal' y contiene 'nombre'
+                'Usuario': venta.usuario.username,  # 'usuario' tiene 'username'
+                'Turno': venta.turno.id,
+                'Fecha': venta.fecha,
+            })
+
+        df = pd.DataFrame(data)
+
+        # Crear la respuesta HTTP con el archivo Excel
+        response = HttpResponse(content_type='application/vnd.ms-excel')
+        response['Content-Disposition'] = 'attachment; filename="reporte_ventas.xlsx"'
+        df.to_excel(response, index=False)
+        return response
+
+    # Renderizar el template con los resultados y el formulario de filtros
+    return render(request, 'reportes/reporte_ventas_filtrado.html', {'form': form, 'ventas': ventas})

@@ -136,3 +136,6 @@ package-lock.json
 
 # Ignore VSCode files #
 .vscode/
+
+
+debug.log
