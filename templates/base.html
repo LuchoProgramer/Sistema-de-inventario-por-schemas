@@ -1,52 +1,43 @@
+{% load static %}
+
 <!DOCTYPE html>
-<html lang="en">
+<html lang="es">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}My App{% endblock %}</title>
+    <title>{% block title %}Dashboard{% endblock %}</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
-    {% block extra_head %}
-    <!-- Custom styles can go here -->
-    {% endblock %}
+    <link rel="stylesheet" href="{% static 'RegistroTurnos/css/dashboard.css' %}">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    {% block extra_css %}{% endblock %}
 </head>
 <body>
-    <nav class="navbar navbar-expand-lg navbar-light bg-light">
+
+    <!-- Encabezado con el nombre de la empresa -->
+    <nav class="navbar navbar-light bg-light">
         <div class="container-fluid">
-            <a class="navbar-brand" href="#">My App</a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
-                <span class="navbar-toggler-icon"></span>
-            </button>
-            <div class="collapse navbar-collapse" id="navbarNav">
-                <ul class="navbar-nav">
-                    <li class="nav-item">
-                        <a class="nav-link active" aria-current="page" href="#">Home</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="#">Features</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="#">Pricing</a>
-                    </li>
-                </ul>
-            </div>
+            <a class="navbar-brand ms-3" href="#">Nombre de la Empresa</a>
         </div>
     </nav>
 
-    <div class="container mt-5">
-        {% block content %}
-        <!-- Page content goes here -->
-        {% endblock %}
+    <!-- Contenedor principal -->
+    <div class="container-fluid">
+        <div class="row">
+            <!-- Incluir el sidebar -->
+            {% block sidebar %}
+                {% include 'sidebar.html' %}
+            {% endblock %}
+
+            <!-- Contenido Principal -->
+            <div id="content" class="col">
+                {% block content %}{% endblock %}
+            </div>
+        </div>
     </div>
 
-    <footer class="footer mt-auto py-3 bg-light">
-        <div class="container">
-            <span class="text-muted">&copy; 2024 My App. All rights reserved.</span>
-        </div>
-    </footer>
-
+    <!-- Scripts generales -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
-    {% block extra_scripts %}
-    <!-- Extra scripts can go here -->
-    {% endblock %}
+    <script src="{% static 'RegistroTurnos/js/dashboard.js' %}"></script>
+    {% block extra_js %}{% endblock %}
 </body>
 </html>

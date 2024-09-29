@@ -1,0 +1,48 @@
+/* Estilos generales */
+#sidebar {
+    min-height: 100vh;
+    transition: width 0.3s ease;
+    width: 250px; /* Ancho inicial del sidebar */
+    overflow: hidden;
+    background-color: #f8f9fa;
+}
+#content {
+    transition: margin-left 0.3s ease;
+    margin-left: 40px !important; /* Margen para acomodar el sidebar */
+}
+/* Cuando el sidebar está colapsado */
+#sidebar.collapsed {
+    width: 0;
+}
+/* Ajuste del margen izquierdo del contenido cuando el sidebar está colapsado */
+#sidebar.collapsed ~ #content {
+    margin-left: 0;
+}
+/* Ajustes para pantallas pequeñas */
+@media (max-width: 768px) {
+    #sidebar {
+        display: none; /* Ocultar sidebar en pantallas pequeñas */
+    }
+    #toggle-sidebar {
+        display: none; /* Ocultar botón colapsar sidebar en pantallas pequeñas */
+    }
+    #offcanvasMenuToggle {
+        display: block; /* Mostrar el botón de offcanvas solo en pantallas pequeñas */
+    }
+    /* Ajustar el contenido para ocupar todo el ancho en pantallas pequeñas */
+    #content {
+        margin-left: 0 !important; /* Eliminar margen izquierdo en pantallas pequeñas */
+    }
+}
+@media (min-width: 769px) {
+    #offcanvasMenuToggle {
+        display: none; /* Ocultar el botón de offcanvas en pantallas grandes */
+    }
+    #sidebar {
+        display: block; /* Mostrar sidebar en pantallas grandes */
+    }
+    /* Ajustar el margen izquierdo del contenido para que considere el ancho del sidebar */
+    #content {
+        margin-left: 250px; /* Debe ser igual al ancho inicial del sidebar */
+    }
+}
