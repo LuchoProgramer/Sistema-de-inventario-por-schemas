@@ -1,77 +1,107 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Inicio de Turno</title>
-    <style>
-        table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-        th, td {
-            border: 1px solid #ddd;
-            padding: 8px;
-        }
-        th {
-            background-color: #f2f2f2;
-            text-align: left;
-        }
-    </style>
-</head>
-<body>
+{% extends 'base.html' %}
+
+{% block title %}Productos Disponibles{% endblock %}
+
+{% block extra_css %}
+<style>
+    .card {
+        height: 100%;
+    }
+
+    .card-body {
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+    }
+
+    .product-card img {
+        max-height: 150px;
+        object-fit: contain; /* Ajusta la imagen sin distorsionarla */
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
     <h1>Turno Iniciado en {{ turno.sucursal.nombre }}</h1>
-    
-    <h2>Productos Disponibles</h2>
 
     <!-- Mostrar mensajes de advertencia -->
     {% if messages %}
-        <ul>
-            {% for message in messages %}
-                <li{% if message.tags %} class="{{ message.tags }}"{% endif %}>{{ message }}</li>
+    <ul class="alert alert-warning">
+        {% for message in messages %}
+        <li{% if message.tags %} class="{{ message.tags }}"{% endif %}>{{ message }}</li>
+        {% endfor %}
+    </ul>
+    {% endif %}
+
+    <!-- Barra de búsqueda y filtro por categoría -->
+    <div class="row search-filter">
+        <div class="col-md-6">
+            <form method="GET" action="{% url 'inventarios:lista_productos' %}">
+                <input type="text" name="q" class="form-control" placeholder="Buscar productos..." value="{{ request.GET.q }}">
+            </form>
+        </div>
+        <div class="col-md-6">
+            <form method="GET" action="{% url 'inventarios:lista_productos' %}">
+                <select name="categoria" class="form-select" onchange="this.form.submit()">
+                    <option value="">Todas las categorías</option>
+                    {% for categoria in categorias %}
+                    <option value="{{ categoria.id }}" {% if request.GET.categoria == categoria.id|stringformat:"s" %}selected{% endif %}>
+                        {{ categoria.nombre }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </form>
+        </div>
+    </div>
+
+    <!-- Mostrar productos en tarjetas -->
+    <div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 g-4 mt-2">
+        {% if inventarios %}
+            {% for inventario in inventarios %}
+            <div class="col d-flex align-items-stretch">
+                <div class="card product-card w-100">
+                    {% if inventario.producto.image %}
+                        <img src="{{ inventario.producto.image.url }}" class="card-img-top" alt="{{ inventario.producto.nombre }}">
+                    {% else %}
+                        <img src="/static/default_image.png" class="card-img-top" alt="Imagen no disponible">
+                    {% endif %}
+                    <div class="card-body">
+                        <h5 class="card-title">{{ inventario.producto.nombre }}</h5>
+                        <p class="card-text">Precio: ${{ inventario.producto.precio_venta }}</p>
+                        <p class="card-text">Stock: {{ inventario.cantidad }} unidades</p>
+                        <form method="POST" action="{% url 'ventas:agregar_al_carrito' inventario.producto.id %}">
+                            {% csrf_token %}
+                            <label for="cantidad_{{ inventario.producto.id }}">Cantidad:</label>
+                            <input type="number" name="cantidad" id="cantidad_{{ inventario.producto.id }}" min="1" max="{{ inventario.cantidad }}" value="1" required>
+                            <button type="submit" class="btn btn-primary mt-2">Agregar al Carrito</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
             {% endfor %}
-        </ul>
-    {% endif %}
+        {% else %}
+            <p>No hay productos disponibles en inventario para esta sucursal.</p>
+        {% endif %}
+    </div>
 
-    {% if inventarios %}
-        <table>
-            <thead>
-                <tr>
-                    <th>Nombre del Producto</th>
-                    <th>Precio de Venta (USD)</th>
-                    <th>Stock Disponible</th>
-                    <th>Acciones</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for inventario in inventarios %}
-                    <tr>
-                        <td>{{ inventario.producto.nombre }}</td>
-                        <td>{{ inventario.producto.precio_venta }}</td>
-                        <td>{{ inventario.cantidad }} unidades</td>
-                        <td>
-                            <!-- Formulario para agregar al carrito -->
-                            <form method="POST" action="{% url 'ventas:agregar_al_carrito' inventario.producto.id %}">
-                                {% csrf_token %}
-                                <label for="cantidad_{{ inventario.producto.id }}">Cantidad:</label>
-                                <input type="number" name="cantidad" id="cantidad_{{ inventario.producto.id }}" min="1" max="{{ inventario.cantidad }}" value="1" required>
-                                <button type="submit">Agregar al Carrito</button>
-                            </form>
-                        </td>
-                    </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    {% else %}
-        <p>No hay productos disponibles en inventario para esta sucursal.</p>
-    {% endif %}
-
-    <h3>Carrito de Ventas</h3>
-    <a href="{% url 'ventas:ver_carrito' %}">Ver Carrito</a>
+    <!-- Carrito de Ventas -->
+    <div class="mt-5">
+        <h3>Carrito de Ventas</h3>
+        <a href="{% url 'ventas:ver_carrito' %}" class="btn btn-secondary">Ver Carrito</a>
+    </div>
 
     <!-- Botón para cerrar el turno -->
-    <form action="{% url 'ventas:cerrar_turno' %}" method="get">
-        <button type="submit" class="btn btn-danger">Cerrar Turno</button>
-    </form>
-</body>
-</html>
+    <div class="mt-4">
+        <form action="{% url 'ventas:cerrar_turno' %}" method="get">
+            <button type="submit" class="btn btn-danger">Cerrar Turno</button>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // No se necesita JavaScript adicional ya que el CSS maneja el giro de la tarjeta.
+</script>
+{% endblock %}

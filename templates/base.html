@@ -5,39 +5,42 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Dashboard{% endblock %}</title>
+    <title>{% block title %}Nombre de la Empresa{% endblock %}</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="{% static 'RegistroTurnos/css/dashboard.css' %}">
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     {% block extra_css %}{% endblock %}
 </head>
 <body>
 
-    <!-- Encabezado con el nombre de la empresa -->
-    <nav class="navbar navbar-light bg-light">
+    <!-- Encabezado con el nombre de la empresa y menú simple -->
+    <nav class="navbar navbar-expand-lg navbar-light bg-light">
         <div class="container-fluid">
-            <a class="navbar-brand ms-3" href="#">Nombre de la Empresa</a>
+            <a class="navbar-brand" href="#">Nombre de la Empresa</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav ms-auto">
+                    <li class="nav-item">
+                        <a class="nav-link" href="#">Menú 1</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#">Menú 2</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="#">Menú 3</a>
+                    </li>
+                </ul>
+            </div>
         </div>
     </nav>
 
-    <!-- Contenedor principal -->
-    <div class="container-fluid">
-        <div class="row">
-            <!-- Incluir el sidebar -->
-            {% block sidebar %}
-                {% include 'sidebar.html' %}
-            {% endblock %}
-
-            <!-- Contenido Principal -->
-            <div id="content" class="col">
-                {% block content %}{% endblock %}
-            </div>
-        </div>
+    <!-- Contenedor Principal -->
+    <div class="container mt-4">
+        {% block content %}{% endblock %}
     </div>
 
-    <!-- Scripts generales -->
+    <!-- Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="{% static 'RegistroTurnos/js/dashboard.js' %}"></script>
     {% block extra_js %}{% endblock %}
 </body>
 </html>

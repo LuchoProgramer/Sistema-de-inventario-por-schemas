@@ -21,7 +21,7 @@
             <button class="btn btn-primary" type="button" id="offcanvasMenuToggle" data-bs-toggle="offcanvas" data-bs-target="#offcanvasMenu" aria-controls="offcanvasMenu">
                 ☰ Menú
             </button>
-            <a class="navbar-brand ms-3" href="#">Nombre de la Empresa</a>
+            <a class="navbar-brand ms-3" href="#">La Huequita Quiteña</a>
         </div>
     </nav>
 
@@ -37,10 +37,44 @@
                     <a class="nav-link" href="{% url 'crear_usuario' %}">Agregar Nuevo Empleado</a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="#">Ver Inventarios (Próximamente)</a>
+                    <a class="nav-link" href="{% url 'registrar_conteo' %}">Registrar Conteo</a>
                 </li>
+
+                <!-- Dropdown de Inventarios -->
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle" href="#" id="offcanvasInventariosDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                        Inventarios
+                    </a>
+                    <ul class="dropdown-menu" aria-labelledby="offcanvasInventariosDropdown">
+                        <li><a class="dropdown-item" href="{% url 'inventarios:seleccionar_sucursal' %}">Seleccionar Sucursal</a></li>
+                        <li><a class="dropdown-item" href="{% url 'inventarios:agregar_compra' %}">Agregar Compra</a></li>
+                        <li><a class="dropdown-item" href="{% url 'inventarios:ver_compras' %}">Ver Compras</a></li>
+                        <li><a class="dropdown-item" href="{% url 'inventarios:lista_productos' %}">Lista de Productos</a></li>
+                        <li><a class="dropdown-item" href="{% url 'inventarios:lista_categorias' %}">Lista de Categorías</a></li>
+                        <li><a class="dropdown-item" href="{% url 'inventarios:lista_transferencias' %}">Lista de Transferencias</a></li>
+                        <li><a class="dropdown-item" href="{% url 'inventarios:lista_movimientos_inventario' %}">Movimientos de Inventario</a></li>
+                    </ul>
+                </li>
+
+                <!-- Sucursales -->
                 <li class="nav-item">
-                    <a class="nav-link" href="#">Gestionar Ventas (Próximamente)</a>
+                    <a class="nav-link" href="{% url 'sucursales:lista_sucursales' %}">Lista de Sucursales</a>
+                </li>
+
+                <!-- Dropdown de Reportes -->
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle" href="#" id="offcanvasReportesDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                        Reportes
+                    </a>
+                    <ul class="dropdown-menu" aria-labelledby="offcanvasReportesDropdown">
+                        <li><a class="dropdown-item" href="{% url 'reporte_ventas' %}">Reporte de Ventas</a></li>
+                        <li><a class="dropdown-item" href="{% url 'reporte_ventas_filtrado' %}">Reporte de Ventas Filtrado</a></li>
+                    </ul>
+                </li>
+
+                <!-- Facturación -->
+                <li class="nav-item">
+                    <a class="nav-link" href="{% url 'facturacion:lista_impuestos' %}">Lista de Impuestos</a>
                 </li>
             </ul>
         </div>
@@ -56,10 +90,44 @@
                         <a class="nav-link" href="{% url 'crear_usuario' %}">Agregar Nuevo Empleado</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="#">Ver Inventarios (Próximamente)</a>
+                        <a class="nav-link" href="{% url 'registrar_conteo' %}">Registrar Conteo</a>
                     </li>
+
+                    <!-- Dropdown de Inventarios -->
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="inventariosDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            Inventarios
+                        </a>
+                        <ul class="dropdown-menu" aria-labelledby="inventariosDropdown">
+                            <li><a class="dropdown-item" href="{% url 'inventarios:seleccionar_sucursal' %}">Seleccionar Sucursal</a></li>
+                            <li><a class="dropdown-item" href="{% url 'inventarios:agregar_compra' %}">Agregar Compra</a></li>
+                            <li><a class="dropdown-item" href="{% url 'inventarios:ver_compras' %}">Ver Compras</a></li>
+                            <li><a class="dropdown-item" href="{% url 'inventarios:lista_productos' %}">Lista de Productos</a></li>
+                            <li><a class="dropdown-item" href="{% url 'inventarios:lista_categorias' %}">Lista de Categorías</a></li>
+                            <li><a class="dropdown-item" href="{% url 'inventarios:lista_transferencias' %}">Lista de Transferencias</a></li>
+                            <li><a class="dropdown-item" href="{% url 'inventarios:lista_movimientos_inventario' %}">Movimientos de Inventario</a></li>
+                        </ul>
+                    </li>
+
+                    <!-- Sucursales -->
                     <li class="nav-item">
-                        <a class="nav-link" href="#">Gestionar Ventas (Próximamente)</a>
+                        <a class="nav-link" href="{% url 'sucursales:lista_sucursales' %}">Lista de Sucursales</a>
+                    </li>
+
+                    <!-- Dropdown de Reportes -->
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle" href="#" id="reportesDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            Reportes
+                        </a>
+                        <ul class="dropdown-menu" aria-labelledby="reportesDropdown">
+                            <li><a class="dropdown-item" href="{% url 'reporte_ventas' %}">Reporte de Ventas</a></li>
+                            <li><a class="dropdown-item" href="{% url 'reporte_ventas_filtrado' %}">Reporte de Ventas Filtrado</a></li>
+                        </ul>
+                    </li>
+
+                    <!-- Facturación -->
+                    <li class="nav-item">
+                        <a class="nav-link" href="{% url 'facturacion:lista_impuestos' %}">Lista de Impuestos</a>
                     </li>
                 </ul>
             </div>
@@ -70,30 +138,66 @@
                     <h1>Bienvenido al Dashboard</h1>
                     <p>Usuario: {{ request.user.username }}</p>
 
-                    <h2>Acciones Disponibles</h2>
-                    <ul>
-                        <li><a href="{% url 'crear_usuario' %}">Agregar Nuevo Empleado</a></li>
-                        <li><a href="#">Ver Inventarios (Próximamente)</a></li>
-                        <li><a href="#">Gestionar Ventas (Próximamente)</a></li>
-                    </ul>
+                    <!-- Sección de Tarjetas -->
+                    <div class="row row-cols-1 row-cols-md-2 g-4">
+                        <!-- Tarjeta 1: Inicio de Turno -->
+                        <div class="col">
+                            <div class="card h-100">
+                                <div class="card-body">
+                                    <h5 class="card-title">Iniciar Turno</h5>
+                                    <p class="card-text">Selecciona tu sucursal para iniciar el turno y empezar a trabajar.</p>
+                                    <form id="form-inicio-turno" method="POST" data-dashboard-url="{% url 'dashboard' %}">
+                                        {% csrf_token %}
+                                        <label for="sucursal_id">Seleccionar Sucursal:</label>
+                                        {{ form.sucursal }}
+                                        <button type="submit" class="btn btn-primary mt-2">Iniciar Turno</button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
 
-                    <h2>Selecciona tu Sucursal para Iniciar el Turno</h2>
-                    <form id="form-inicio-turno" method="POST" data-dashboard-url="{% url 'dashboard' %}">
-                        {% csrf_token %}
-                        <label for="sucursal_id">Seleccionar Sucursal:</label>
-                        {{ form.sucursal }}
-                        <button type="submit">Iniciar Turno</button>
-                    </form>
+                        <!-- Tarjeta 2: Placeholder -->
+                        <div class="col">
+                            <div class="card h-100">
+                                <div class="card-body">
+                                    <h5 class="card-title">Tarjeta 2</h5>
+                                    <p class="card-text">Contenido para la segunda tarjeta (puedes definir más adelante).</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Tarjeta 3: Placeholder -->
+                        <div class="col">
+                            <div class="card h-100">
+                                <div class="card-body">
+                                    <h5 class="card-title">Tarjeta 3</h5>
+                                    <p class="card-text">Contenido para la tercera tarjeta (puedes definir más adelante).</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Tarjeta 4: Placeholder -->
+                        <div class="col">
+                            <div class="card h-100">
+                                <div class="card-body">
+                                    <h5 class="card-title">Tarjeta 4</h5>
+                                    <p class="card-text">Contenido para la cuarta tarjeta (puedes definir más adelante).</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
 
                     <!-- Formulario de Logout -->
-                    <form id="logout-form" action="{% url 'logout' %}" method="POST">
-                        {% csrf_token %}
-                        <button type="submit">Cerrar Sesión</button>
-                    </form>
+                    <div class="mt-5">
+                        <form id="logout-form" action="{% url 'logout' %}" method="POST">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-danger">Cerrar Sesión</button>
+                        </form>
+                    </div>
 
                     <!-- Mensajes de Éxito o Error -->
                     {% if messages %}
-                    <ul class="messages">
+                    <ul class="messages mt-3">
                         {% for message in messages %}
                         <li class="{{ message.tags }}">{{ message }}</li>
                         {% endfor %}
@@ -103,7 +207,6 @@
             </div>
         </div>
     </div>
-
     <!-- Scripts -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
     <script src="{% static 'RegistroTurnos/js/dashboard.js' %}"></script>
