@@ -18,7 +18,7 @@ from ventas.services import TurnoService
 from datetime import timedelta
 from django.http import JsonResponse
 from django.db import transaction
-from inventarios.models import Inventario
+from inventarios.models import Inventario, Categoria
 
 
 @transaction.atomic
@@ -97,8 +97,21 @@ def inicio_turno(request, turno_id):
     # Obtener el turno activo del usuario
     turno = get_object_or_404(RegistroTurno, id=turno_id, usuario=request.user)
 
-    # Obtener los productos disponibles en la sucursal del turno activo
+    # Obtener la categoría seleccionada y el término de búsqueda desde el request
+    categoria_seleccionada = request.GET.get('categoria')
+    termino_busqueda = request.GET.get('q')
+
+    # Obtener todas las categorías para mostrarlas en el formulario
+    categorias = Categoria.objects.all()
+
+    # Filtrar los productos disponibles en la sucursal del turno activo
     inventarios = Inventario.objects.filter(sucursal=turno.sucursal)
+
+    if categoria_seleccionada:
+        inventarios = inventarios.filter(producto__categoria_id=categoria_seleccionada)
+
+    if termino_busqueda:
+        inventarios = inventarios.filter(producto__nombre__icontains=termino_busqueda)
 
     # Verificar si los productos en el carrito ya alcanzaron su stock máximo
     carrito_items = Carrito.objects.filter(turno=turno)
@@ -110,6 +123,7 @@ def inicio_turno(request, turno_id):
     return render(request, 'ventas/inicio_turno.html', {
         'turno': turno,
         'inventarios': inventarios,
+        'categorias': categorias,  # Pasamos las categorías al template
         'carrito_items': carrito_items  # Pasamos los items del carrito para verificar el stock
     })
 

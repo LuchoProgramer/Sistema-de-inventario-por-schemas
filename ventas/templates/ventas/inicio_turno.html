@@ -36,21 +36,25 @@
 
     <!-- Barra de búsqueda y filtro por categoría -->
     <div class="row search-filter">
-        <div class="col-md-6">
-            <form method="GET" action="{% url 'inventarios:lista_productos' %}">
-                <input type="text" name="q" class="form-control" placeholder="Buscar productos..." value="{{ request.GET.q }}">
-            </form>
-        </div>
-        <div class="col-md-6">
-            <form method="GET" action="{% url 'inventarios:lista_productos' %}">
-                <select name="categoria" class="form-select" onchange="this.form.submit()">
-                    <option value="">Todas las categorías</option>
-                    {% for categoria in categorias %}
-                    <option value="{{ categoria.id }}" {% if request.GET.categoria == categoria.id|stringformat:"s" %}selected{% endif %}>
-                        {{ categoria.nombre }}
-                    </option>
-                    {% endfor %}
-                </select>
+        <div class="col-md-12">
+            <form method="GET" action="{% url 'ventas:inicio_turno' turno.id %}">
+                <div class="row">
+                    <!-- Input de búsqueda -->
+                    <div class="col-md-6">
+                        <input type="text" name="q" class="form-control" placeholder="Buscar productos..." value="{{ request.GET.q }}">
+                    </div>
+                    <!-- Filtro por categoría -->
+                    <div class="col-md-6">
+                        <select name="categoria" class="form-select" onchange="this.form.submit()">
+                            <option value="">Todas las categorías</option>
+                            {% for categoria in categorias %}
+                            <option value="{{ categoria.id }}" {% if request.GET.categoria == categoria.id|stringformat:"s" %}selected{% endif %}>
+                                {{ categoria.nombre }}
+                            </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
             </form>
         </div>
     </div>
