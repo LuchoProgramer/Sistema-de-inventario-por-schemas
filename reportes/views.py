@@ -8,6 +8,7 @@ from .services import generar_reporte_ventas_por_turno
 from RegistroTurnos.models import RegistroTurno
 from django.http import HttpResponse
 from .forms import FiltroReporteVentasForm
+from django.db.models import Prefetch
 
 def reporte_ventas_por_turno(request):
     turno_id = request.GET.get('turno_id')
@@ -165,14 +166,18 @@ from facturacion.models import Pago, Factura
 
 
 def reporte_ventas(request):
-    # Obtener todas las facturas con sus relaciones prefetchadas
-    facturas = Factura.objects.prefetch_related('ventas', 'pagos', 'detalles', 'cliente').all()
+    # Obtener todas las facturas con sus relaciones necesarias para el reporte
+    facturas = Factura.objects.select_related('cliente').prefetch_related(
+        Prefetch('ventas', queryset=Venta.objects.select_related('factura')),
+        'pagos', 
+        'detalles'
+    ).all()
 
-    # Calcular los totales para el reporte
-    subtotal_acumulado = sum(factura.total_sin_impuestos for factura in facturas)
-    total_iva = sum(factura.valor_iva for factura in facturas)
-    total_a_pagar = sum(factura.total_con_impuestos for factura in facturas)
-    total_descuentos = sum(detalle.descuento for factura in facturas for detalle in factura.detalles.all())
+    # Calcular los totales para el reporte asegurando que todos los campos sean válidos
+    subtotal_acumulado = sum(factura.total_sin_impuestos or 0 for factura in facturas)
+    total_iva = sum(factura.valor_iva or 0 for factura in facturas)
+    total_a_pagar = sum(factura.total_con_impuestos or 0 for factura in facturas)
+    total_descuentos = sum(detalle.descuento or 0 for factura in facturas for detalle in factura.detalles.all())
 
     # Calcular los totales por método de pago
     total_por_forma_pago = {}
@@ -180,7 +185,7 @@ def reporte_ventas(request):
         for pago in factura.pagos.all():
             if pago.descripcion not in total_por_forma_pago:
                 total_por_forma_pago[pago.descripcion] = 0
-            total_por_forma_pago[pago.descripcion] += pago.total
+            total_por_forma_pago[pago.descripcion] += pago.total or 0
 
     # Crear una lista de diccionarios para las facturas con la información consolidada
     facturas_data = []
@@ -189,10 +194,10 @@ def reporte_ventas(request):
             'fecha_emision': factura.fecha_emision if hasattr(factura, 'fecha_emision') else factura.created_at,
             'numero_autorizacion': factura.numero_autorizacion,
             'cliente': factura.cliente.razon_social if factura.cliente else 'Consumidor Final',
-            'subtotal': factura.total_sin_impuestos,
-            'total_iva': factura.valor_iva,
-            'total_con_impuestos': factura.total_con_impuestos,
-            'total_descuentos': sum(detalle.descuento for detalle in factura.detalles.all()),
+            'subtotal': factura.total_sin_impuestos or 0,
+            'total_iva': factura.valor_iva or 0,
+            'total_con_impuestos': factura.total_con_impuestos or 0,
+            'total_descuentos': sum(detalle.descuento or 0 for detalle in factura.detalles.all()),
             'pagos': factura.pagos.all(),
         })
 
@@ -207,7 +212,6 @@ def reporte_ventas(request):
     }
 
     return render(request, 'reportes/reporte_ventas.html', context)
-
 
 
 
