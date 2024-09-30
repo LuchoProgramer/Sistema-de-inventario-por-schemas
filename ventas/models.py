@@ -31,18 +31,13 @@ class Venta(models.Model):
             raise ValidationError('La cantidad debe ser mayor que cero.')
         if self.precio_unitario <= 0:
             raise ValidationError('El precio unitario debe ser mayor que cero.')
-        try:
-            inventario = Inventario.objects.get(sucursal=self.sucursal, producto=self.producto)
-            if inventario.cantidad < self.cantidad:
-                raise ValidationError(f"No hay suficiente inventario para la venta. Disponibilidad actual: {inventario.cantidad} unidades.")
-        except Inventario.DoesNotExist:
-            raise ValidationError("El inventario no existe para este producto y sucursal.")
+        # Eliminar la verificación de inventario ya que se maneja en `crear_factura()`
 
     @transaction.atomic
     def save(self, *args, **kwargs):
-        try:
         # Validar antes de guardar
-            self.full_clean()  # Ejecutar validaciones
+        try:
+            self.full_clean()  # Ejecutar validaciones sin la lógica de inventario
         except ValidationError as e:
             print(f"Error de validación: {str(e)}")
             raise e
@@ -50,20 +45,7 @@ class Venta(models.Model):
         # Calcular el total de la venta con precisión
         self.total_venta = (self.cantidad * self.precio_unitario).quantize(Decimal('0.01'))
 
-        # Obtener el inventario y actualizar la cantidad
-        inventario = Inventario.objects.select_for_update().get(sucursal=self.sucursal, producto=self.producto)
-        inventario.cantidad -= self.cantidad
-        if inventario.cantidad < 0:
-            raise ValidationError("El inventario no puede ser negativo después de la venta.")
-        inventario.save()
-
-        # Registrar el movimiento de inventario
-        MovimientoInventario.objects.create(
-            producto=self.producto,
-            sucursal=self.sucursal,
-            tipo_movimiento='VENTA',
-            cantidad=-self.cantidad
-        )
+        # Eliminar la lógica de actualización de inventario en `save()` ya que se realiza en `crear_factura()`
 
         # Guardar la venta
         super(Venta, self).save(*args, **kwargs)
@@ -89,6 +71,7 @@ class Venta(models.Model):
 
     def __str__(self):
         return f"Venta de {self.producto.nombre} en {self.sucursal.nombre} - {self.cantidad} unidades - Total: {self.total_venta}"
+
 
 
 #Cierra de caja

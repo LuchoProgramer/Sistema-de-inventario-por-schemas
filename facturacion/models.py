@@ -68,7 +68,7 @@ class Factura(models.Model):
     cliente = models.ForeignKey(Cliente, on_delete=models.CASCADE)
     usuario = models.ForeignKey('auth.User', on_delete=models.SET_NULL, null=True, blank=True)
     fecha_emision = models.DateTimeField(auto_now_add=True)
-    numero_autorizacion = models.CharField(max_length=49)
+    numero_autorizacion = models.CharField(max_length=49, unique=True)
     clave_acceso = models.CharField(max_length=49, unique=True, null=True, blank=True)
     tipo_comprobante = models.CharField(max_length=2, choices=TIPO_COMPROBANTE_OPCIONES, default='01')
     contribuyente_especial = models.CharField(max_length=5, null=True, blank=True)

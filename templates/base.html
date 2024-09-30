@@ -29,6 +29,12 @@
                     <li class="nav-item">
                         <a class="nav-link" href="#">Menú 3</a>
                     </li>
+                    <!-- Botón para cerrar turno -->
+                    <li class="nav-item">
+                        <form action="{% url 'ventas:cerrar_turno' %}" method="get" class="d-inline">
+                            <button type="submit" class="btn btn-danger nav-link text-white ms-3">Cerrar Turno</button>
+                        </form>
+                    </li>
                 </ul>
             </div>
         </div>
@@ -44,3 +50,4 @@
     {% block extra_js %}{% endblock %}
 </body>
 </html>
+

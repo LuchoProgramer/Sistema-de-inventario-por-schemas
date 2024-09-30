@@ -50,30 +50,30 @@
                 </tr>
             </thead>
             <tbody>
-                {% for venta in ventas %}
+                {% for factura in facturas %}
                 <tr>
-                    <td>{{ venta.factura.fecha_emision|date:"d/m/Y" }}</td>
-                    <td>{{ venta.factura.fecha_emision|time:"H:i:s" }}</td>
+                    <td>{{ factura.fecha_emision|date:"d/m/Y" }}</td>
+                    <td>{{ factura.fecha_emision|time:"H:i:s" }}</td>
                     <td>Factura</td>
-                    <td>{{ venta.factura.numero_autorizacion }}</td>
-                    <td>{{ venta.factura.cliente.razon_social }}</td>
-                    <td>{{ venta.factura.total_sin_impuestos }}</td> <!-- Subtotal -->
+                    <td>{{ factura.numero_autorizacion }}</td>
+                    <td>{{ factura.cliente.razon_social }}</td>
+                    <td>{{ factura.total_sin_impuestos }}</td> <!-- Subtotal -->
                     <td>
-                        {% for detalle in venta.factura.detalles.all %}
+                        {% for detalle in factura.detalles.all %}
                             {{ detalle.descuento }}<br> <!-- Descuento -->
                         {% endfor %}
                     </td>
-                    <td>{{ venta.factura.valor_iva }}</td> <!-- IVA -->
-                    <td>{{ venta.factura.total_con_impuestos }}</td> <!-- Total -->
+                    <td>{{ factura.valor_iva }}</td> <!-- IVA -->
+                    <td>{{ factura.total_con_impuestos }}</td> <!-- Total -->
                     <td>0.00</td> <!-- Retención (si no existe, por defecto 0.00) -->
-                    <td>{{ venta.factura.total_con_impuestos }}</td> <!-- Total a pagar -->
+                    <td>{{ factura.total_con_impuestos }}</td> <!-- Total a pagar -->
                     <td>
-                        {% for pago in venta.factura.pagos.all %}
+                        {% for pago in factura.pagos.all %}
                             {{ pago.descripcion }}<br> <!-- Forma de Pago -->
                         {% endfor %}
                     </td>
                     <td>
-                        {% for pago in venta.factura.pagos.all %}
+                        {% for pago in factura.pagos.all %}
                             {{ pago.total }}<br> <!-- Monto de Pago -->
                         {% endfor %}
                     </td>

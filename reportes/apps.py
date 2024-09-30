@@ -5,4 +5,6 @@ class ReportesConfig(AppConfig):
     name = 'reportes'
 
     def ready(self):
-        import reportes.signals  # Asegúrate de importar las señales aquí
+        # Importar señales de forma más segura al inicio de la aplicación
+        from django.utils.module_loading import autodiscover_modules
+        autodiscover_modules('signals')  # Asegúrate de importar las señales aquí

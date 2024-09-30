@@ -116,53 +116,62 @@ def generar_factura(request):
             if not carrito_items.exists():
                 return JsonResponse({'error': 'El carrito está vacío. No se puede generar una factura.'}, status=400)
 
-            # Crear la factura y asociar los detalles del carrito
-            print(f"Creando factura para cliente {cliente} y sucursal {sucursal}")
-            factura = crear_factura(cliente, sucursal, usuario, carrito_items)
-            print(f"Factura creada: {factura}")
-
-            # Registrar la venta para cada producto en el carrito
+            # Verificar el inventario para todos los productos antes de proceder
             for item in carrito_items:
-                print(f"Producto: {item.producto.nombre}, Cantidad: {item.cantidad}")
-                VentaService.registrar_venta(turno_activo, item.producto, item.cantidad, factura)
-                print(f"Venta registrada para {item.producto.nombre} con cantidad {item.cantidad}")
+                inventario = item.producto.inventario_set.filter(sucursal=sucursal).first()
+                if not inventario or inventario.cantidad < item.cantidad:
+                    print(f"No hay suficiente inventario disponible para {item.producto.nombre}. Inventario actual: {inventario.cantidad if inventario else 'No disponible'}, cantidad solicitada: {item.cantidad}")
+                    return JsonResponse({'error': f'No hay suficiente inventario disponible para {item.producto.nombre}.'}, status=400)
 
-            # Obtener métodos y montos de pago del formulario
-            metodos_pago = request.POST.getlist('metodos_pago')
-            montos_pago = request.POST.getlist('montos_pago')
-            print(f"Métodos de pago: {metodos_pago}, Montos de pago: {montos_pago}")
+                print(f"Producto: {item.producto.nombre}, Inventario actual: {inventario.cantidad}, Cantidad solicitada: {item.cantidad}")
 
-            if len(metodos_pago) != len(montos_pago):
-                return JsonResponse({'error': 'Métodos de pago y montos no coinciden.'}, status=400)
+            # Crear la factura y registrar la venta en una transacción atómica
+            with transaction.atomic():
+                print(f"Creando factura para cliente {cliente} y sucursal {sucursal}")
+                factura = crear_factura(cliente, sucursal, usuario, carrito_items)
+                print(f"Factura creada: {factura}")
 
-            # Verificar si la factura tiene detalles asociados
-            detalles = factura.detalles.all()
-            print(f"Detalles de la factura: {detalles}")
+                # Registrar la venta para cada producto en el carrito
+                for item in carrito_items:
+                    # Registrar la venta y reducir el inventario solo si hay suficiente stock
+                    VentaService.registrar_venta(turno_activo, item.producto, item.cantidad, factura)
 
-            if not detalles.exists():
-                return JsonResponse({'error': 'La factura no tiene detalles asociados.'}, status=400)
+                # Obtener métodos y montos de pago del formulario
+                metodos_pago = request.POST.getlist('metodos_pago')
+                montos_pago = request.POST.getlist('montos_pago')
+                print(f"Métodos de pago: {metodos_pago}, Montos de pago: {montos_pago}")
 
-            # Asignar los pagos a la factura
-            print(f"Asignando pagos a la factura {factura}")
-            asignar_pagos_a_factura(factura, metodos_pago, montos_pago)
+                if len(metodos_pago) != len(montos_pago):
+                    raise ValueError('Métodos de pago y montos no coinciden.')
 
-            # Generar el PDF de la factura y guardarlo
-            print(f"Generando PDF para la factura {factura}")
-            pdf_url = generar_pdf_factura_y_guardar(factura)
-            print(f"PDF generado: {pdf_url}")
+                # Verificar si la factura tiene detalles asociados
+                detalles = factura.detalles.all()
+                print(f"Detalles de la factura: {detalles}")
 
-            # Eliminar los artículos del carrito después de generar la factura
-            print(f"Eliminando artículos del carrito para el usuario {usuario}")
-            carrito_items.delete()
+                if not detalles.exists():
+                    raise ValueError('La factura no tiene detalles asociados.')
+
+                # Asignar los pagos a la factura
+                print(f"Asignando pagos a la factura {factura}")
+                asignar_pagos_a_factura(factura, metodos_pago, montos_pago)
+
+                # Generar el PDF de la factura y guardarlo
+                print(f"Generando PDF para la factura {factura}")
+                pdf_url = generar_pdf_factura_y_guardar(factura)
+                print(f"PDF generado: {pdf_url}")
+
+                # Eliminar los artículos del carrito después de generar la factura
+                print(f"Eliminando artículos del carrito para el usuario {usuario}")
+                carrito_items.delete()
 
             # Redirigir al turno activo
             redirect_url = reverse('ventas:inicio_turno', args=[turno_activo.id])
             print(f"Redirigiendo a {redirect_url}")
             return JsonResponse({'pdf_url': pdf_url, 'redirect_url': redirect_url})
 
-        except ValidationError as e:
-            print(f"ValidationError: {e.messages}")
-            return JsonResponse({'error': e.messages}, status=400)
+        except ValueError as e:
+            print(f"ValueError: {str(e)}")
+            return JsonResponse({'error': str(e)}, status=400)
         except Exception as e:
             print(f"Error general al generar la factura: {str(e)}")
             logger.error(f"Error al generar la factura: {str(e)}")
@@ -179,9 +188,6 @@ def generar_factura(request):
             'clientes': Cliente.objects.all(),
             'total_factura': total_factura,
         })
-
-
-
    
 
 def ver_pdf_factura(request, numero_autorizacion):

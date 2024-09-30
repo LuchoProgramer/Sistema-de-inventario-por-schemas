@@ -4,7 +4,7 @@ from inventarios.models import Inventario, MovimientoInventario
 from django.core.exceptions import ValidationError
 from .utils.xml_generator import generar_xml_para_sri
 from .utils.clave_acceso import generar_clave_acceso
-from django.db import transaction
+from django.db import transaction, IntegrityError
 from django.core.exceptions import ValidationError
 from decimal import Decimal
 from facturacion.models import Cliente, Pago
@@ -30,6 +30,7 @@ def crear_factura(cliente, sucursal, usuario, carrito_items):
     for item in carrito_items:
         print(f"Procesando producto {item.producto.nombre}...")  # Depuración
         valor_base, valor_iva = item.producto.obtener_valor_base_iva()  # Método del modelo Producto
+
         subtotal_item = valor_base * item.cantidad
         iva_item = valor_iva * item.cantidad
 
@@ -48,44 +49,43 @@ def crear_factura(cliente, sucursal, usuario, carrito_items):
                 cliente=cliente,
                 usuario=usuario,  # Cambiar empleado por usuario
                 numero_autorizacion=sucursal.secuencial_actual.zfill(9),
-                total_sin_impuestos=total_sin_impuestos,
-                total_con_impuestos=total_con_impuestos,
-                valor_iva=total_iva,
+                total_sin_impuestos=total_sin_impuestos.quantize(Decimal('0.01')),  # Asegurarse de mantener la precisión
+                valor_iva=total_iva.quantize(Decimal('0.01')),  # Asignar el IVA total calculado
+                total_con_impuestos=total_con_impuestos.quantize(Decimal('0.01')),  # Total con impuestos
                 estado='EN_PROCESO'
             )
             print(f"Factura creada con número de autorización {factura.numero_autorizacion}...")  # Depuración
 
-            # Crear los detalles de la factura
+            # Crear los detalles de la factura y actualizar el inventario
             for item in carrito_items:
-                try:
-                    print(f"Creando detalle para el producto {item.producto.nombre}...")  # Depuración
-                    # Recalcular los valores para cada item
-                    valor_base, valor_iva = item.producto.obtener_valor_base_iva()
-                    subtotal_item = valor_base * item.cantidad
-                    iva_item = valor_iva * item.cantidad
-                    total_item = subtotal_item + iva_item
+                print(f"Creando detalle para el producto {item.producto.nombre}...")  # Depuración
+                
+                # Recalcular los valores para cada item
+                valor_base, valor_iva = item.producto.obtener_valor_base_iva()
+                subtotal_item = valor_base * item.cantidad
+                iva_item = valor_iva * item.cantidad
+                total_item = subtotal_item + iva_item
 
-                    print(f"Valores de detalle: cantidad={item.cantidad}, precio_unitario={item.producto.precio_venta}, subtotal={subtotal_item}, total={total_item}")
+                print(f"Valores de detalle: cantidad={item.cantidad}, precio_unitario={item.producto.precio_venta}, subtotal={subtotal_item}, total={total_item}")
 
-                    detalle = DetalleFactura.objects.create(
-                        factura=factura,
-                        producto=item.producto,
-                        cantidad=item.cantidad,
-                        precio_unitario=item.producto.precio_venta,
-                        subtotal=subtotal_item,
-                        descuento=0,
-                        total=total_item.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP),
-                        valor_iva=iva_item
-                    )
-                    print(f"Detalle creado: {detalle}")
-                except Exception as e:
-                    print(f"Error al crear el detalle: {e}")
-                    raise e  # Importante: Propagar la excepción para que la transacción se pueda revertir
+                # Crear el detalle de la factura
+                detalle = DetalleFactura.objects.create(
+                    factura=factura,
+                    producto=item.producto,
+                    cantidad=item.cantidad,
+                    precio_unitario=item.producto.precio_venta,
+                    subtotal=subtotal_item.quantize(Decimal('0.01')),  # Ajustar a dos decimales
+                    descuento=0,
+                    total=total_item.quantize(Decimal('0.01')),  # Ajustar a dos decimales
+                    valor_iva=iva_item.quantize(Decimal('0.01'))  # Ajustar a dos decimales
+                )
+                print(f"Detalle creado: {detalle}")
 
                 # Actualiza el inventario
                 inventario = Inventario.objects.select_for_update().get(sucursal=sucursal, producto=item.producto)
                 inventario.cantidad -= item.cantidad
                 inventario.save()
+                print(f"Inventario actualizado para {item.producto.nombre}. Nueva cantidad: {inventario.cantidad}")
 
                 MovimientoInventario.objects.create(
                     producto=item.producto,
@@ -94,9 +94,8 @@ def crear_factura(cliente, sucursal, usuario, carrito_items):
                     cantidad=-item.cantidad
                 )
 
+            # Verificar si la factura tiene detalles asociados
             factura.refresh_from_db()
-            print(f"Detalles asociados a la factura {factura.numero_autorizacion}: {factura.detalles.all()}")  # Verifica los detalles de la factura
-
             if factura.detalles.count() == 0:
                 print("Error: La factura no tiene detalles asociados.")  # Depuración
                 raise ValidationError("La factura no tiene detalles asociados.")
@@ -107,6 +106,7 @@ def crear_factura(cliente, sucursal, usuario, carrito_items):
     except Exception as e:
         print(f"Error general en la transacción: {e}")  # Captura cualquier error general en la transacción
         raise e
+
 
 # Función para validar o crear un cliente
 def obtener_o_crear_cliente(cliente_id, identificacion, data_cliente):

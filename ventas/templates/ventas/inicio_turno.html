@@ -18,6 +18,16 @@
         max-height: 150px;
         object-fit: contain; /* Ajusta la imagen sin distorsionarla */
     }
+
+        .btn-carrito-flotante {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        z-index: 1000;
+        padding: 15px 20px;
+        border-radius: 50px;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    }
 </style>
 {% endblock %}
 
@@ -41,7 +51,7 @@
                 <div class="row">
                     <!-- Input de búsqueda -->
                     <div class="col-md-6">
-                        <input type="text" name="q" class="form-control" placeholder="Buscar productos..." value="{{ request.GET.q }}">
+                        <input type="text" name="q" id="buscar-productos" class="form-control" placeholder="Buscar productos..." value="{{ request.GET.q }}">
                     </div>
                     <!-- Filtro por categoría -->
                     <div class="col-md-6">
@@ -91,21 +101,88 @@
 
     <!-- Carrito de Ventas -->
     <div class="mt-5">
-        <h3>Carrito de Ventas</h3>
-        <a href="{% url 'ventas:ver_carrito' %}" class="btn btn-secondary">Ver Carrito</a>
-    </div>
-
-    <!-- Botón para cerrar el turno -->
-    <div class="mt-4">
-        <form action="{% url 'ventas:cerrar_turno' %}" method="get">
-            <button type="submit" class="btn btn-danger">Cerrar Turno</button>
-        </form>
+        <a href="{% url 'ventas:ver_carrito' %}" class="btn btn-primary btn-carrito-flotante">Ver Carrito</a>
     </div>
 </div>
 {% endblock %}
 
 {% block extra_js %}
 <script>
-    // No se necesita JavaScript adicional ya que el CSS maneja el giro de la tarjeta.
+    document.addEventListener('DOMContentLoaded', function () {
+        const inputBuscar = document.getElementById('buscar-productos');
+        const productosContainer = document.getElementById('productos-container');
+        const turnoId = "{{ turno.id }}";
+
+        inputBuscar.addEventListener('keyup', function () {
+            const query = inputBuscar.value;
+
+            // Realizar la solicitud AJAX
+            fetch(`/ventas/buscar_productos/?q=${query}&turno_id=${turnoId}`)
+                .then(response => response.json())
+                .then(data => {
+                    // Limpiar el contenedor de productos
+                    productosContainer.innerHTML = '';
+
+                    // Agregar los productos filtrados
+                    data.productos.forEach(producto => {
+                        const productoHTML = `
+                            <div class="col d-flex align-items-stretch producto-item">
+                                <div class="card product-card w-100">
+                                    <img src="${producto.imagen}" class="card-img-top" alt="${producto.nombre}">
+                                    <div class="card-body">
+                                        <h5 class="card-title">${producto.nombre}</h5>
+                                        <p class="card-text">Precio: $${producto.precio}</p>
+                                        <p class="card-text">Stock: ${producto.stock} unidades</p>
+                                        <form method="POST" action="/ventas/agregar_al_carrito/${producto.id}/" class="agregar-carrito-form">
+                                            <input type="hidden" name="csrfmiddlewaretoken" value="{{ csrf_token }}">
+                                            <label for="cantidad_${producto.id}">Cantidad:</label>
+                                            <input type="number" name="cantidad" id="cantidad_${producto.id}" min="1" max="${producto.stock}" value="1" required>
+                                            <button type="submit" class="btn btn-primary mt-2 agregar-carrito-btn">Agregar al Carrito</button>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                        productosContainer.innerHTML += productoHTML;
+                    });
+
+                    // Agregar un evento para interceptar el envío del formulario y deshabilitar el botón
+                    document.querySelectorAll('.agregar-carrito-form').forEach(form => {
+                        form.addEventListener('submit', function (event) {
+                            event.preventDefault(); // Prevenir el envío por defecto del formulario
+                            
+                            const submitButton = form.querySelector('.agregar-carrito-btn');
+                            submitButton.disabled = true; // Deshabilitar el botón para evitar múltiples clics
+                            submitButton.textContent = 'Agregando...'; // Cambiar el texto del botón para indicar que está procesando
+
+                            // Realizar la solicitud para agregar al carrito
+                            const formData = new FormData(form);
+                            fetch(form.action, {
+                                method: 'POST',
+                                body: formData,
+                            })
+                            .then(response => {
+                                if (!response.ok) {
+                                    throw new Error('Error al agregar el producto al carrito.');
+                                }
+                                return response.json();
+                            })
+                            .then(data => {
+                                alert('Producto agregado al carrito correctamente');
+                                submitButton.disabled = false; // Rehabilitar el botón para futuros clics
+                                submitButton.textContent = 'Agregar al Carrito';
+                            })
+                            .catch(error => {
+                                console.error('Error:', error);
+                                alert('Hubo un error al agregar el producto al carrito.');
+                                submitButton.disabled = false; // Rehabilitar el botón si ocurre un error
+                                submitButton.textContent = 'Agregar al Carrito';
+                            });
+                        });
+                    });
+                })
+                .catch(error => console.error('Error:', error));
+        });
+    });
 </script>
 {% endblock %}

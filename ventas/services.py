@@ -11,13 +11,6 @@ class VentaService:
     @transaction.atomic
     def registrar_venta(turno_activo, producto, cantidad, factura):
         print("Iniciando el registro de la venta...")
-        
-        # Verificar inventario
-        inventario = producto.inventario_set.filter(sucursal=turno_activo.sucursal).first()
-        if not inventario or inventario.cantidad < cantidad:
-            raise ValueError(f"No hay suficiente inventario disponible para {producto.nombre}.")
-        
-        print(f"Inventario verificado para {producto.nombre}. Cantidad disponible: {inventario.cantidad}")
 
         # Calcular el total de la venta
         precio_unitario = producto.precio_venta
@@ -42,12 +35,9 @@ class VentaService:
             print(f"Error al registrar la venta: {str(e)}")
             raise ValueError(f"Error al registrar la venta: {str(e)}")
 
-        # Actualizar el inventario
-        inventario.cantidad -= cantidad
-        inventario.save()
-        print(f"Inventario actualizado. Nueva cantidad disponible para {producto.nombre}: {inventario.cantidad}")
-
         return venta
+
+
 
 
     @staticmethod

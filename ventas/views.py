@@ -23,8 +23,10 @@ from inventarios.models import Inventario, Categoria
 
 @transaction.atomic
 def registrar_venta(request):
+    # Verificar turno activo del usuario
     turno_activo = RegistroTurno.objects.filter(usuario=request.user, fin_turno__isnull=True).first()
     if not turno_activo:
+        print("No se encontró un turno activo para el usuario.")
         return render(request, 'ventas/error.html', {'mensaje': 'No tienes un turno activo.'})
 
     if request.method == 'POST':
@@ -38,6 +40,7 @@ def registrar_venta(request):
             metodo_pago = dict(Pago.METODOS_PAGO_SRI).get(metodo_pago_seleccionado)
 
             if not metodo_pago:
+                print(f"Método de pago no válido: {metodo_pago_seleccionado}")
                 form.add_error(None, f"Método de pago no válido: {metodo_pago_seleccionado}")
                 return render(request, 'ventas/registrar_venta.html', {'form': form})
 
@@ -47,8 +50,14 @@ def registrar_venta(request):
                     # Verificar si el cliente existe
                     cliente = getattr(turno_activo.usuario, 'cliente', None)
                     if not cliente:
+                        print("No se encontró un cliente asociado al usuario.")
                         form.add_error(None, "No se encontró un cliente asociado al usuario.")
                         return render(request, 'ventas/registrar_venta.html', {'form': form})
+
+                    # Verificar disponibilidad de inventario antes de crear la factura
+                    if producto.stock < cantidad:
+                        print(f"No hay suficiente inventario disponible para {producto.nombre}. Stock actual: {producto.stock}, cantidad solicitada: {cantidad}")
+                        return JsonResponse({'error': f'No hay suficiente inventario disponible para {producto.nombre}.'}, status=400)
 
                     # Crear la factura
                     total_sin_impuestos = Decimal('100.00')  # Ajusta según tu lógica
@@ -65,30 +74,42 @@ def registrar_venta(request):
                         registroturno=turno_activo
                     )
 
-                    if not factura:
-                        return JsonResponse({'error': 'Error al crear la factura. No se pudo registrar la venta.'}, status=500)
+                    print(f"Factura creada con número de autorización: {factura.numero_autorizacion}")
 
                     # Registrar el pago
                     Pago.objects.create(
                         factura=factura,
-                        codigo_sri=metodo_pago_seleccionado,  # Código SRI de pago (como '01' para efectivo)
+                        codigo_sri=metodo_pago_seleccionado,
                         descripcion=metodo_pago,
                         total=total_con_impuestos
                     )
 
-                    # Registrar la venta, asegurando que la factura esté asignada
-                    VentaService.registrar_venta(turno_activo, producto, cantidad, factura)
+                    print(f"Pago registrado para la factura {factura.numero_autorizacion}, método: {metodo_pago_seleccionado}")
+
+                    # Validación para evitar registrar la venta más de una vez
+                    if not Venta.objects.filter(factura=factura, producto=producto).exists():
+                        # Reducir el inventario solo si no se ha registrado la venta antes
+                        producto.stock -= cantidad
+                        producto.save()
+
+                        # Registrar la venta
+                        VentaService.registrar_venta(turno_activo, producto, cantidad, factura)
+                        print(f"Venta registrada para el producto {producto.nombre}, cantidad: {cantidad}")
+                    else:
+                        print(f"La venta para el producto {producto.nombre} ya está registrada.")
 
                     return redirect('dashboard')
 
             except Exception as e:
                 # Capturar el error y mostrarlo
+                print(f"Error al generar la factura o registrar la venta: {str(e)}")
                 return JsonResponse({'error': f'Error al generar la factura o registrar la venta: {str(e)}'}, status=500)
 
     else:
         form = SeleccionVentaForm(sucursal_id=turno_activo.sucursal.id)
 
     return render(request, 'ventas/registrar_venta.html', {'form': form})
+
 
 
 
@@ -289,3 +310,28 @@ def comparar_cierre_ventas(request, turno_id):
     }
 
     return render(request, 'ventas/comparar_ventas.html', context)
+
+
+
+def buscar_productos(request):
+    termino_busqueda = request.GET.get('q', '')
+    turno_id = request.GET.get('turno_id')
+
+    # Obtener el turno activo del usuario
+    turno = get_object_or_404(RegistroTurno, id=turno_id, usuario=request.user)
+
+    # Filtrar los productos por nombre y sucursal del turno activo
+    inventarios = Inventario.objects.filter(sucursal=turno.sucursal, producto__nombre__icontains=termino_busqueda)
+
+    # Crear una lista de los productos filtrados
+    productos_filtrados = [
+        {
+            'id': inventario.producto.id,
+            'nombre': inventario.producto.nombre,
+            'precio': inventario.producto.precio_venta,
+            'stock': inventario.cantidad,
+            'imagen': inventario.producto.image.url if inventario.producto.image else '/static/default_image.png'
+        } for inventario in inventarios
+    ]
+
+    return JsonResponse({'productos': productos_filtrados})
