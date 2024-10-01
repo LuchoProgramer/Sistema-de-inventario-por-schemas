@@ -1,1 +1,1 @@
-web: gunicorn lahuequitaquitena.wsgi
+web: gunicorn inventario.wsgi
