@@ -25,7 +25,8 @@ SECRET_KEY = "django-insecure-r17i1lu%najs3-&%$sz1uu6ty0q4dlkyjck96lkn7ts&t)e(7^
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['lahuequitaquitena-02bf29651b17.herokuapp.com', '127.0.0.1', 'localhost']
+
 
 
 # Application definition
@@ -71,6 +72,7 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'RegistroTurnos.context_processors.turno_context',
             ],
         },
     },
