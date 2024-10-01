@@ -186,7 +186,7 @@ class Impuesto(models.Model):
         return f'{self.nombre} - {self.porcentaje}%'
 
     def save(self, *args, **kwargs):
-        if self.activo:
+        if self.activo and not kwargs.pop('skip_update', False):
             # Desactiva otros impuestos antes de guardar este como activo
             Impuesto.objects.filter(activo=True).update(activo=False)
         super(Impuesto, self).save(*args, **kwargs)

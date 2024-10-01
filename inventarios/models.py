@@ -20,7 +20,7 @@ class Producto(models.Model):
     categoria = models.ForeignKey('Categoria', on_delete=models.SET_NULL, null=True, blank=True)
     sucursal = models.ForeignKey('sucursales.Sucursal', on_delete=models.CASCADE, null=True, blank=True)
     codigo_producto = models.CharField(max_length=50, unique=True, null=True, blank=True)
-    impuesto = models.ForeignKey('facturacion.Impuesto', on_delete=models.CASCADE, default=Impuesto.objects.get(porcentaje=15.0).id)
+    impuesto = models.ForeignKey('facturacion.Impuesto', on_delete=models.CASCADE, null=True, blank=True)
     image = models.ImageField(upload_to='productos/', null=True, blank=True)
     stock_minimo = models.IntegerField(default=0)
     activo = models.BooleanField(default=True)

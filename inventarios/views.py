@@ -26,16 +26,24 @@ def seleccionar_sucursal(request):
     return render(request, 'inventarios/seleccionar_sucursal.html', {'sucursales': sucursales})
 
 
+from django.core.paginator import Paginator
+from django.shortcuts import get_object_or_404, render
+
 def ver_inventario(request, sucursal_id):
     # Obtener la sucursal seleccionada
     sucursal = get_object_or_404(Sucursal, id=sucursal_id)
-    
-    # Obtener el inventario para esa sucursal
-    inventarios = Inventario.objects.filter(sucursal=sucursal)
+
+    # Obtener el inventario para esa sucursal, con el producto relacionado precargado
+    inventarios = Inventario.objects.filter(sucursal=sucursal).select_related('producto')
+
+    # Paginación del inventario, 10 elementos por página
+    paginator = Paginator(inventarios, 10)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
 
     return render(request, 'inventarios/ver_inventario.html', {
         'sucursal': sucursal,
-        'inventarios': inventarios,  # Cambié 'inventario' a 'inventarios'
+        'inventarios': page_obj,  # Cambié 'inventario' a 'inventarios' y añadí paginación
     })
 
 

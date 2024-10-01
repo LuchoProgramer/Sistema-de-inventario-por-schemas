@@ -12,11 +12,17 @@
         
         <div class="mb-4">
             <!-- Botón para ver el historial de compras -->
-            <a href="{% url 'inventarios:ver_compras' %}" class="btn btn-secondary me-2">Ver Historial de Compras</a>
+            <a href="{% url 'inventarios:ver_compras' %}" class="btn btn-secondary me-2">
+                <i class="bi bi-card-list"></i> Ver Historial de Compras
+            </a>
             <!-- Botón para agregar inventario manualmente -->
-            <a href="{% url 'inventarios:agregar_inventario_manual' %}?sucursal={{ sucursal.id }}" class="btn btn-primary me-2">Agregar Inventario Manualmente</a>
+            <a href="{% url 'inventarios:agregar_inventario_manual' %}?sucursal={{ sucursal.id }}" class="btn btn-primary me-2">
+                <i class="bi bi-plus-square"></i> Agregar Inventario Manualmente
+            </a>
             <!-- Botón para cargar inventario desde Excel -->
-            <a href="{% url 'inventarios:cargar_inventario_excel' %}?sucursal={{ sucursal.id }}" class="btn btn-primary">Cargar Inventario desde Excel</a>
+            <a href="{% url 'inventarios:cargar_inventario_excel' %}?sucursal={{ sucursal.id }}" class="btn btn-primary">
+                <i class="bi bi-file-earmark-spreadsheet"></i> Cargar Inventario desde Excel
+            </a>
         </div>
 
         <table class="table table-striped table-hover">
@@ -29,22 +35,59 @@
                 </tr>
             </thead>
             <tbody>
-                {% for inventario in inventarios %}
-                <tr>
-                    <td>{{ inventario.producto.id }}</td>
-                    <td>{{ inventario.producto.nombre }}</td>
-                    <td>{{ inventario.cantidad }}</td>
-                    <td>
-                        <a href="{% url 'inventarios:ajustar_inventario' inventario.producto.id sucursal.id %}" class="btn btn-warning btn-sm">Ajustar Inventario</a>
-                    </td>
-                </tr>
-                {% endfor %}
+                {% if inventarios %}
+                    {% for inventario in inventarios %}
+                    <tr>
+                        <td>{{ inventario.producto.id }}</td>
+                        <td>{{ inventario.producto.nombre }}</td>
+                        <td>{{ inventario.cantidad }}</td>
+                        <td>
+                            <a href="{% url 'inventarios:ajustar_inventario' inventario.producto.id sucursal.id %}" class="btn btn-warning btn-sm">
+                                <i class="bi bi-pencil-square"></i> Ajustar Inventario
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr>
+                        <td colspan="4" class="text-center">No hay productos en el inventario de esta sucursal.</td>
+                    </tr>
+                {% endif %}
             </tbody>
         </table>
+
+        <!-- Paginación -->
+        <nav aria-label="Paginación del inventario">
+            <ul class="pagination justify-content-center">
+                {% if inventarios.has_previous %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page=1">&laquo; Primera</a>
+                    </li>
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ inventarios.previous_page_number }}">Anterior</a>
+                    </li>
+                {% endif %}
+
+                <li class="page-item disabled">
+                    <span class="page-link">Página {{ inventarios.number }} de {{ inventarios.paginator.num_pages }}</span>
+                </li>
+
+                {% if inventarios.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ inventarios.next_page_number }}">Siguiente</a>
+                    </li>
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ inventarios.paginator.num_pages }}">Última &raquo;</a>
+                    </li>
+                {% endif %}
+            </ul>
+        </nav>
 
     </div>
 
     <!-- Cargar Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Cargar íconos de Bootstrap -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap-icons/1.5.0/font/bootstrap-icons.min.css">
 </body>
 </html>

@@ -4,6 +4,16 @@ import os
 import sys
 
 
+import warnings
+import traceback
+
+def warn_with_traceback(message, category, filename, lineno, file=None, line=None):
+    if category == RuntimeWarning:
+        raise RuntimeError(f"Warning converted to exception: {message}\n{''.join(traceback.format_stack())}")
+
+warnings.showwarning = warn_with_traceback
+
+
 def main():
     """Run administrative tasks."""
     os.environ.setdefault("DJANGO_SETTINGS_MODULE", "inventario.settings")

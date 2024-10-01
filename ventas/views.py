@@ -126,7 +126,7 @@ def inicio_turno(request, turno_id):
     categorias = Categoria.objects.all()
 
     # Filtrar los productos disponibles en la sucursal del turno activo
-    inventarios = Inventario.objects.filter(sucursal=turno.sucursal)
+    inventarios = Inventario.objects.filter(sucursal=turno.sucursal).select_related('producto__categoria')
 
     if categoria_seleccionada:
         inventarios = inventarios.filter(producto__categoria_id=categoria_seleccionada)
@@ -135,9 +135,12 @@ def inicio_turno(request, turno_id):
         inventarios = inventarios.filter(producto__nombre__icontains=termino_busqueda)
 
     # Verificar si los productos en el carrito ya alcanzaron su stock máximo
-    carrito_items = Carrito.objects.filter(turno=turno)
+    carrito_items = Carrito.objects.filter(turno=turno).select_related('producto')
+    inventario_dict = {inv.producto.id: inv.cantidad for inv in inventarios}
+
     for item in carrito_items:
-        if item.cantidad >= Inventario.objects.get(producto=item.producto, sucursal=turno.sucursal).cantidad:
+        producto_cantidad = inventario_dict.get(item.producto.id, 0)
+        if item.cantidad >= producto_cantidad:
             messages.warning(request, f'El producto {item.producto.nombre} ya tiene todo su stock agregado al carrito.')
 
     # Renderizar la vista y pasar los inventarios a la plantilla
@@ -150,49 +153,55 @@ def inicio_turno(request, turno_id):
 
 
 
+
 @login_required
 def agregar_al_carrito(request, producto_id):
-    producto = get_object_or_404(Producto, id=producto_id)
+    # Obtener el producto con la categoría precargada para evitar una consulta adicional
+    producto = get_object_or_404(Producto.objects.select_related('categoria'), id=producto_id)
     
-    # Obtener el turno activo del usuario
-    turno = RegistroTurno.objects.filter(usuario=request.user, fin_turno__isnull=True).first()
+    # Obtener el turno activo del usuario con la sucursal ya cargada para evitar más consultas
+    turno = RegistroTurno.objects.filter(usuario=request.user, fin_turno__isnull=True).select_related('sucursal').first()
 
     if turno:
+        # Obtener el inventario disponible del producto en la sucursal del turno
+        try:
+            inventario_disponible = Inventario.objects.get(producto=producto, sucursal=turno.sucursal).cantidad
+        except Inventario.DoesNotExist:
+            messages.error(request, f'No hay inventario disponible para el producto {producto.nombre}.')
+            return redirect('ventas:inicio_turno', turno_id=turno.id)
+
         cantidad = int(request.POST.get('cantidad', 1))  # Obtener la cantidad del formulario, por defecto 1
-        inventario_disponible = Inventario.objects.get(producto=producto, sucursal=turno.sucursal).cantidad
 
         # Validar que la cantidad solicitada no exceda el stock disponible
         if cantidad > inventario_disponible:
             messages.error(request, f'No hay suficiente stock de {producto.nombre}. Solo quedan {inventario_disponible} en stock.')
-            return redirect('ventas:inicio_turno', turno_id=turno.id)  # Se asegura de pasar 'turno_id'
+            return redirect('ventas:inicio_turno', turno_id=turno.id)
 
         # Obtener o crear un ítem en el carrito
         carrito_item, created = Carrito.objects.get_or_create(turno=turno, producto=producto)
 
         # Actualizar la cantidad en el carrito
-        if not created:
-            nueva_cantidad = carrito_item.cantidad + cantidad
-            if nueva_cantidad > inventario_disponible:
-                messages.error(request, f'No puedes agregar más de {inventario_disponible} de {producto.nombre}.')
-                return redirect('ventas:inicio_turno', turno_id=turno.id)  # Se asegura de pasar 'turno_id'
-            carrito_item.cantidad = nueva_cantidad
-        else:
-            carrito_item.cantidad = cantidad
+        nueva_cantidad = carrito_item.cantidad + cantidad if not created else cantidad
 
+        if nueva_cantidad > inventario_disponible:
+            messages.error(request, f'No puedes agregar más de {inventario_disponible} de {producto.nombre}.')
+            return redirect('ventas:inicio_turno', turno_id=turno.id)
+
+        carrito_item.cantidad = nueva_cantidad
         carrito_item.save()
 
         messages.success(request, f'Se ha agregado {cantidad} de {producto.nombre} al carrito.')
-        return redirect('ventas:inicio_turno', turno_id=turno.id)  # Se asegura de pasar 'turno_id'
+        return redirect('ventas:inicio_turno', turno_id=turno.id)
     else:
         messages.error(request, 'No tienes un turno activo.')
-        # Corregir el redireccionamiento para usar 'turno_id' si existe, o redirigir de otra forma
         return redirect('ventas:inicio_turno', turno_id=request.POST.get('turno_id', 0))
+
     
 
 @login_required
 def ver_carrito(request):
-    # Cambiado de empleado=request.user.empleado a usuario=request.user
-    turno = RegistroTurno.objects.filter(usuario=request.user, fin_turno__isnull=True).first()
+    # Obtener el turno activo del usuario con la sucursal ya cargada si se usa en la vista
+    turno = RegistroTurno.objects.filter(usuario=request.user, fin_turno__isnull=True).select_related('sucursal').first()
 
     # Verificar si el usuario ha hecho clic en el botón "Eliminar"
     if request.method == 'POST':
@@ -202,7 +211,10 @@ def ver_carrito(request):
         return redirect('ventas:ver_carrito')  # Redirigir al carrito actualizado
 
     if turno:
-        carrito_items = Carrito.objects.filter(turno=turno)
+        # Obtener los items del carrito con el producto precargado
+        carrito_items = Carrito.objects.filter(turno=turno).select_related('producto')
+
+        # Calcular el total utilizando los datos ya cargados
         total = sum(item.subtotal() for item in carrito_items)
 
         return render(request, 'ventas/ver_carrito.html', {
@@ -212,6 +224,7 @@ def ver_carrito(request):
         })
     else:
         return render(request, 'ventas/error.html', {'mensaje': 'No tienes un turno activo.'})
+
     
 def finalizar_venta(request):
     turno_activo = RegistroTurno.objects.filter(usuario=request.user, fin_turno__isnull=True).first()

@@ -1,6 +1,10 @@
 from django.urls import path
 from . import views
 
+
+import reportes.signals
+
+
 urlpatterns = [
     path('ventas_por_turno/', views.reporte_ventas_por_turno, name='reporte_ventas_por_turno'),
     path('seleccionar_turno/', views.seleccionar_turno_por_fechas, name='seleccionar_turno_por_fechas'),

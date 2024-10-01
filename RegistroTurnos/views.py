@@ -24,7 +24,7 @@ from django.http import JsonResponse
 def dashboard(request):
     usuario = request.user
 
-    # Verificar si el usuario ya tiene un turno activo
+    # Verificar si el usuario ya tiene un turno activo (solo una consulta)
     turno_activo = RegistroTurno.objects.filter(usuario=usuario, fin_turno__isnull=True).first()
 
     if turno_activo:
@@ -32,17 +32,21 @@ def dashboard(request):
             return JsonResponse({'success': True, 'turno_id': turno_activo.id})
         return redirect('ventas:inicio_turno', turno_id=turno_activo.id)
 
-    sucursales_usuario = Sucursal.objects.filter(usuarios=usuario)
+    # Obtener las sucursales del usuario, en lugar de contar repetidamente, guardamos en una variable
+    sucursales_usuario = list(Sucursal.objects.filter(usuarios=usuario))
 
-    if sucursales_usuario.count() == 0:
+    # Optimización: en lugar de hacer `.count()` varias veces, utilizamos la lista `sucursales_usuario`
+    sucursales_count = len(sucursales_usuario)
+
+    if sucursales_count == 0:
         if is_ajax(request):
             return JsonResponse({'success': False, 'message': "No tienes ninguna sucursal asignada."})
         messages.error(request, "No tienes ninguna sucursal asignada.")
         return redirect('dashboard')
 
-    if sucursales_usuario.count() == 1:
+    if sucursales_count == 1:
         try:
-            sucursal_unica = sucursales_usuario.first()
+            sucursal_unica = sucursales_usuario[0]  # Como ya tenemos la lista, simplemente accedemos al primer elemento
             turno = RegistroTurno(usuario=usuario, sucursal=sucursal_unica, inicio_turno=timezone.now())
             turno.save()
             if is_ajax(request):

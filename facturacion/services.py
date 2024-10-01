@@ -16,8 +16,9 @@ from django.conf import settings
 
 def crear_factura(cliente, sucursal, usuario, carrito_items):
     print("Iniciando la creación de la factura...")  # Depuración
-    iva = Impuesto.objects.filter(codigo_impuesto='2', activo=True).first()
 
+    # Obtener el IVA activo (solo uno) y lanzar un error si no se encuentra
+    iva = Impuesto.objects.filter(codigo_impuesto='2', activo=True).first()
     if not iva:
         print("No se encontró un IVA activo.")  # Depuración
         raise ValidationError("No se encontró un IVA activo en la base de datos")
@@ -44,17 +45,23 @@ def crear_factura(cliente, sucursal, usuario, carrito_items):
             sucursal.incrementar_secuencial()
             sucursal.save()
 
+            # Crear la factura
             factura = Factura.objects.create(
                 sucursal=sucursal,
                 cliente=cliente,
-                usuario=usuario,  # Cambiar empleado por usuario
+                usuario=usuario,
                 numero_autorizacion=sucursal.secuencial_actual.zfill(9),
-                total_sin_impuestos=total_sin_impuestos.quantize(Decimal('0.01')),  # Asegurarse de mantener la precisión
-                valor_iva=total_iva.quantize(Decimal('0.01')),  # Asignar el IVA total calculado
-                total_con_impuestos=total_con_impuestos.quantize(Decimal('0.01')),  # Total con impuestos
+                total_sin_impuestos=total_sin_impuestos.quantize(Decimal('0.01')),
+                valor_iva=total_iva.quantize(Decimal('0.01')),
+                total_con_impuestos=total_con_impuestos.quantize(Decimal('0.01')),
                 estado='EN_PROCESO'
             )
             print(f"Factura creada con número de autorización {factura.numero_autorizacion}...")  # Depuración
+
+            # Obtener todos los inventarios necesarios con `select_for_update()`
+            productos_ids = [item.producto.id for item in carrito_items]
+            inventarios = Inventario.objects.select_for_update().filter(sucursal=sucursal, producto_id__in=productos_ids)
+            inventario_dict = {inv.producto.id: inv for inv in inventarios}
 
             # Crear los detalles de la factura y actualizar el inventario
             for item in carrito_items:
@@ -74,19 +81,24 @@ def crear_factura(cliente, sucursal, usuario, carrito_items):
                     producto=item.producto,
                     cantidad=item.cantidad,
                     precio_unitario=item.producto.precio_venta,
-                    subtotal=subtotal_item.quantize(Decimal('0.01')),  # Ajustar a dos decimales
+                    subtotal=subtotal_item.quantize(Decimal('0.01')),
                     descuento=0,
-                    total=total_item.quantize(Decimal('0.01')),  # Ajustar a dos decimales
-                    valor_iva=iva_item.quantize(Decimal('0.01'))  # Ajustar a dos decimales
+                    total=total_item.quantize(Decimal('0.01')),
+                    valor_iva=iva_item.quantize(Decimal('0.01'))
                 )
                 print(f"Detalle creado: {detalle}")
 
-                # Actualiza el inventario
-                inventario = Inventario.objects.select_for_update().get(sucursal=sucursal, producto=item.producto)
+                # Actualiza el inventario desde el diccionario de inventarios
+                inventario = inventario_dict.get(item.producto.id)
+                if not inventario or inventario.cantidad < item.cantidad:
+                    print(f"No hay suficiente inventario disponible para {item.producto.nombre}.")  # Depuración
+                    raise ValidationError(f"No hay suficiente inventario disponible para {item.producto.nombre}.")
+
                 inventario.cantidad -= item.cantidad
                 inventario.save()
                 print(f"Inventario actualizado para {item.producto.nombre}. Nueva cantidad: {inventario.cantidad}")
 
+                # Registrar el movimiento del inventario
                 MovimientoInventario.objects.create(
                     producto=item.producto,
                     sucursal=sucursal,
@@ -95,8 +107,7 @@ def crear_factura(cliente, sucursal, usuario, carrito_items):
                 )
 
             # Verificar si la factura tiene detalles asociados
-            factura.refresh_from_db()
-            if factura.detalles.count() == 0:
+            if not factura.detalles.exists():
                 print("Error: La factura no tiene detalles asociados.")  # Depuración
                 raise ValidationError("La factura no tiene detalles asociados.")
             print(f"Factura {factura.numero_autorizacion} completada con {factura.detalles.count()} detalles.")  # Depuración
