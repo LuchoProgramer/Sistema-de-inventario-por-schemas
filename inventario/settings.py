@@ -11,6 +11,7 @@ https://docs.djangoproject.com/en/4.1/ref/settings/
 """
 
 from pathlib import Path
+import os
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -20,13 +21,17 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/4.1/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = "django-insecure-r17i1lu%najs3-&%$sz1uu6ty0q4dlkyjck96lkn7ts&t)e(7^"
+SECRET_KEY = os.getenv('SECRET_KEY', 'valor_por_defecto')
 
 # SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+ENVIRONMENT = os.getenv('ENVIRONMENT', 'development')
 
-ALLOWED_HOSTS = ['lahuequitaquitena-02bf29651b17.herokuapp.com', '127.0.0.1', 'localhost']
+if ENVIRONMENT == 'production':
+    DEBUG = False
+else:
+    DEBUG = True
 
+ALLOWED_HOSTS = []
 
 
 # Application definition
@@ -171,7 +176,7 @@ LOGIN_REDIRECT_URL = '/registro-turnos/dashboard/'
 LOGOUT_REDIRECT_URL = '/accounts/login/'
 
 
-import os
+
 
 # La URL que se usará para acceder a los archivos multimedia en tu aplicación.
 MEDIA_URL = '/media/'
