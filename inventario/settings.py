@@ -173,7 +173,7 @@ CELERY_TIMEZONE = 'America/Guayaquil'  # Ajusta según tu zona horaria, si es ne
 
 LOGIN_URL = '/registro-turnos/dashboard/'
 LOGIN_REDIRECT_URL = '/registro-turnos/dashboard/'
-LOGOUT_REDIRECT_URL = '/accounts/login/'
+LOGOUT_REDIRECT_URL = '/registro-turnos/login/'
 
 
 

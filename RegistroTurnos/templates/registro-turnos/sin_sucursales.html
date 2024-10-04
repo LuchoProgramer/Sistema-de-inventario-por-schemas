@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta charset="UTF-8">
+    <title>Sin Sucursales Asignadas</title>
+</head>
+<body>
+    <h1>Sin Sucursales Asignadas</h1>
+    <p>{{ mensaje }}</p>
+    <p>Por favor, contacta con un administrador para obtener más información.</p>
+
+    <!-- Formulario para cerrar sesión -->
+    <form action="{% url 'logout' %}" method="post">
+        {% csrf_token %}
+        <button type="submit">Cerrar sesión</button>
+    </form>
+</body>
+</html>
