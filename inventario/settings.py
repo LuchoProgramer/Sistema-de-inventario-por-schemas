@@ -51,6 +51,7 @@ INSTALLED_APPS = [
     'facturacion',
     'reportes.apps.ReportesConfig',
     'debug_toolbar',
+    'django_extensions',
 ]
 
 MIDDLEWARE = [
