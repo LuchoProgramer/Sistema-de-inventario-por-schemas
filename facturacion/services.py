@@ -45,12 +45,18 @@ def crear_factura(cliente, sucursal, usuario, carrito_items):
             sucursal.incrementar_secuencial()
             sucursal.save()
 
+            # Generar un número de autorización único combinando establecimiento, punto de emisión y secuencial
+            codigo_establecimiento = int(sucursal.codigo_establecimiento)  # 3 dígitos
+            punto_emision = int(sucursal.punto_emision)  # 3 dígitos
+            secuencial = f"{int(sucursal.secuencial_actual):09d}"  # 9 dígitos
+            numero_autorizacion = f"{codigo_establecimiento:03d} {punto_emision:03d} {secuencial}"
+
             # Crear la factura
             factura = Factura.objects.create(
                 sucursal=sucursal,
                 cliente=cliente,
                 usuario=usuario,
-                numero_autorizacion=sucursal.secuencial_actual.zfill(9),
+                numero_autorizacion=numero_autorizacion,
                 total_sin_impuestos=total_sin_impuestos.quantize(Decimal('0.01')),
                 valor_iva=total_iva.quantize(Decimal('0.01')),
                 total_con_impuestos=total_con_impuestos.quantize(Decimal('0.01')),
