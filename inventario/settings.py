@@ -93,7 +93,7 @@ DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
         'NAME': 'inventario_db',  # El nombre de la base de datos que creaste
-        'USER': 'postgres',  # El usuario que creaste (o 'postgres' si decides usar el predeterminado)
+        'USER': 'inventario_user',  # El usuario que creaste (o 'postgres' si decides usar el predeterminado)
         'PASSWORD': 'Camilucho1990',  # La contraseña del usuario
         'HOST': 'localhost',  # Mantén 'localhost' si estás trabajando localmente
         'PORT': '5432',  # El puerto por defecto de PostgreSQL
