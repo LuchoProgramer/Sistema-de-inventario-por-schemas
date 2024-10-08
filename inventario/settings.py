@@ -31,7 +31,7 @@ if ENVIRONMENT == 'production':
 else:
     DEBUG = True
 
-ALLOWED_HOSTS = ['167.71.241.147']
+ALLOWED_HOSTS = ['167.71.241.147', 'localhost', '127.0.0.1']
 
 
 # Application definition
