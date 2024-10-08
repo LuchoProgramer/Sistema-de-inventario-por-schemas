@@ -129,7 +129,7 @@ yarn-error.log
 package-lock.json
 
 # Django migrations #
-*/migrations/*
+#*/migrations/*
 
 # Ignore PyCharm/IDEA files #
 .idea/
