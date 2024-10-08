@@ -31,7 +31,7 @@ if ENVIRONMENT == 'production':
 else:
     DEBUG = True
 
-ALLOWED_HOSTS = ['web-production-90bf.up.railway.app', '127.0.0.1', 'localhost']
+ALLOWED_HOSTS = ['167.71.241.147']
 
 
 # Application definition
