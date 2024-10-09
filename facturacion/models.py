@@ -4,6 +4,9 @@ from django.core.validators import RegexValidator
 from decimal import Decimal
 from django.dispatch import receiver
 from django.db.models.signals import post_save
+import os
+import re
+from django.conf import settings
 
 class Cliente(models.Model):
     TIPO_IDENTIFICACION_OPCIONES = [
@@ -40,6 +43,24 @@ class Cliente(models.Model):
 
     def __str__(self):
         return f'{self.razon_social} ({self.identificacion})'
+
+
+
+
+def ruta_factura(instance, filename):
+    # Sanitizamos el nombre de la sucursal para evitar problemas con caracteres no válidos en nombres de carpetas
+    nombre_sucursal = re.sub(r'\W+', '_', instance.sucursal.nombre)
+
+    # Definimos la ruta completa para guardar el archivo
+    ruta = f'facturas/{nombre_sucursal}'
+    ruta_completa = os.path.join(settings.MEDIA_ROOT, ruta)
+
+    # Verificamos si la carpeta existe, si no, la creamos
+    if not os.path.exists(ruta_completa):
+        os.makedirs(ruta_completa)
+
+    # Retornamos la ruta relativa para guardar el archivo
+    return f'{ruta}/{filename}'
 
 
 class Factura(models.Model):
@@ -81,9 +102,11 @@ class Factura(models.Model):
     valor_iva = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))
         # Agregar la relación con RegistroTurno
     registroturno = models.ForeignKey('RegistroTurnos.RegistroTurno', on_delete=models.CASCADE, null=True, blank=True)
+    archivo_pdf = models.FileField(upload_to=ruta_factura, null=True, blank=True)
 
     class Meta:
         unique_together = ('sucursal', 'numero_autorizacion')
+    
 
     def calcular_total_pagado(self):
         return sum(pago.total for pago in self.pagos.all())
