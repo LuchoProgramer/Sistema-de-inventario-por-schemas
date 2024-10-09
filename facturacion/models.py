@@ -4,6 +4,8 @@ from django.core.validators import RegexValidator
 from decimal import Decimal
 from django.dispatch import receiver
 from django.db.models.signals import post_save
+from django.db import models
+
 
 class Cliente(models.Model):
     TIPO_IDENTIFICACION_OPCIONES = [
@@ -42,6 +44,10 @@ class Cliente(models.Model):
         return f'{self.razon_social} ({self.identificacion})'
 
 
+def ruta_factura(instance, filename):
+    # Crear la ruta dinámica usando el nombre de la sucursal
+    return f'facturas/{instance.sucursal.nombre}/{filename}'
+    
 class Factura(models.Model):
     ESTADOS_FACTURA = [
         ('EN_PROCESO', 'En Proceso'),
@@ -81,9 +87,12 @@ class Factura(models.Model):
     valor_iva = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))
         # Agregar la relación con RegistroTurno
     registroturno = models.ForeignKey('RegistroTurnos.RegistroTurno', on_delete=models.CASCADE, null=True, blank=True)
+    archivo_pdf = models.FileField(upload_to=ruta_factura, null=True, blank=True)  # Campo para almacenar el PDF de la factura
 
     class Meta:
         unique_together = ('sucursal', 'numero_autorizacion')
+
+
 
     def calcular_total_pagado(self):
         return sum(pago.total for pago in self.pagos.all())
