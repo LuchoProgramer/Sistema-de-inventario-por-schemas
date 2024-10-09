@@ -4,9 +4,14 @@ from django.core.validators import RegexValidator
 from decimal import Decimal
 from django.dispatch import receiver
 from django.db.models.signals import post_save
+<<<<<<< HEAD
 import os
 import re
 from django.conf import settings
+=======
+from django.db import models
+
+>>>>>>> d821db5ae82a49a079181f4cf0b64d46b5e743fb
 
 class Cliente(models.Model):
     TIPO_IDENTIFICACION_OPCIONES = [
@@ -45,6 +50,7 @@ class Cliente(models.Model):
         return f'{self.razon_social} ({self.identificacion})'
 
 
+<<<<<<< HEAD
 
 
 def ruta_factura(instance, filename):
@@ -63,6 +69,12 @@ def ruta_factura(instance, filename):
     return f'{ruta}/{filename}'
 
 
+=======
+def ruta_factura(instance, filename):
+    # Crear la ruta dinámica usando el nombre de la sucursal
+    return f'facturas/{instance.sucursal.nombre}/{filename}'
+    
+>>>>>>> d821db5ae82a49a079181f4cf0b64d46b5e743fb
 class Factura(models.Model):
     ESTADOS_FACTURA = [
         ('EN_PROCESO', 'En Proceso'),
@@ -102,11 +114,17 @@ class Factura(models.Model):
     valor_iva = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))
         # Agregar la relación con RegistroTurno
     registroturno = models.ForeignKey('RegistroTurnos.RegistroTurno', on_delete=models.CASCADE, null=True, blank=True)
+<<<<<<< HEAD
     archivo_pdf = models.FileField(upload_to=ruta_factura, null=True, blank=True)
+=======
+    archivo_pdf = models.FileField(upload_to=ruta_factura, null=True, blank=True)  # Campo para almacenar el PDF de la factura
+>>>>>>> d821db5ae82a49a079181f4cf0b64d46b5e743fb
 
     class Meta:
         unique_together = ('sucursal', 'numero_autorizacion')
     
+
+
 
     def calcular_total_pagado(self):
         return sum(pago.total for pago in self.pagos.all())

@@ -1,5 +1,4 @@
 # Django specific #
-*.log
 *.pot
 *.pyc
 __pycache__/
@@ -12,7 +11,6 @@ db.sqlite3
 
 # Static files #
 /staticfiles/
-/static/
 
 # Environment variables #
 .env
@@ -137,5 +135,5 @@ package-lock.json
 # Ignore VSCode files #
 .vscode/
 
-
+# Backup logs #
 debug.log
