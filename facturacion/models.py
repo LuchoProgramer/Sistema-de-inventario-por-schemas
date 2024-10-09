@@ -4,14 +4,8 @@ from django.core.validators import RegexValidator
 from decimal import Decimal
 from django.dispatch import receiver
 from django.db.models.signals import post_save
-<<<<<<< HEAD
-import os
-import re
-from django.conf import settings
-=======
 from django.db import models
 
->>>>>>> d821db5ae82a49a079181f4cf0b64d46b5e743fb
 
 class Cliente(models.Model):
     TIPO_IDENTIFICACION_OPCIONES = [
@@ -50,31 +44,11 @@ class Cliente(models.Model):
         return f'{self.razon_social} ({self.identificacion})'
 
 
-<<<<<<< HEAD
-
-
 def ruta_factura(instance, filename):
-    # Sanitizamos el nombre de la sucursal para evitar problemas con caracteres no válidos en nombres de carpetas
-    nombre_sucursal = re.sub(r'\W+', '_', instance.sucursal.nombre)
+    # Guardar todas las facturas directamente en la carpeta 'media'
+    return filename  # Solo devolvemos el nombre del archivo, sin crear subcarpetas
 
-    # Definimos la ruta completa para guardar el archivo
-    ruta = f'facturas/{nombre_sucursal}'
-    ruta_completa = os.path.join(settings.MEDIA_ROOT, ruta)
-
-    # Verificamos si la carpeta existe, si no, la creamos
-    if not os.path.exists(ruta_completa):
-        os.makedirs(ruta_completa)
-
-    # Retornamos la ruta relativa para guardar el archivo
-    return f'{ruta}/{filename}'
-
-
-=======
-def ruta_factura(instance, filename):
-    # Crear la ruta dinámica usando el nombre de la sucursal
-    return f'facturas/{instance.sucursal.nombre}/{filename}'
     
->>>>>>> d821db5ae82a49a079181f4cf0b64d46b5e743fb
 class Factura(models.Model):
     ESTADOS_FACTURA = [
         ('EN_PROCESO', 'En Proceso'),
@@ -114,15 +88,10 @@ class Factura(models.Model):
     valor_iva = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))
         # Agregar la relación con RegistroTurno
     registroturno = models.ForeignKey('RegistroTurnos.RegistroTurno', on_delete=models.CASCADE, null=True, blank=True)
-<<<<<<< HEAD
-    archivo_pdf = models.FileField(upload_to=ruta_factura, null=True, blank=True)
-=======
     archivo_pdf = models.FileField(upload_to=ruta_factura, null=True, blank=True)  # Campo para almacenar el PDF de la factura
->>>>>>> d821db5ae82a49a079181f4cf0b64d46b5e743fb
 
     class Meta:
         unique_together = ('sucursal', 'numero_autorizacion')
-    
 
 
 
