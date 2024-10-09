@@ -208,7 +208,7 @@ LOGGING = {
             'formatter': 'simple',
         },
         'file': {
-            'level': 'INFO',  # Registrar desde 'INFO' en adelante en el archivo
+            'level': 'DEBUG',  # Registrar eventos desde 'DEBUG' en adelante en el archivo
             'class': 'logging.handlers.RotatingFileHandler',
             'filename': os.path.join(BASE_DIR, 'debug.log'),
             'formatter': 'verbose',
@@ -219,7 +219,7 @@ LOGGING = {
     'loggers': {
         'django': {
             'handlers': ['console', 'file'],
-            'level': 'INFO',  # Solo registrar eventos importantes
+            'level': 'DEBUG',  # Registrar eventos desde 'DEBUG' en adelante
             'propagate': True,
         },
     },

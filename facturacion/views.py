@@ -221,7 +221,7 @@ def actualizar_impuesto(request, impuesto_id):
         form = ImpuestoForm(request.POST, instance=impuesto)
         if form.is_valid():
             form.save()
-            return redirect('lista_productos')  # O la vista que quieras redirigir
+            return redirect('facturacion/lista_productos')  # O la vista que quieras redirigir
     else:
         form = ImpuestoForm(instance=impuesto)
     
@@ -237,13 +237,17 @@ def crear_impuesto(request):
         form = ImpuestoForm(request.POST)
         if form.is_valid():
             form.save()
-            return redirect('facturacion/lista_impuestos.html')
+            messages.success(request, 'Impuesto creado correctamente.')
+            # Redirigir a la lista de impuestos
+            return redirect('facturacion:lista_impuestos')  # Asegúrate de usar el namespace 'facturacion'
     else:
         form = ImpuestoForm()
-    
     return render(request, 'facturacion/crear_impuesto.html', {'form': form})
+
+
 
 def eliminar_impuesto(request, impuesto_id):
     impuesto = get_object_or_404(Impuesto, id=impuesto_id)
     impuesto.delete()
-    return redirect('lista_impuestos')
+    messages.success(request, 'Impuesto eliminado correctamente.')
+    return redirect('facturacion:lista_impuestos')
