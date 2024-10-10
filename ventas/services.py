@@ -9,23 +9,29 @@ from decimal import Decimal
 class VentaService:
     @staticmethod
     @transaction.atomic
-    def registrar_venta(turno_activo, producto, cantidad, factura):
+    def registrar_venta(turno_activo, producto, cantidad, factura, presentacion):
         print("Iniciando el registro de la venta...")
 
-        # Calcular el total de la venta
-        precio_unitario = producto.precio_venta
-        total_venta = cantidad * precio_unitario
-        print(f"Total de la venta calculado: {total_venta} para {cantidad} unidades de {producto.nombre}")
+        if not presentacion:
+            raise ValueError(f"No se encontró una presentación para el producto {producto.nombre}")
 
-        # Registrar la venta, incluyendo la factura
+        # Calcular el total de unidades según la presentación seleccionada
+        total_unidades = cantidad * presentacion.cantidad  # Si es caja de 10, total_unidades = cantidad * 10
+
+        # Calcular el total de la venta usando la presentación seleccionada
+        precio_unitario = presentacion.precio
+        total_venta = cantidad * precio_unitario  # El precio por la presentación (ej. caja de 10, caja de 20, etc.)
+        print(f"Total de la venta calculado: {total_venta} para {cantidad} presentaciones de {presentacion.nombre_presentacion} del producto {producto.nombre}")
+
+        # Registrar la venta, incluyendo la presentación seleccionada
         try:
             venta = Venta.objects.create(
                 turno=turno_activo,
                 sucursal=turno_activo.sucursal,
                 usuario=turno_activo.usuario,
                 producto=producto,
-                cantidad=cantidad,
-                precio_unitario=precio_unitario,
+                cantidad=total_unidades,  # Se registran las unidades reales que salen del inventario
+                precio_unitario=precio_unitario,  # Precio de la presentación
                 total_venta=total_venta,
                 factura=factura,  # Aquí pasamos la factura
                 fecha=timezone.now(),  # Registrar la fecha actual
@@ -38,42 +44,40 @@ class VentaService:
         return venta
 
 
-
-
     @staticmethod
     @transaction.atomic
     def finalizar_venta(turno):
         print(f"Iniciando el proceso de finalizar venta para el turno: {turno.id}")
-        carrito_items = Carrito.objects.filter(turno=turno)
+        carrito_items = Carrito.objects.filter(turno=turno).select_related('presentacion', 'producto')
         print(f"Carrito para el turno {turno.id}, productos en el carrito: {carrito_items.count()}")
-        
+
         if not carrito_items.exists():
             print("El carrito está vacío. No se puede finalizar la venta.")
             raise ValueError("El carrito está vacío. No se puede finalizar la venta.")
-        
-        print("Procesando el carrito...")
 
         total_sin_impuestos = Decimal('0.00')
         total_con_impuestos = Decimal('0.00')
         errores = []
 
         for item in carrito_items:
-            print(f"Procesando producto: {item.producto.nombre}, cantidad: {item.cantidad}")
+            presentacion = item.presentacion
+            print(f"Procesando producto: {item.producto.nombre}, cantidad: {item.cantidad}, presentación: {presentacion.nombre_presentacion}")
             inventario = item.producto.inventario_set.filter(sucursal=turno.sucursal).first()
             if not inventario or inventario.cantidad < item.cantidad:
                 print(f"Error: No hay suficiente inventario para {item.producto.nombre}.")
                 errores.append(f"No hay suficiente inventario para {item.producto.nombre}.")
             else:
                 try:
-                    # Registrar la venta sin metodo_pago
+                    # Registrar la venta con la presentación seleccionada
                     total_item = item.subtotal()  # El subtotal ya incluye el precio unitario * cantidad
                     nueva_venta = Venta.objects.create(
                         turno=turno,
                         sucursal=turno.sucursal,
                         usuario=turno.usuario,  # Cambiado de empleado a usuario
                         producto=item.producto,
+                        presentacion=presentacion,
                         cantidad=item.cantidad,
-                        precio_unitario=item.producto.precio_venta,
+                        precio_unitario=presentacion.precio,
                         total_venta=total_item
                     )
                     print(f"Venta creada: {nueva_venta.id} para el producto: {item.producto.nombre}")
@@ -82,7 +86,7 @@ class VentaService:
                     errores.append(f"No se pudo registrar la venta para {item.producto.nombre}")
 
                 # Actualizar inventario
-                inventario.cantidad -= item.cantidad
+                inventario.cantidad -= item.cantidad * presentacion.cantidad
                 inventario.save()
                 print(f"Inventario actualizado para {item.producto.nombre}. Nueva cantidad: {inventario.cantidad}")
 
@@ -109,6 +113,7 @@ class VentaService:
         print("Carrito vaciado después de la venta.")
 
         return factura
+
 
 
 class TurnoService:

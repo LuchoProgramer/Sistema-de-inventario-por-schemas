@@ -82,10 +82,21 @@
                     {% endif %}
                     <div class="card-body">
                         <h5 class="card-title">{{ inventario.producto.nombre }}</h5>
-                        <p class="card-text">Precio: ${{ inventario.producto.precio_venta }}</p>
+                        <p class="card-text">Precio: ${{ inventario.presentacion.precio }}</p>
                         <p class="card-text">Stock: {{ inventario.cantidad }} unidades</p>
                         <form method="POST" action="{% url 'ventas:agregar_al_carrito' inventario.producto.id %}">
                             {% csrf_token %}
+    
+                            <!-- Selector de presentación -->
+                            <label for="presentacion_{{ inventario.producto.id }}">Presentación:</label>
+                            <select name="presentacion" id="presentacion_{{ inventario.producto.id }}" class="form-select" required>
+                                <option value="">Seleccione una presentación</option>
+                                {% for presentacion in inventario.producto.presentaciones.all %}
+                                <option value="{{ presentacion.id }}">{{ presentacion.nombre_presentacion }} - ${{ presentacion.precio }}</option>
+                                {% endfor %}
+                            </select>
+    
+                            <!-- Selector de cantidad -->
                             <label for="cantidad_{{ inventario.producto.id }}">Cantidad:</label>
                             <input type="number" name="cantidad" id="cantidad_{{ inventario.producto.id }}" min="1" max="{{ inventario.cantidad }}" value="1" required>
                             <button type="submit" class="btn btn-primary mt-2">Agregar al Carrito</button>
@@ -98,6 +109,7 @@
             <p>No hay productos disponibles en inventario para esta sucursal.</p>
         {% endif %}
     </div>
+    
 
     <!-- Carrito de Ventas -->
     <div class="mt-5">
