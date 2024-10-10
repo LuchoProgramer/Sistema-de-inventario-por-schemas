@@ -16,8 +16,7 @@
                     <th>ID</th>
                     <th>Nombre</th>
                     <th>Descripción</th>
-                    <th>Precio Compra</th>
-                    <th>Precio Venta</th>
+                    <th>Presentación y Precio</th>
                     <th>Sucursal</th>
                 </tr>
             </thead>
@@ -27,8 +26,13 @@
                     <td>{{ producto.id }}</td>
                     <td>{{ producto.nombre }}</td>
                     <td>{{ producto.descripcion }}</td>
-                    <td>{{ producto.precio_compra }}</td>
-                    <td>{{ producto.precio_venta }}</td>
+                    <td>
+                        {% if producto.presentaciones.exists %}
+                            {{ producto.presentaciones.first.nombre_presentacion }} - ${{ producto.presentaciones.first.precio }}
+                        {% else %}
+                            Sin presentaciones
+                        {% endif %}
+                    </td>
                     <td>
                         {% if producto.sucursal %}
                             {{ producto.sucursal.nombre }}

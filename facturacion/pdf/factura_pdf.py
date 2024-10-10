@@ -14,6 +14,7 @@ def configurar_documento(nombre_archivo):
 
 def agregar_cabecera(c, factura):
     # Información del emisor (Sucursal)
+    print(f"Generando cabecera para la factura: {factura.numero_autorizacion}")
     c.setFont("Helvetica-Bold", 12)
     c.drawString(MARGEN_X, 800, f"Nombre Comercial: {factura.sucursal.nombre}")
     c.setFont("Helvetica", 10)
@@ -46,6 +47,7 @@ def agregar_detalles_productos(c, factura):
 
     for detalle in factura.detalles.all():
         # Formatear la línea de detalle
+        print(f"Agregando producto {detalle.producto.nombre} a la factura.")
         c.drawString(MARGEN_X, y, f"{detalle.producto.nombre} - {detalle.cantidad} x {detalle.precio_unitario:.2f} = {detalle.total:.2f}")
         y -= 20
 
@@ -63,9 +65,14 @@ def agregar_totales(c, factura):
     c.drawString(MARGEN_X, 200, "Totales:")
     c.setFont("Helvetica", 10)
     
+    # Cálculo dinámico del IVA
     iva = factura.total_con_impuestos - factura.total_sin_impuestos
+    porcentaje_iva = factura.impuesto.porcentaje if hasattr(factura, 'impuesto') else 15
+    
+    print(f"Subtotal: {factura.total_sin_impuestos}, Total con impuestos: {factura.total_con_impuestos}, IVA: {iva:.2f} ({porcentaje_iva}%)")
+    
     c.drawString(MARGEN_X, 180, f"Subtotal sin impuestos: {factura.total_sin_impuestos:.2f}")
-    c.drawString(MARGEN_X, 160, f"Impuestos (IVA 12%): {iva:.2f}")
+    c.drawString(MARGEN_X, 160, f"Impuestos (IVA {porcentaje_iva}%): {iva:.2f}")
     c.drawString(MARGEN_X, 140, f"Total con impuestos: {factura.total_con_impuestos:.2f}")
     
     return c

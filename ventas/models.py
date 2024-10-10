@@ -1,5 +1,5 @@
 from django.db import models, transaction
-from inventarios.models import Producto, Inventario, MovimientoInventario
+from inventarios.models import Producto, Inventario, MovimientoInventario, Presentacion
 from sucursales.models import Sucursal
 from django.contrib.auth.models import User  # Asumiendo que los empleados están basados en el modelo User
 from django.db.models import Sum
@@ -121,6 +121,7 @@ class CierreCaja(models.Model):
 class Carrito(models.Model):
     turno = models.ForeignKey('RegistroTurnos.RegistroTurno', on_delete=models.CASCADE, related_name='carritos')
     producto = models.ForeignKey(Producto, on_delete=models.CASCADE)
+    presentacion = models.ForeignKey(Presentacion, on_delete=models.CASCADE)  # Relación con Presentación
     cantidad = models.PositiveIntegerField(default=1)
     agregado_el = models.DateTimeField(auto_now_add=True)
 
@@ -129,16 +130,17 @@ class Carrito(models.Model):
         if self.cantidad <= 0:
             raise ValidationError('La cantidad del producto debe ser mayor que cero.')
 
-        # Verificar que haya suficiente inventario del producto
+        # Verificar que haya suficiente inventario para la presentación seleccionada
         inventario = Inventario.objects.filter(producto=self.producto, sucursal=self.turno.sucursal).first()
-        if not inventario or inventario.cantidad < self.cantidad:
-            raise ValidationError(f'No hay suficiente stock para {self.producto.nombre}. Disponibles: {self.producto.stock}')
+        total_unidades = self.presentacion.cantidad * self.cantidad
+        if not inventario or inventario.cantidad < total_unidades:
+            raise ValidationError(f'No hay suficiente stock para {self.producto.nombre} en la presentación {self.presentacion.nombre_presentacion}. Disponibles: {inventario.cantidad if inventario else 0}')
 
         super().clean()
 
     def subtotal(self):
-        # Calcular subtotal con precisión de dos decimales
-        return (self.producto.precio_venta * self.cantidad).quantize(Decimal('0.01'))
+        # Calcular subtotal con el precio de la presentación, con precisión de dos decimales
+        return (self.presentacion.precio * self.cantidad).quantize(Decimal('0.01'))
 
     def __str__(self):
-        return f"{self.cantidad} x {self.producto.nombre} (en {self.turno.sucursal.nombre})"
+        return f"{self.cantidad} x {self.producto.nombre} ({self.presentacion.nombre_presentacion}) en {self.turno.sucursal.nombre}"

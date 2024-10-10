@@ -30,7 +30,12 @@ def crear_factura(cliente, sucursal, usuario, carrito_items):
     # Recorrer cada item del carrito para calcular totales
     for item in carrito_items:
         print(f"Procesando producto {item.producto.nombre}...")  # Depuración
-        valor_base, valor_iva = item.producto.obtener_valor_base_iva()  # Método del modelo Producto
+        
+        # Obtener la presentación del producto en el carrito
+        presentacion = item.presentacion  # Asegúrate de que el carrito tiene una relación con la presentación
+        
+        # Llama al método pasando la presentación
+        valor_base, valor_iva = item.producto.obtener_valor_base_iva(presentacion)  # Método del modelo Producto
 
         subtotal_item = valor_base * item.cantidad
         iva_item = valor_iva * item.cantidad
@@ -73,20 +78,21 @@ def crear_factura(cliente, sucursal, usuario, carrito_items):
             for item in carrito_items:
                 print(f"Creando detalle para el producto {item.producto.nombre}...")  # Depuración
                 
-                # Recalcular los valores para cada item
-                valor_base, valor_iva = item.producto.obtener_valor_base_iva()
+                # Recalcular los valores para cada item usando la presentación
+                presentacion = item.presentacion
+                valor_base, valor_iva = item.producto.obtener_valor_base_iva(item.presentacion)
                 subtotal_item = valor_base * item.cantidad
                 iva_item = valor_iva * item.cantidad
                 total_item = subtotal_item + iva_item
 
-                print(f"Valores de detalle: cantidad={item.cantidad}, precio_unitario={item.producto.precio_venta}, subtotal={subtotal_item}, total={total_item}")
+                print(f"Valores de detalle: cantidad={item.cantidad}, precio_unitario={presentacion.precio}, subtotal={subtotal_item}, total={total_item}")
 
                 # Crear el detalle de la factura
                 detalle = DetalleFactura.objects.create(
                     factura=factura,
                     producto=item.producto,
                     cantidad=item.cantidad,
-                    precio_unitario=item.producto.precio_venta,
+                    precio_unitario=item.presentacion.precio,
                     subtotal=subtotal_item.quantize(Decimal('0.01')),
                     descuento=0,
                     total=total_item.quantize(Decimal('0.01')),
@@ -123,6 +129,7 @@ def crear_factura(cliente, sucursal, usuario, carrito_items):
     except Exception as e:
         print(f"Error general en la transacción: {e}")  # Captura cualquier error general en la transacción
         raise e
+
 
 
 # Función para validar o crear un cliente

@@ -26,16 +26,6 @@
             </div>
             
             <div class="mb-3">
-                <label for="precio_compra" class="form-label">Precio de Compra</label>
-                {{ form.precio_compra }}
-            </div>
-            
-            <div class="mb-3">
-                <label for="precio_venta" class="form-label">Precio de Venta</label>
-                {{ form.precio_venta }}
-            </div>
-            
-            <div class="mb-3">
                 <label for="unidad_medida" class="form-label">Unidad de Medida</label>
                 {{ form.unidad_medida }}
             </div>
@@ -68,6 +58,11 @@
             <!-- Botón para enviar el formulario -->
             <button type="submit" class="btn btn-primary">Guardar Producto</button>
         </form>
+
+        <!-- Enlace para agregar presentaciones después de guardar el producto -->
+        {% if producto.id %}
+        <a href="{% url 'inventarios:agregar_presentaciones' producto.id %}" class="btn btn-info mt-4">Agregar Presentaciones</a>
+        {% endif %}
     </div>
 
     <!-- Bootstrap JS (opcional) -->

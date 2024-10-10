@@ -2,7 +2,7 @@
 
 from django import forms
 from .models import Producto
-from inventarios.models import Inventario
+from inventarios.models import Inventario, Presentacion
 from .models import CierreCaja
 
 class CierreCajaForm(forms.ModelForm):
@@ -19,6 +19,7 @@ class CierreCajaForm(forms.ModelForm):
 
 class SeleccionVentaForm(forms.Form):
     producto = forms.ModelChoiceField(queryset=Producto.objects.none(), label="Producto", empty_label="Seleccione un producto")
+    presentacion = forms.ModelChoiceField(queryset=Presentacion.objects.none(), label="Presentación", empty_label="Seleccione una presentación")  # Nuevo campo
     cantidad = forms.IntegerField(min_value=1, label="Cantidad")
     
     def __init__(self, *args, **kwargs):
@@ -30,17 +31,27 @@ class SeleccionVentaForm(forms.Form):
             if not productos_disponibles.exists():
                 self.fields['producto'].empty_label = "No hay productos disponibles"
             self.fields['producto'].queryset = productos_disponibles
-    
+
+        # Si hay un producto seleccionado, cargamos las presentaciones correspondientes
+        if 'producto' in self.data:
+            try:
+                producto_id = int(self.data.get('producto'))
+                self.fields['presentacion'].queryset = Presentacion.objects.filter(producto_id=producto_id)
+            except (ValueError, TypeError):
+                self.fields['presentacion'].queryset = Presentacion.objects.none()
+
     def clean(self):
         cleaned_data = super().clean()
         producto = cleaned_data.get("producto")
+        presentacion = cleaned_data.get("presentacion")
         cantidad = cleaned_data.get("cantidad")
         sucursal_id = self.initial.get('sucursal_id')
 
-        if producto and sucursal_id and cantidad:
+        if producto and presentacion and sucursal_id and cantidad:
             try:
                 inventario = producto.inventario_set.get(sucursal_id=sucursal_id)
-                if cantidad > inventario.cantidad:
+                total_unidades = presentacion.cantidad * cantidad  # Calculamos la cantidad total de unidades según la presentación
+                if total_unidades > inventario.cantidad:
                     raise forms.ValidationError(f"No hay suficiente stock. Disponible: {inventario.cantidad} unidades.")
             except Inventario.DoesNotExist:
                 raise forms.ValidationError("No hay inventario disponible para este producto en la sucursal seleccionada.")
@@ -61,3 +72,4 @@ class MetodoPagoForm(forms.Form):
         ('21', 'Endoso de títulos'),
     ]
     metodo_pago = forms.ChoiceField(choices=METODOS_PAGO_SRI, label="Método de Pago")
+

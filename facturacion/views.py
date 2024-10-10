@@ -145,7 +145,8 @@ def generar_factura(request):
 
                 # Registrar la venta para cada producto en el carrito
                 for item in carrito_items:
-                    VentaService.registrar_venta(turno_activo, item.producto, item.cantidad, factura)
+                    presentacion = item.presentacion  # Asegúrate de obtener la presentación seleccionada
+                    VentaService.registrar_venta(turno_activo, item.producto, item.cantidad, factura, presentacion)
 
                 # Obtener métodos y montos de pago del formulario
                 metodos_pago = request.POST.getlist('metodos_pago')

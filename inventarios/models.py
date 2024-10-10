@@ -14,8 +14,6 @@ class Categoria(models.Model):
 class Producto(models.Model):
     nombre = models.CharField(max_length=200, unique=True)
     descripcion = models.TextField(null=True, blank=True)
-    precio_compra = models.DecimalField(max_digits=10, decimal_places=2)
-    precio_venta = models.DecimalField(max_digits=10, decimal_places=2)
     unidad_medida = models.CharField(max_length=50, null=True, blank=True)
     categoria = models.ForeignKey('Categoria', on_delete=models.SET_NULL, null=True, blank=True)
     sucursal = models.ForeignKey('sucursales.Sucursal', on_delete=models.CASCADE, null=True, blank=True)
@@ -30,41 +28,23 @@ class Producto(models.Model):
     def __str__(self):
         return self.nombre
 
-    def calcular_margen(self):
-        return self.precio_venta - self.precio_compra
-
-    def obtener_valor_base_iva(self):
-        """
-        Calcula el valor sin impuestos y el valor del IVA,
-        asumiendo que el precio de venta ya incluye IVA.
-        Si no hay impuesto, retorna el precio de venta como valor base y 0 como IVA.
-        """
+    def obtener_valor_base_iva(self, presentacion):
         if self.impuesto and self.impuesto.porcentaje > 0:
-            valor_base = (self.precio_venta / (1 + self.impuesto.porcentaje / 100)).quantize(Decimal('0.01'))
-            valor_iva = (self.precio_venta - valor_base).quantize(Decimal('0.01'))
+            valor_base = (presentacion.precio / (1 + self.impuesto.porcentaje / 100)).quantize(Decimal('0.01'))
+            valor_iva = (presentacion.precio - valor_base).quantize(Decimal('0.01'))
             return valor_base, valor_iva
-        return self.precio_venta.quantize(Decimal('0.01')), Decimal('0.00')
+        return presentacion.precio.quantize(Decimal('0.01')), Decimal('0.00')
 
-    def calcular_precio_final(self):
-        """
-        Retorna el precio final del producto, que en este caso es el precio de venta
-        que ya incluye el IVA.
-        """
-        return self.precio_venta
+    def calcular_precio_final(self, presentacion):
+        return presentacion.precio
 
     def save(self, *args, **kwargs):
-        # Asignar impuesto del 15% si no se especifica
         if not self.impuesto:
             self.impuesto = Impuesto.objects.get(porcentaje=15.0)
         super().save(*args, **kwargs)
 
     def clean(self):
-        if self.precio_compra <= 0:
-            raise ValidationError("El precio de compra debe ser mayor que cero.")
-        if self.precio_venta <= 0:
-            raise ValidationError("El precio de venta debe ser mayor que cero.")
-        if self.precio_venta <= self.precio_compra:
-            raise ValidationError("El precio de venta debe ser mayor que el precio de compra para generar un margen positivo.")
+        pass  # Aquí podrías agregar validaciones futuras si lo deseas
 
 
 
@@ -189,3 +169,21 @@ class MovimientoInventario(models.Model):
 
     def __str__(self):
         return f"{self.tipo_movimiento} de {self.cantidad} de {self.producto.nombre} en {self.sucursal.nombre}"
+
+
+
+class Presentacion(models.Model):
+    producto = models.ForeignKey(Producto, on_delete=models.CASCADE, related_name='presentaciones')
+    nombre_presentacion = models.CharField(max_length=50)  # Ej. 'Unidad', 'Caja de 10', 'Caja de 20'
+    cantidad = models.PositiveIntegerField()  # Cantidad de unidades en esta presentación
+    precio = models.DecimalField(max_digits=10, decimal_places=2)  # Precio de la presentación
+    sucursal = models.ForeignKey('sucursales.Sucursal', on_delete=models.CASCADE, related_name='presentaciones')  # Agregar sucursal
+
+    def __str__(self):
+        return f"{self.nombre_presentacion} - {self.producto.nombre} - {self.sucursal.nombre}"
+
+    def clean(self):
+        if self.precio <= 0:
+            raise ValidationError("El precio debe ser mayor que cero.")
+        if self.cantidad <= 0:
+            raise ValidationError("La cantidad debe ser mayor que cero.")

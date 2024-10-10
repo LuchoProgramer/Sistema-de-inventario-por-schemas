@@ -1,5 +1,5 @@
 from django.shortcuts import render, redirect
-from .models import Producto, Inventario, Compra, Categoria, Transferencia, MovimientoInventario
+from .models import Producto, Inventario, Compra, Categoria, Transferencia, MovimientoInventario, Presentacion
 from django.shortcuts import get_object_or_404
 from .forms import CompraForm, ProductoForm, CategoriaForm, TransferenciaForm
 from sucursales.models import Sucursal
@@ -10,6 +10,78 @@ from django.http import HttpResponse
 from facturacion.models import Impuesto
 from .forms import UploadFileForm
 from django.urls import reverse
+from .forms import PresentacionMultipleForm
+from django.forms import inlineformset_factory
+from django.http import JsonResponse
+
+# Creamos el formset para las presentaciones
+PresentacionFormSet = inlineformset_factory(
+    Producto, 
+    Presentacion, 
+    form=PresentacionMultipleForm, 
+    extra=1,
+    fields=['nombre_presentacion', 'cantidad', 'precio', 'sucursal']  # Especifica los campos que quieres incluir
+)
+
+# @login_required
+def agregar_presentaciones_multiples(request, producto_id):
+    producto = get_object_or_404(Producto, id=producto_id)
+    print(f"Producto cargado: {producto.nombre}")
+
+    if request.method == 'POST':
+        print("Método POST recibido")
+        print(f"Datos POST: {request.POST}")
+        form = PresentacionMultipleForm(request.POST)
+        print("Formulario creado")
+
+        if form.is_valid():
+            print("El formulario es válido")
+            # Obtener las sucursales seleccionadas
+            sucursales = form.cleaned_data['sucursales']
+            print(f"Sucursales seleccionadas: {[s.nombre for s in sucursales]}")
+
+            for sucursal in sucursales:
+                # Verificar si ya existe la presentación en la misma sucursal
+                if Presentacion.objects.filter(
+                    producto=producto,
+                    nombre_presentacion=form.cleaned_data['nombre_presentacion'],
+                    sucursal=sucursal
+                ).exists():
+                    print(f"Presentación ya existe para la sucursal: {sucursal.nombre}")
+                    continue  # Saltar a la siguiente sucursal
+
+                # Si no existe, crear la nueva presentación
+                nueva_presentacion = Presentacion(
+                    producto=producto,
+                    nombre_presentacion=form.cleaned_data['nombre_presentacion'],
+                    cantidad=form.cleaned_data['cantidad'],
+                    precio=form.cleaned_data['precio'],
+                    sucursal=sucursal  # Asignar la sucursal
+                )
+                nueva_presentacion.save()
+                print(f"Presentación agregada para la sucursal: {sucursal.nombre}")
+
+            # Enviar respuesta de éxito
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({'success': True})
+            return redirect('inventarios:producto_detalle', producto_id=producto.id)
+        else:
+            print("El formulario no es válido")
+            print(f"Errores en el formulario: {form.errors}")
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                return JsonResponse({'success': False, 'errors': form.errors})
+
+    else:
+        print("Método GET recibido, cargando formulario")
+        form = PresentacionMultipleForm()
+
+    return render(request, 'inventarios/agregar_presentaciones_multiples.html', {
+        'form': form,
+        'producto': producto,
+    })
+
+
+
 
 def seleccionar_sucursal(request):
     # Obtener el usuario autenticado
@@ -198,7 +270,11 @@ def productos_por_categoria(request, categoria_id):
 
 def ver_producto(request, producto_id):
     producto = get_object_or_404(Producto, id=producto_id)
-    return render(request, 'inventarios/ver_producto.html', {'producto': producto})
+    presentaciones = Presentacion.objects.filter(producto=producto)  # Obtener presentaciones asociadas
+    return render(request, 'inventarios/ver_producto.html', {
+        'producto': producto,
+        'presentaciones': presentaciones,  # Pasar las presentaciones al template
+    })
 
 
 def editar_producto(request, producto_id):
@@ -243,7 +319,8 @@ def lista_movimientos_inventario(request):
     movimientos = MovimientoInventario.objects.all().order_by('-fecha')  # Ordenados por fecha descendente
     return render(request, 'inventarios/lista_movimientos_inventario.html', {'movimientos': movimientos})
 
-#Cargar productos con excel
+#OJO
+# Cargar productos con Excel
 def cargar_productos(request):
     if request.method == 'POST':
         form = UploadFileForm(request.POST, request.FILES)
@@ -254,7 +331,7 @@ def cargar_productos(request):
                 df = pd.read_excel(file)
 
                 # Definir los campos obligatorios y opcionales
-                required_columns = ['Nombre', 'Precio Compra', 'Precio Venta']
+                required_columns = ['Nombre', 'Precio Compra', 'Precio Venta', 'Nombre Presentación', 'Cantidad Presentación']
                 optional_columns = ['Descripción', 'Unidad de Medida', 'Categoria', 'Sucursal', 'Código Producto', 'Stock Mínimo']
                 allowed_columns = required_columns + optional_columns
 
@@ -268,23 +345,46 @@ def cargar_productos(request):
 
                 # Procesar cada fila del DataFrame
                 for index, row in df.iterrows():
-                    # Asignar automáticamente el impuesto del 15%
-                    impuesto = Impuesto.objects.get(porcentaje=15.0)
+                    try:
+                        # Asignar automáticamente el impuesto del 15%
+                        impuesto = Impuesto.objects.get(porcentaje=15.0)
 
-                    Producto.objects.create(
-                        nombre=row['Nombre'],  # Campo obligatorio
-                        precio_compra=row['Precio Compra'],  # Campo obligatorio
-                        precio_venta=row['Precio Venta'],  # Campo obligatorio
-                        impuesto=impuesto,  # Se asigna automáticamente el 15%
-                        # Campos opcionales, solo se cargan si están presentes en el archivo
-                        descripcion=row.get('Descripción', ''),  # Si no está, se asigna una cadena vacía
-                        unidad_medida=row.get('Unidad de Medida', ''),  # Si no está, se asigna una cadena vacía
-                        categoria=row.get('Categoria', None),  # Si no está, se asigna None
-                        sucursal=row.get('Sucursal', None),  # Si no está, se asigna None
-                        codigo_producto=row.get('Código Producto', None),  # Si no está, se asigna None
-                        stock_minimo=row.get('Stock Mínimo', 0),  # Si no está, se asigna 0 como valor por defecto
-                    )
-                return HttpResponse("Productos cargados con éxito")
+                        # Obtener o crear categoría
+                        categoria = None
+                        if row.get('Categoria'):
+                            categoria, _ = Categoria.objects.get_or_create(nombre=row['Categoria'])
+
+                        # Obtener o crear sucursal
+                        sucursal = None
+                        if row.get('Sucursal'):
+                            sucursal = Sucursal.objects.filter(nombre=row['Sucursal']).first()
+                            if not sucursal:
+                                return HttpResponse(f"Error: La sucursal {row['Sucursal']} no existe.")
+
+                        # Crear el producto sin precio
+                        producto = Producto.objects.create(
+                            nombre=row['Nombre'],  # Campo obligatorio
+                            precio_compra=row['Precio Compra'],  # Campo obligatorio
+                            impuesto=impuesto,  # Se asigna automáticamente el 15%
+                            descripcion=row.get('Descripción', ''),  # Si no está, se asigna una cadena vacía
+                            unidad_medida=row.get('Unidad de Medida', ''),  # Si no está, se asigna una cadena vacía
+                            categoria=categoria,  # Asociar a la categoría
+                            sucursal=sucursal,  # Asociar a la sucursal
+                            codigo_producto=row.get('Código Producto', None),  # Si no está, se asigna None
+                            stock_minimo=row.get('Stock Mínimo', 0),  # Si no está, se asigna 0 como valor por defecto
+                        )
+
+                        # Crear la presentación del producto
+                        Presentacion.objects.create(
+                            producto=producto,
+                            nombre_presentacion=row['Nombre Presentación'],  # Nombre de la presentación (Ej. Unidad, Caja de 10)
+                            cantidad=row['Cantidad Presentación'],  # Cantidad de unidades en la presentación
+                            precio=row['Precio Venta'],  # Precio asignado a la presentación
+                        )
+                    except Exception as e:
+                        return HttpResponse(f"Error al procesar la fila {index + 1}: {e}")
+
+                return HttpResponse("Productos y presentaciones cargados con éxito")
             except Exception as e:
                 return HttpResponse(f"Error al cargar productos: {e}")
     else:

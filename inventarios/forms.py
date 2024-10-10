@@ -1,5 +1,6 @@
 from django import forms
-from .models import Compra, Producto, Categoria, Transferencia
+from .models import Compra, Producto, Categoria, Transferencia, Presentacion
+from sucursales.models import Sucursal
 
 class CompraForm(forms.ModelForm):
     class Meta:
@@ -16,7 +17,17 @@ class CompraForm(forms.ModelForm):
 class ProductoForm(forms.ModelForm):
     class Meta:
         model = Producto
-        fields = ['nombre', 'descripcion', 'precio_compra', 'precio_venta', 'unidad_medida', 'categoria', 'sucursal', 'codigo_producto', 'impuesto', 'image']
+        fields = ['nombre', 'descripcion', 'unidad_medida', 'categoria', 'sucursal', 'codigo_producto', 'impuesto', 'image']
+        widgets = {
+            'nombre': forms.TextInput(attrs={'class': 'form-control'}),
+            'descripcion': forms.Textarea(attrs={'class': 'form-control'}),
+            'unidad_medida': forms.TextInput(attrs={'class': 'form-control'}),
+            'categoria': forms.Select(attrs={'class': 'form-control'}),
+            'sucursal': forms.Select(attrs={'class': 'form-control'}),
+            'codigo_producto': forms.TextInput(attrs={'class': 'form-control'}),
+            'impuesto': forms.Select(attrs={'class': 'form-control'}),
+            'image': forms.ClearableFileInput(attrs={'class': 'form-control'}),
+        }
 
 
 class CategoriaForm(forms.ModelForm):
@@ -40,3 +51,10 @@ class InventarioForm(forms.ModelForm):
         model = Inventario
         fields = ['producto', 'sucursal', 'cantidad']
 
+
+class PresentacionMultipleForm(forms.Form):
+    nombre_presentacion = forms.CharField(max_length=100, label="Nombre de la Presentación")
+    cantidad = forms.IntegerField(min_value=1, label="Cantidad por Presentación")
+    precio = forms.DecimalField(max_digits=10, decimal_places=2, label="Precio")
+    sucursales = forms.ModelMultipleChoiceField(queryset=Sucursal.objects.all(), label="Sucursales", widget=forms.CheckboxSelectMultiple)
+    
