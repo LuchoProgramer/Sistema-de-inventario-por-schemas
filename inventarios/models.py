@@ -49,20 +49,23 @@ class Producto(models.Model):
 
 
 class Inventario(models.Model):
-    producto = models.ForeignKey(Producto, on_delete=models.CASCADE)
+    producto = models.ForeignKey('Producto', on_delete=models.CASCADE)
+    presentacion = models.ForeignKey('Presentacion', on_delete=models.CASCADE, related_name='inventarios')  # Usa el nombre de la clase en formato string
     sucursal = models.ForeignKey('sucursales.Sucursal', on_delete=models.CASCADE)
     cantidad = models.IntegerField()
     fecha_actualizacion = models.DateTimeField(auto_now=True)
 
     class Meta:
-        unique_together = ('producto', 'sucursal')
+        unique_together = ('presentacion', 'sucursal')
 
     def __str__(self):
-        return f'{self.producto.nombre} - {self.cantidad} unidades en {self.sucursal.nombre}'
+        return f'{self.presentacion.nombre_presentacion} - {self.producto.nombre} - {self.cantidad} unidades en {self.sucursal.nombre}'
 
     def clean(self):
         if self.cantidad < 0:
             raise ValidationError("La cantidad en inventario no puede ser negativa.")
+        
+
 
 class Compra(models.Model):
     sucursal = models.ForeignKey('sucursales.Sucursal', on_delete=models.CASCADE)
