@@ -196,25 +196,16 @@ from logging.handlers import RotatingFileHandler
 
 LOGGING = {
     'version': 1,
-    'disable_existing_loggers': False,
+    'disable_existing_loggers': True,  # Desactivar todos los loggers preexistentes
     'formatters': {
         'verbose': {
             'format': '{levelname} {asctime} {module} {message}',
             'style': '{',
         },
-        'simple': {
-            'format': '{levelname} {message}',
-            'style': '{',
-        },
     },
     'handlers': {
-        'console': {
-            'level': 'ERROR',  # Solo mostrar errores graves en la consola
-            'class': 'logging.StreamHandler',
-            'formatter': 'simple',
-        },
         'file': {
-            'level': 'DEBUG',  # Registrar eventos desde 'DEBUG' en adelante en el archivo
+            'level': 'ERROR',  # Registrar solo errores graves
             'class': 'logging.handlers.RotatingFileHandler',
             'filename': os.path.join(BASE_DIR, 'debug.log'),
             'formatter': 'verbose',
@@ -224,9 +215,9 @@ LOGGING = {
     },
     'loggers': {
         'django': {
-            'handlers': ['console', 'file'],
-            'level': 'DEBUG',  # Registrar eventos desde 'DEBUG' en adelante
-            'propagate': True,
+            'handlers': ['file'],  # Solo registrar en el archivo
+            'level': 'ERROR',  # Registrar solo eventos desde 'ERROR'
+            'propagate': False,  # No propagar a otros loggers
         },
     },
 }

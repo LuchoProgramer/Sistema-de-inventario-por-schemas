@@ -4,6 +4,9 @@ from django import forms
 from .models import Producto
 from inventarios.models import Inventario, Presentacion
 from .models import CierreCaja
+from inventarios.services.validacion_inventario_service import ValidacionInventarioService
+
+
 
 class CierreCajaForm(forms.ModelForm):
     class Meta:
@@ -19,7 +22,7 @@ class CierreCajaForm(forms.ModelForm):
 
 class SeleccionVentaForm(forms.Form):
     producto = forms.ModelChoiceField(queryset=Producto.objects.none(), label="Producto", empty_label="Seleccione un producto")
-    presentacion = forms.ModelChoiceField(queryset=Presentacion.objects.none(), label="Presentación", empty_label="Seleccione una presentación")  # Nuevo campo
+    presentacion = forms.ModelChoiceField(queryset=Presentacion.objects.none(), label="Presentación", empty_label="Seleccione una presentación")
     cantidad = forms.IntegerField(min_value=1, label="Cantidad")
     
     def __init__(self, *args, **kwargs):
@@ -48,15 +51,11 @@ class SeleccionVentaForm(forms.Form):
         sucursal_id = self.initial.get('sucursal_id')
 
         if producto and presentacion and sucursal_id and cantidad:
-            try:
-                inventario = producto.inventario_set.get(sucursal_id=sucursal_id)
-                total_unidades = presentacion.cantidad * cantidad  # Calculamos la cantidad total de unidades según la presentación
-                if total_unidades > inventario.cantidad:
-                    raise forms.ValidationError(f"No hay suficiente stock. Disponible: {inventario.cantidad} unidades.")
-            except Inventario.DoesNotExist:
-                raise forms.ValidationError("No hay inventario disponible para este producto en la sucursal seleccionada.")
-            except Exception as e:
-                raise forms.ValidationError(f"Error al verificar el inventario: {str(e)}")
+            # Usar el servicio especializado de validación de inventario
+            if not ValidacionInventarioService.validar_inventario(producto, presentacion, cantidad):
+                raise forms.ValidationError(f"No hay suficiente stock disponible para {producto.nombre} en la sucursal seleccionada.")
+        return cleaned_data
+
 
 
 

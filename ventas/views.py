@@ -19,12 +19,17 @@ from datetime import timedelta
 from django.http import JsonResponse
 from django.db import transaction
 from inventarios.models import Inventario, Categoria, Presentacion
+from inventarios.services.validacion_inventario_service import ValidacionInventarioService
+from inventarios.services.ajuste_inventario_service import AjusteInventarioService
+from inventarios.services.movimiento_inventario_service import MovimientoInventarioService
+from inventarios.services.calculo_precio_service import CalculoPrecioService
+from inventarios.services.obtener_inventarios_sucursal_service import ObtenerInventariosSucursalService
+
 
 
 @login_required
 @transaction.atomic
 def registrar_venta(request):
-    # Verificar turno activo del usuario
     print("Verificando turno activo...")
     turno_activo = RegistroTurno.objects.filter(usuario=request.user, fin_turno__isnull=True).first()
     
@@ -37,10 +42,11 @@ def registrar_venta(request):
         
         if form.is_valid():
             producto = form.cleaned_data['producto']
-            presentacion = form.cleaned_data['presentacion']  # Presentación seleccionada
+            presentacion = form.cleaned_data['presentacion']
             cantidad = form.cleaned_data['cantidad']
 
-            print(f"Producto seleccionado: {producto.nombre}, Presentación: {presentacion.nombre_presentacion}, Cantidad: {cantidad}")
+            print(f"Producto seleccionado: {producto.nombre}, Presentación: {presentacion.nombre_presentacion}, Cantidad seleccionada: {cantidad}")
+            print(f"Cada presentación tiene {presentacion.cantidad} unidades.")
 
             metodo_pago_seleccionado = request.POST.get('metodo_pago')
             metodo_pago = dict(Pago.METODOS_PAGO_SRI).get(metodo_pago_seleccionado)
@@ -49,33 +55,22 @@ def registrar_venta(request):
                 form.add_error(None, f"Método de pago no válido: {metodo_pago_seleccionado}")
                 return render(request, 'ventas/registrar_venta.html', {'form': form})
 
-            print(f"Método de pago seleccionado: {metodo_pago}")
-
             try:
                 with transaction.atomic():
                     cliente = getattr(turno_activo.usuario, 'cliente', None)
                     if not cliente:
-                        print("Error: No se encontró un cliente asociado al usuario.")
                         form.add_error(None, "No se encontró un cliente asociado al usuario.")
                         return render(request, 'ventas/registrar_venta.html', {'form': form})
 
-                    # Verificar disponibilidad de inventario según la presentación seleccionada
-                    print(f"Verificando inventario para {producto.nombre} en la sucursal {turno_activo.sucursal.nombre}")
-                    inventario = Inventario.objects.filter(producto=producto, sucursal=turno_activo.sucursal).first()
-                    total_unidades = presentacion.cantidad * cantidad
-                    
-                    if not inventario or inventario.cantidad < total_unidades:
-                        print(f"Error: No hay suficiente inventario disponible para {producto.nombre}.")
+                    # 1. Validar inventario
+                    if not ValidacionInventarioService.validar_inventario(producto, presentacion, cantidad):
                         return JsonResponse({'error': f'No hay suficiente inventario disponible para {producto.nombre}.'}, status=400)
 
-                    print(f"Inventario disponible: {inventario.cantidad}, Total solicitado: {total_unidades}")
+                    # 2. Calcular el precio usando el servicio
+                    total_sin_impuestos = CalculoPrecioService.calcular_precio(presentacion, cantidad)
+                    total_con_impuestos = total_sin_impuestos * Decimal('1.12')  # Aplicar impuestos
 
-                    # Crear la factura
-                    total_sin_impuestos = presentacion.precio * cantidad
-                    total_con_impuestos = total_sin_impuestos * Decimal('1.12')
-
-                    print(f"Creando factura. Total sin impuestos: {total_sin_impuestos}, Total con impuestos: {total_con_impuestos}")
-
+                    # 3. Crear la factura
                     factura = Factura.objects.create(
                         sucursal=turno_activo.sucursal,
                         cliente=cliente,
@@ -86,28 +81,20 @@ def registrar_venta(request):
                         registroturno=turno_activo
                     )
 
-                    print(f"Factura creada con éxito: {factura.numero_autorizacion}")
-
-                    # Registrar el pago
-                    Pago.objects.create(
-                        factura=factura,
-                        codigo_sri=metodo_pago_seleccionado,
-                        descripcion=metodo_pago,
-                        total=total_con_impuestos
+                    # 4. Registrar la venta y ajustar el inventario
+                    VentaService.registrar_venta(
+                        turno_activo=turno_activo, 
+                        producto=producto, 
+                        cantidad=cantidad,  # Usamos la cantidad directamente
+                        factura=factura, 
+                        presentacion=presentacion
                     )
-                    print(f"Pago registrado con el método: {metodo_pago}")
 
-                    # Verificar si la venta ya fue registrada para este producto y factura
-                    if not Venta.objects.filter(factura=factura, producto=producto).exists():
-                        # Descontar el stock basado en la presentación seleccionada
-                        inventario.cantidad -= total_unidades
-                        inventario.save()
+                    # 5. Ajustar inventario después de la venta
+                    AjusteInventarioService.ajustar_inventario(producto, presentacion, cantidad)
 
-                        print(f"Inventario actualizado para {producto.nombre}. Nueva cantidad: {inventario.cantidad}")
-
-                        # Registrar la venta con la presentación seleccionada
-                        VentaService.registrar_venta(turno_activo, producto, cantidad, factura, presentacion)
-                        print(f"Venta registrada para el producto: {producto.nombre}, Presentación: {presentacion.nombre_presentacion}")
+                    # 6. Registrar el movimiento de inventario
+                    MovimientoInventarioService.registrar_movimiento_inventario(producto, cantidad, 'VENTA', turno_activo.sucursal)
 
                     return redirect('dashboard')
 
@@ -124,34 +111,44 @@ def registrar_venta(request):
 
 
 
+
+
+
+
 @login_required
 def inicio_turno(request, turno_id):
+    print(f"Usuario {request.user} accediendo a inicio_turno para el turno {turno_id}")
+    
     turno = get_object_or_404(RegistroTurno, id=turno_id, usuario=request.user)
 
     categoria_seleccionada = request.GET.get('categoria')
     termino_busqueda = request.GET.get('q')
 
     categorias = Categoria.objects.all()
-    inventarios = Inventario.objects.filter(sucursal=turno.sucursal).select_related('producto__categoria')
+
+    # Usamos el servicio ObtenerInventariosSucursalService para obtener los inventarios
+    inventarios = ObtenerInventariosSucursalService.obtener_inventarios(turno.sucursal)
 
     if categoria_seleccionada:
         inventarios = inventarios.filter(producto__categoria_id=categoria_seleccionada)
-
+        print(f"Categoría seleccionada: {categoria_seleccionada}")
+    
     if termino_busqueda:
         inventarios = inventarios.filter(producto__nombre__icontains=termino_busqueda)
+        print(f"Término de búsqueda: {termino_busqueda}")
 
-    # Añadimos las presentaciones de cada producto
+    # Presentaciones ya precargadas en el servicio
     for inventario in inventarios:
-        inventario.presentaciones = Presentacion.objects.filter(producto=inventario.producto)
+        print(f"Producto: {inventario.producto.nombre}, Presentaciones cargadas: {[p.nombre_presentacion for p in inventario.producto.presentaciones.all()]}")
 
-    # Carrito con lógica de stock por presentación
+    # Carrito con lógica de stock por producto, no por presentación
     carrito_items = Carrito.objects.filter(turno=turno).select_related('producto')
-    inventario_dict = {inv.producto.id: inv.cantidad for inv in inventarios}
-
+    
+    # Validar stock usando el servicio ValidacionInventarioService
     for item in carrito_items:
-        producto_cantidad = inventario_dict.get(item.producto.id, 0)
-        if item.cantidad >= producto_cantidad:
+        if not ValidacionInventarioService.validar_stock_disponible(item.producto, item.cantidad):
             messages.warning(request, f'El producto {item.producto.nombre} ya tiene todo su stock agregado al carrito.')
+        print(f"Producto en carrito: {item.producto.nombre}, Cantidad en carrito: {item.cantidad}")
 
     return render(request, 'ventas/inicio_turno.html', {
         'turno': turno,
@@ -164,47 +161,52 @@ def inicio_turno(request, turno_id):
 
 
 
+
+
 @login_required
 def agregar_al_carrito(request, producto_id):
     # Obtener el producto con la categoría precargada para evitar una consulta adicional
     producto = get_object_or_404(Producto.objects.select_related('categoria'), id=producto_id)
-    
+    print(f"Producto seleccionado: {producto.nombre}")
+
     # Obtener el turno activo del usuario con la sucursal ya cargada para evitar más consultas
     turno = RegistroTurno.objects.filter(usuario=request.user, fin_turno__isnull=True).select_related('sucursal').first()
+    print(f"Turno activo encontrado: {turno.id} en la sucursal {turno.sucursal.nombre}" if turno else "No hay turno activo")
 
     if turno:
         # Obtener la presentación seleccionada desde el formulario
         presentacion_id = request.POST.get('presentacion')  # Obtener el id de la presentación seleccionada
         presentacion = get_object_or_404(Presentacion, id=presentacion_id, producto=producto)
+        print(f"Presentación seleccionada: {presentacion.nombre_presentacion} con {presentacion.cantidad} unidades por presentación")
 
-        # Calcular el inventario según la presentación (multiplicamos por la cantidad de unidades por presentación)
-        try:
-            inventario_disponible = Inventario.objects.get(producto=producto, sucursal=turno.sucursal).cantidad
-        except Inventario.DoesNotExist:
-            messages.error(request, f'No hay inventario disponible para el producto {producto.nombre}.')
-            return redirect('ventas:inicio_turno', turno_id=turno.id)
-
+        # Obtener la cantidad solicitada desde el formulario
         cantidad = int(request.POST.get('cantidad', 1))  # Obtener la cantidad del formulario, por defecto 1
         total_unidades_solicitadas = presentacion.cantidad * cantidad  # Calcular las unidades totales según la presentación
+        print(f"Total de unidades solicitadas: {total_unidades_solicitadas} (Cantidad solicitada: {cantidad}, Unidades por presentación: {presentacion.cantidad})")
 
-        # Validar que la cantidad solicitada no exceda el stock disponible
-        if total_unidades_solicitadas > inventario_disponible:
-            messages.error(request, f'No hay suficiente stock de {producto.nombre}. Solo quedan {inventario_disponible} unidades en stock.')
+        # Validar inventario usando el servicio ValidacionInventarioService
+        if not ValidacionInventarioService.validar_inventario(producto, presentacion, cantidad):
+            messages.error(request, f'No hay suficiente inventario disponible para {producto.nombre}.')
             return redirect('ventas:inicio_turno', turno_id=turno.id)
 
         # Obtener o crear un ítem en el carrito para esta presentación
-        carrito_item, created = Carrito.objects.get_or_create(turno=turno, producto=producto, presentacion=presentacion)
+        carrito_items = Carrito.objects.filter(turno=turno, producto=producto, presentacion=presentacion)
 
-        # Actualizar la cantidad en el carrito
-        nueva_cantidad = carrito_item.cantidad + cantidad if not created else cantidad
+        if carrito_items.exists():
+            carrito_item = carrito_items.first()  # Obtener el primer ítem existente en el carrito
+            nueva_cantidad = carrito_item.cantidad + cantidad  # Sumar la cantidad al existente
+            print(f"Carrito actualizado para el producto: {producto.nombre}, Presentación: {presentacion.nombre_presentacion}")
+        else:
+            carrito_item = Carrito(turno=turno, producto=producto, presentacion=presentacion, cantidad=cantidad)
+            nueva_cantidad = cantidad
+            print(f"Carrito creado para el producto: {producto.nombre}, Presentación: {presentacion.nombre_presentacion}")
 
         total_unidades_en_carrito = presentacion.cantidad * nueva_cantidad  # Unidades según la presentación
-        if total_unidades_en_carrito > inventario_disponible:
-            messages.error(request, f'No puedes agregar más de {inventario_disponible} unidades de {producto.nombre}.')
-            return redirect('ventas:inicio_turno', turno_id=turno.id)
+        print(f"Total de unidades en carrito: {total_unidades_en_carrito} (Nueva cantidad: {nueva_cantidad})")
 
         carrito_item.cantidad = nueva_cantidad
         carrito_item.save()
+        print(f"Cantidad actualizada en el carrito: {nueva_cantidad}")
 
         messages.success(request, f'Se ha agregado {cantidad} de la presentación {presentacion.nombre_presentacion} de {producto.nombre} al carrito.')
         return redirect('ventas:inicio_turno', turno_id=turno.id)
@@ -213,26 +215,38 @@ def agregar_al_carrito(request, producto_id):
         return redirect('ventas:inicio_turno', turno_id=request.POST.get('turno_id', 0))
 
 
+
+
+
+
+
+
+
+
     
 
 @login_required
 def ver_carrito(request):
     # Obtener el turno activo del usuario con la sucursal ya cargada si se usa en la vista
     turno = RegistroTurno.objects.filter(usuario=request.user, fin_turno__isnull=True).select_related('sucursal').first()
+    print(f"Turno activo encontrado: {turno.id} en la sucursal {turno.sucursal.nombre}" if turno else "No hay turno activo.")
 
     # Verificar si el usuario ha hecho clic en el botón "Eliminar"
     if request.method == 'POST':
         item_id = request.POST.get('item_id')  # Obtener el ID del producto del formulario
         carrito_item = get_object_or_404(Carrito, id=item_id)
+        print(f"Eliminando el producto del carrito: {carrito_item.producto.nombre} con presentación {carrito_item.presentacion.nombre_presentacion}")
         carrito_item.delete()  # Eliminar el producto del carrito
         return redirect('ventas:ver_carrito')  # Redirigir al carrito actualizado
 
     if turno:
-        # Obtener los items del carrito con el producto precargado
-        carrito_items = Carrito.objects.filter(turno=turno).select_related('producto')
+        # Obtener los items del carrito con el producto y presentación precargados
+        carrito_items = Carrito.objects.filter(turno=turno).select_related('producto', 'presentacion')
+        print(f"Carrito contiene {carrito_items.count()} items.")
 
         # Calcular el total utilizando los datos ya cargados
         total = sum(item.subtotal() for item in carrito_items)
+        print(f"Total calculado del carrito: {total}")
 
         return render(request, 'ventas/ver_carrito.html', {
             'carrito_items': carrito_items,
@@ -240,23 +254,34 @@ def ver_carrito(request):
             'turno': turno
         })
     else:
+        print("No hay turno activo.")
         return render(request, 'ventas/error.html', {'mensaje': 'No tienes un turno activo.'})
 
+
+
     
+
+
+@login_required
 def finalizar_venta(request):
+    # Obtener el turno activo del usuario
     turno_activo = RegistroTurno.objects.filter(usuario=request.user, fin_turno__isnull=True).first()
     if not turno_activo:
+        print("No tienes un turno activo.")
         return render(request, 'ventas/error.html', {'mensaje': 'No tienes un turno activo.'})
 
     # Obtener productos en el carrito
     carrito_items = Carrito.objects.filter(turno=turno_activo)
+    print(f"Carrito contiene {carrito_items.count()} productos.")
 
     if not carrito_items.exists():
+        print("El carrito está vacío. No se puede finalizar la venta.")
         return render(request, 'ventas/error.html', {'mensaje': 'El carrito está vacío. No se puede finalizar la venta.'})
 
     # Calcular totales
     total_sin_impuestos = sum(item.subtotal() for item in carrito_items)
     total_con_impuestos = total_sin_impuestos * Decimal('1.12')  # Aplicar IVA del 12%
+    print(f"Total sin impuestos: {total_sin_impuestos}, Total con impuestos: {total_con_impuestos}")
 
     # Crear la factura antes de registrar las ventas
     factura = Factura.objects.create(
@@ -268,15 +293,33 @@ def finalizar_venta(request):
         estado='AUTORIZADA',
         registroturno=turno_activo
     )
+    print(f"Factura creada con ID: {factura.id}")
 
     # Registrar cada venta en base a los productos del carrito
     for item in carrito_items:
-        VentaService.registrar_venta(turno_activo, item.producto, item.cantidad, factura)
+        producto = item.producto
+        presentacion = item.presentacion
+        cantidad = item.cantidad
+
+        # Validar el inventario antes de registrar la venta usando el servicio
+        if not ValidacionInventarioService.validar_inventario(producto, presentacion, cantidad):
+            print(f"Inventario insuficiente para {producto.nombre} en la presentación {presentacion.nombre_presentacion}")
+            return render(request, 'ventas/error.html', {'mensaje': f'Inventario insuficiente para {producto.nombre}.'})
+
+        # Registrar la venta usando el servicio
+        print(f"Registrando venta para el producto: {producto.nombre}, Cantidad: {cantidad}")
+        VentaService.registrar_venta(turno_activo, producto, cantidad, factura, presentacion)
+        print(f"Venta registrada para {producto.nombre}")
+
+        # El ajuste del inventario se maneja dentro de VentaService.
 
     # Vaciar el carrito después de completar la venta
     carrito_items.delete()
+    print("Carrito vaciado después de la venta.")
 
     return redirect('ventas:inicio_turno', turno_id=turno_activo.id)
+
+
 
 
 
@@ -346,12 +389,15 @@ def comparar_cierre_ventas(request, turno_id):
 def buscar_productos(request):
     termino_busqueda = request.GET.get('q', '')
     turno_id = request.GET.get('turno_id')
+    print(f"Término de búsqueda: {termino_busqueda}, Turno ID: {turno_id}")
 
     # Obtener el turno activo del usuario
     turno = get_object_or_404(RegistroTurno, id=turno_id, usuario=request.user)
+    print(f"Turno activo encontrado: {turno.id} en la sucursal {turno.sucursal.nombre}")
 
     # Filtrar los productos por nombre y sucursal del turno activo
     inventarios = Inventario.objects.filter(sucursal=turno.sucursal, producto__nombre__icontains=termino_busqueda).select_related('producto')
+    print(f"Productos encontrados: {inventarios.count()} para el término de búsqueda '{termino_busqueda}'")
 
     # Crear una lista de los productos filtrados
     productos_filtrados = []
@@ -366,6 +412,10 @@ def buscar_productos(request):
                 'stock': inventario.cantidad,
                 'imagen': inventario.producto.image.url if inventario.producto.image else '/static/default_image.png'
             })
+            print(f"Producto: {inventario.producto.nombre}, Precio: {presentacion.precio}, Stock: {inventario.cantidad}")
+        else:
+            print(f"Producto: {inventario.producto.nombre} no tiene presentaciones asociadas.")
 
     return JsonResponse({'productos': productos_filtrados})
+
 

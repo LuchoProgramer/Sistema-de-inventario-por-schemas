@@ -5,8 +5,11 @@ from facturacion.models import Factura
 from django.utils import timezone
 from django.db import transaction
 from decimal import Decimal
+from inventarios.services.validacion_inventario_service import ValidacionInventarioService
+
 
 class VentaService:
+    
     @staticmethod
     @transaction.atomic
     def registrar_venta(turno_activo, producto, cantidad, factura, presentacion):
@@ -15,26 +18,23 @@ class VentaService:
         if not presentacion:
             raise ValueError(f"No se encontró una presentación para el producto {producto.nombre}")
 
-        # Calcular el total de unidades según la presentación seleccionada
-        total_unidades = cantidad * presentacion.cantidad  # Si es caja de 10, total_unidades = cantidad * 10
-
         # Calcular el total de la venta usando la presentación seleccionada
-        precio_unitario = presentacion.precio
-        total_venta = cantidad * precio_unitario  # El precio por la presentación (ej. caja de 10, caja de 20, etc.)
-        print(f"Total de la venta calculado: {total_venta} para {cantidad} presentaciones de {presentacion.nombre_presentacion} del producto {producto.nombre}")
+        precio_unitario = presentacion.precio  # El precio unitario de la presentación seleccionada
+        total_venta = cantidad * precio_unitario  # Precio total de la venta
+        print(f"Total de la venta calculado: {total_venta} para {cantidad} unidades de {presentacion.nombre_presentacion} del producto {producto.nombre}")
 
-        # Registrar la venta, incluyendo la presentación seleccionada
+        # Registrar la venta
         try:
             venta = Venta.objects.create(
                 turno=turno_activo,
                 sucursal=turno_activo.sucursal,
                 usuario=turno_activo.usuario,
                 producto=producto,
-                cantidad=total_unidades,  # Se registran las unidades reales que salen del inventario
-                precio_unitario=precio_unitario,  # Precio de la presentación
+                cantidad=cantidad,  # Usar cantidad total en unidades
+                precio_unitario=precio_unitario,
                 total_venta=total_venta,
-                factura=factura,  # Aquí pasamos la factura
-                fecha=timezone.now(),  # Registrar la fecha actual
+                factura=factura,
+                fecha=timezone.now(),
             )
             print(f"Venta registrada exitosamente con ID: {venta.id} para el producto {producto.nombre}")
         except Exception as e:
@@ -60,38 +60,29 @@ class VentaService:
         errores = []
 
         for item in carrito_items:
+            producto = item.producto
             presentacion = item.presentacion
-            print(f"Procesando producto: {item.producto.nombre}, cantidad: {item.cantidad}, presentación: {presentacion.nombre_presentacion}")
-            inventario = item.producto.inventario_set.filter(sucursal=turno.sucursal).first()
-            if not inventario or inventario.cantidad < item.cantidad:
-                print(f"Error: No hay suficiente inventario para {item.producto.nombre}.")
-                errores.append(f"No hay suficiente inventario para {item.producto.nombre}.")
-            else:
-                try:
-                    # Registrar la venta con la presentación seleccionada
-                    total_item = item.subtotal()  # El subtotal ya incluye el precio unitario * cantidad
-                    nueva_venta = Venta.objects.create(
-                        turno=turno,
-                        sucursal=turno.sucursal,
-                        usuario=turno.usuario,  # Cambiado de empleado a usuario
-                        producto=item.producto,
-                        presentacion=presentacion,
-                        cantidad=item.cantidad,
-                        precio_unitario=presentacion.precio,
-                        total_venta=total_item
-                    )
-                    print(f"Venta creada: {nueva_venta.id} para el producto: {item.producto.nombre}")
-                except Exception as e:
-                    print(f"Error al crear la venta para {item.producto.nombre}: {str(e)}")
-                    errores.append(f"No se pudo registrar la venta para {item.producto.nombre}")
+            cantidad = item.cantidad
 
-                # Actualizar inventario
-                inventario.cantidad -= item.cantidad * presentacion.cantidad
-                inventario.save()
-                print(f"Inventario actualizado para {item.producto.nombre}. Nueva cantidad: {inventario.cantidad}")
+            print(f"Procesando producto: {producto.nombre}, cantidad de presentaciones: {cantidad}, presentación: {presentacion.nombre_presentacion}")
 
-                total_sin_impuestos += total_item
-                total_con_impuestos += total_item * Decimal('1.12')  # Ejemplo con IVA 12%
+            # Validar inventario utilizando el servicio de validación
+            if not ValidacionInventarioService.validar_inventario(producto, presentacion, cantidad):
+                print(f"Error: No hay suficiente inventario para {producto.nombre}.")
+                errores.append(f"No hay suficiente inventario para {producto.nombre}.")
+                continue  # Pasar al siguiente item si hay un error
+
+            try:
+                # Registrar la venta con la presentación seleccionada
+                total_item = item.subtotal()  # El subtotal ya incluye el precio unitario * cantidad
+                nueva_venta = VentaService.registrar_venta(turno, producto, cantidad * presentacion.cantidad, factura=None, presentacion=presentacion)
+                print(f"Venta creada: {nueva_venta.id} para el producto: {producto.nombre}")
+            except Exception as e:
+                print(f"Error al crear la venta para {producto.nombre}: {str(e)}")
+                errores.append(f"No se pudo registrar la venta para {producto.nombre}")
+
+            total_sin_impuestos += total_item
+            total_con_impuestos += total_item * Decimal('1.12')  # Aplicar IVA
 
         if errores:
             print(f"Errores al registrar ventas: {'; '.join(errores)}")
@@ -100,12 +91,12 @@ class VentaService:
         # Crear la factura
         factura = Factura.objects.create(
             sucursal=turno.sucursal,
-            cliente=turno.usuario.cliente,  # Cambiado de empleado.cliente a usuario.cliente
-            usuario=turno.usuario,  # Cambiado de empleado a usuario
+            cliente=turno.usuario.cliente,
+            usuario=turno.usuario,
             total_sin_impuestos=total_sin_impuestos,
             total_con_impuestos=total_con_impuestos,
             estado='AUTORIZADA',
-            turno=turno
+            turno=turno,
         )
         print(f"Factura creada exitosamente con ID: {factura.id} para el turno {turno.id}")
 
@@ -113,6 +104,8 @@ class VentaService:
         print("Carrito vaciado después de la venta.")
 
         return factura
+
+
 
 
 

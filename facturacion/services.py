@@ -12,33 +12,33 @@ from RegistroTurnos.models import RegistroTurno
 from facturacion.pdf.factura_pdf import generar_pdf_factura
 import os
 from django.conf import settings
-
+from inventarios.services.validacion_inventario_service import ValidacionInventarioService
+from inventarios.services.movimiento_inventario_service import MovimientoInventarioService
 
 def crear_factura(cliente, sucursal, usuario, carrito_items):
-    print("Iniciando la creación de la factura...")  # Depuración
+    print("Iniciando la creación de la factura...")
 
-    # Obtener el IVA activo (solo uno) y lanzar un error si no se encuentra
+    # Obtener el IVA activo
     iva = Impuesto.objects.filter(codigo_impuesto='2', activo=True).first()
     if not iva:
-        print("No se encontró un IVA activo.")  # Depuración
+        print("No se encontró un IVA activo.")
         raise ValidationError("No se encontró un IVA activo en la base de datos")
 
     total_sin_impuestos = Decimal('0.00')
     total_iva = Decimal('0.00')
     total_con_impuestos = Decimal('0.00')
 
-    # Recorrer cada item del carrito para calcular totales
     for item in carrito_items:
-        print(f"Procesando producto {item.producto.nombre}...")  # Depuración
-        
-        # Obtener la presentación del producto en el carrito
-        presentacion = item.presentacion  # Asegúrate de que el carrito tiene una relación con la presentación
-        
-        # Llama al método pasando la presentación
-        valor_base, valor_iva = item.producto.obtener_valor_base_iva(presentacion)  # Método del modelo Producto
+        print(f"Procesando producto {item.producto.nombre}...")
 
-        subtotal_item = valor_base * item.cantidad
-        iva_item = valor_iva * item.cantidad
+        presentacion = item.presentacion
+        total_unidades_solicitadas = item.cantidad * presentacion.cantidad
+
+        # Obtener el valor base e IVA del producto
+        valor_base, valor_iva = item.producto.obtener_valor_base_iva(presentacion)
+
+        subtotal_item = valor_base * total_unidades_solicitadas
+        iva_item = valor_iva * total_unidades_solicitadas
 
         total_sin_impuestos += subtotal_item
         total_iva += iva_item
@@ -46,14 +46,14 @@ def crear_factura(cliente, sucursal, usuario, carrito_items):
 
     try:
         with transaction.atomic():
-            print("Iniciando transacción para crear la factura y los detalles...")  # Depuración
+            print("Iniciando transacción para crear la factura y los detalles...")
             sucursal.incrementar_secuencial()
             sucursal.save()
 
-            # Generar un número de autorización único combinando establecimiento, punto de emisión y secuencial
-            codigo_establecimiento = int(sucursal.codigo_establecimiento)  # 3 dígitos
-            punto_emision = int(sucursal.punto_emision)  # 3 dígitos
-            secuencial = f"{int(sucursal.secuencial_actual):09d}"  # 9 dígitos
+            # Generar número de autorización
+            codigo_establecimiento = int(sucursal.codigo_establecimiento)
+            punto_emision = int(sucursal.punto_emision)
+            secuencial = f"{int(sucursal.secuencial_actual):09d}"
             numero_autorizacion = f"{codigo_establecimiento:03d} {punto_emision:03d} {secuencial}"
 
             # Crear la factura
@@ -67,32 +67,27 @@ def crear_factura(cliente, sucursal, usuario, carrito_items):
                 total_con_impuestos=total_con_impuestos.quantize(Decimal('0.01')),
                 estado='EN_PROCESO'
             )
-            print(f"Factura creada con número de autorización {factura.numero_autorizacion}...")  # Depuración
-
-            # Obtener todos los inventarios necesarios con `select_for_update()`
-            productos_ids = [item.producto.id for item in carrito_items]
-            inventarios = Inventario.objects.select_for_update().filter(sucursal=sucursal, producto_id__in=productos_ids)
-            inventario_dict = {inv.producto.id: inv for inv in inventarios}
+            print(f"Factura creada con número de autorización {factura.numero_autorizacion}...")
 
             # Crear los detalles de la factura y actualizar el inventario
             for item in carrito_items:
-                print(f"Creando detalle para el producto {item.producto.nombre}...")  # Depuración
-                
-                # Recalcular los valores para cada item usando la presentación
                 presentacion = item.presentacion
-                valor_base, valor_iva = item.producto.obtener_valor_base_iva(item.presentacion)
-                subtotal_item = valor_base * item.cantidad
-                iva_item = valor_iva * item.cantidad
+                total_unidades_solicitadas = item.cantidad * presentacion.cantidad
+
+                # Calcular valores de detalle
+                valor_base, valor_iva = item.producto.obtener_valor_base_iva(presentacion)
+                subtotal_item = valor_base * total_unidades_solicitadas
+                iva_item = valor_iva * total_unidades_solicitadas
                 total_item = subtotal_item + iva_item
 
-                print(f"Valores de detalle: cantidad={item.cantidad}, precio_unitario={presentacion.precio}, subtotal={subtotal_item}, total={total_item}")
+                print(f"Valores de detalle: cantidad={total_unidades_solicitadas}, precio_unitario={presentacion.precio}, subtotal={subtotal_item}, total={total_item}")
 
                 # Crear el detalle de la factura
                 detalle = DetalleFactura.objects.create(
                     factura=factura,
                     producto=item.producto,
-                    cantidad=item.cantidad,
-                    precio_unitario=item.presentacion.precio,
+                    cantidad=total_unidades_solicitadas,
+                    precio_unitario=presentacion.precio,
                     subtotal=subtotal_item.quantize(Decimal('0.01')),
                     descuento=0,
                     total=total_item.quantize(Decimal('0.01')),
@@ -100,35 +95,27 @@ def crear_factura(cliente, sucursal, usuario, carrito_items):
                 )
                 print(f"Detalle creado: {detalle}")
 
-                # Actualiza el inventario desde el diccionario de inventarios
-                inventario = inventario_dict.get(item.producto.id)
-                if not inventario or inventario.cantidad < item.cantidad:
-                    print(f"No hay suficiente inventario disponible para {item.producto.nombre}.")  # Depuración
+                # Validar y ajustar inventario usando los servicios especializados
+                if not ValidacionInventarioService.validar_inventario(item.producto, presentacion, item.cantidad):
+                    print(f"No hay suficiente inventario para {item.producto.nombre}.")
                     raise ValidationError(f"No hay suficiente inventario disponible para {item.producto.nombre}.")
 
-                inventario.cantidad -= item.cantidad
-                inventario.save()
-                print(f"Inventario actualizado para {item.producto.nombre}. Nueva cantidad: {inventario.cantidad}")
+                # Ajuste del inventario a través del servicio de movimiento
+                MovimientoInventarioService.ajustar_inventario(item.producto, presentacion, item.cantidad)
 
-                # Registrar el movimiento del inventario
-                MovimientoInventario.objects.create(
-                    producto=item.producto,
-                    sucursal=sucursal,
-                    tipo_movimiento='VENTA',
-                    cantidad=-item.cantidad
-                )
-
-            # Verificar si la factura tiene detalles asociados
             if not factura.detalles.exists():
-                print("Error: La factura no tiene detalles asociados.")  # Depuración
+                print("Error: La factura no tiene detalles asociados.")
                 raise ValidationError("La factura no tiene detalles asociados.")
-            print(f"Factura {factura.numero_autorizacion} completada con {factura.detalles.count()} detalles.")  # Depuración
-
+            
+            print(f"Factura {factura.numero_autorizacion} completada con {factura.detalles.count()} detalles.")
             return factura
 
     except Exception as e:
-        print(f"Error general en la transacción: {e}")  # Captura cualquier error general en la transacción
+        print(f"Error general en la transacción: {e}")
         raise e
+
+
+
 
 
 

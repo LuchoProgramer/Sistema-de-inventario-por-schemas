@@ -22,8 +22,8 @@ from ventas.forms import MetodoPagoForm
 from ventas.models import Carrito
 from facturacion.services import obtener_o_crear_cliente, verificar_turno_activo, asignar_pagos_a_factura, generar_pdf_factura_y_guardar
 from facturacion.services import crear_factura  # Si no lo tienes aún, importa la función que maneja la creación de facturas.
-
-
+from inventarios.services.validacion_inventario_service import ValidacionInventarioService
+from inventarios.services.movimiento_inventario_service import MovimientoInventarioService
  
 @transaction.atomic
 def generar_cotizacion(request):
@@ -82,7 +82,6 @@ def generar_factura(request):
     if request.method == 'POST':
         print("POST request para generar factura")
         
-        # Datos del cliente proporcionados por la solicitud POST
         cliente_id = request.POST.get('cliente_id')
         identificacion = request.POST.get('identificacion')
         print(f"Cliente ID: {cliente_id}, Identificación: {identificacion}")
@@ -104,77 +103,62 @@ def generar_factura(request):
             cliente = obtener_o_crear_cliente(cliente_id, identificacion, data_cliente)
             print(f"Cliente obtenido/creado: {cliente}")
 
-            # Verificar que el usuario tiene un turno activo y obtener la sucursal relacionada
             usuario = request.user
             turno_activo = RegistroTurno.objects.filter(usuario=usuario, fin_turno__isnull=True).select_related('sucursal').first()
             
             if not turno_activo:
                 return JsonResponse({'error': 'No tienes un turno activo.'}, status=400)
 
-            # Aquí solo consultamos una vez el turno y luego reutilizamos la variable `turno_activo`
             print(f"Turno activo: {turno_activo}")
-
-            # Obtener la sucursal directamente desde el turno
             sucursal = turno_activo.sucursal
 
-            # Obtener los items del carrito con el producto relacionado, en una sola consulta
-            carrito_items = Carrito.objects.filter(turno=turno_activo).select_related('producto')
+            carrito_items = Carrito.objects.filter(turno=turno_activo).select_related('producto', 'presentacion')
             print(f"Carrito del usuario {usuario}: {list(carrito_items)}")
 
             if not carrito_items.exists():
                 return JsonResponse({'error': 'El carrito está vacío. No se puede generar una factura.'}, status=400)
 
-            # Obtener todos los inventarios para los productos en el carrito en una sola consulta
-            inventarios = Inventario.objects.filter(producto__in=[item.producto for item in carrito_items], sucursal=sucursal)
-            inventario_dict = {inv.producto.id: inv.cantidad for inv in inventarios}
-
-            # Verificar el inventario para todos los productos antes de proceder
+            # Verificar el inventario para todos los productos usando `validar_inventario` de ValidacionInventarioService
             for item in carrito_items:
-                inventario_cantidad = inventario_dict.get(item.producto.id, 0)
-                if inventario_cantidad < item.cantidad:
-                    print(f"No hay suficiente inventario disponible para {item.producto.nombre}. Inventario actual: {inventario_cantidad}, cantidad solicitada: {item.cantidad}")
+                presentacion = item.presentacion
+                cantidad_solicitada = item.cantidad
+
+                if not ValidacionInventarioService.validar_inventario(item.producto, presentacion, cantidad_solicitada):
+                    print(f"No hay suficiente inventario disponible para {item.producto.nombre}.")
                     return JsonResponse({'error': f'No hay suficiente inventario disponible para {item.producto.nombre}.'}, status=400)
 
-                print(f"Producto: {item.producto.nombre}, Inventario actual: {inventario_cantidad}, Cantidad solicitada: {item.cantidad}")
+                print(f"Producto: {item.producto.nombre}, Cantidad solicitada en unidades: {cantidad_solicitada}")
 
-            # Crear la factura y registrar la venta en una transacción atómica
-            with transaction.atomic():
-                print(f"Creando factura para cliente {cliente} y sucursal {sucursal}")
-                factura = crear_factura(cliente, sucursal, usuario, carrito_items)
-                print(f"Factura creada: {factura}")
+            print(f"Creando factura para cliente {cliente} y sucursal {sucursal}")
+            factura = crear_factura(cliente, sucursal, usuario, carrito_items)
+            print(f"Factura creada: {factura}")
 
-                # Registrar la venta para cada producto en el carrito
-                for item in carrito_items:
-                    presentacion = item.presentacion  # Asegúrate de obtener la presentación seleccionada
-                    VentaService.registrar_venta(turno_activo, item.producto, item.cantidad, factura, presentacion)
+            # Registrar la venta para cada producto en el carrito usando `registrar_venta` de VentaService
+            for item in carrito_items:
+                presentacion = item.presentacion
+                VentaService.registrar_venta(turno_activo, item.producto, item.cantidad, factura, presentacion)
 
-                # Obtener métodos y montos de pago del formulario
-                metodos_pago = request.POST.getlist('metodos_pago')
-                montos_pago = request.POST.getlist('montos_pago')
-                print(f"Métodos de pago: {metodos_pago}, Montos de pago: {montos_pago}")
+            # Actualizar el inventario después de confirmar la venta usando `ajustar_inventario` de MovimientoInventarioService
+            #for item in carrito_items:
+                #MovimientoInventarioService.ajustar_inventario(item.producto, item.presentacion, item.cantidad)
 
-                if len(metodos_pago) != len(montos_pago):
-                    raise ValueError('Métodos de pago y montos no coinciden.')
+            metodos_pago = request.POST.getlist('metodos_pago')
+            montos_pago = request.POST.getlist('montos_pago')
+            print(f"Métodos de pago: {metodos_pago}, Montos de pago: {montos_pago}")
 
-                # Verificar si la factura tiene detalles asociados
-                detalles = factura.detalles.all()
-                if not detalles.exists():
-                    raise ValueError('La factura no tiene detalles asociados.')
+            if len(metodos_pago) != len(montos_pago):
+                raise ValueError('Métodos de pago y montos no coinciden.')
 
-                # Asignar los pagos a la factura
-                print(f"Asignando pagos a la factura {factura}")
-                asignar_pagos_a_factura(factura, metodos_pago, montos_pago)
+            print(f"Asignando pagos a la factura {factura}")
+            asignar_pagos_a_factura(factura, metodos_pago, montos_pago)
 
-                # Generar el PDF de la factura y guardarlo
-                print(f"Generando PDF para la factura {factura}")
-                pdf_url = generar_pdf_factura_y_guardar(factura)
-                print(f"PDF generado: {pdf_url}")
+            print(f"Generando PDF para la factura {factura}")
+            pdf_url = generar_pdf_factura_y_guardar(factura)
+            print(f"PDF generado: {pdf_url}")
 
-                # Eliminar los artículos del carrito después de generar la factura
-                print(f"Eliminando artículos del carrito para el usuario {usuario}")
-                carrito_items.delete()
+            print(f"Eliminando artículos del carrito para el usuario {usuario}")
+            carrito_items.delete()
 
-            # Redirigir al turno activo
             redirect_url = reverse('ventas:inicio_turno', args=[turno_activo.id])
             print(f"Redirigiendo a {redirect_url}")
             return JsonResponse({'pdf_url': pdf_url, 'redirect_url': redirect_url})
@@ -188,7 +172,6 @@ def generar_factura(request):
             return JsonResponse({'error': 'Ocurrió un error al generar la factura.'}, status=500)
 
     else:
-        # Si la solicitud es GET, obtener los detalles del carrito y el total de la factura
         carrito_items = obtener_carrito(request.user).select_related('producto')
         total_factura = sum(item.subtotal() for item in carrito_items)
 
@@ -198,6 +181,9 @@ def generar_factura(request):
             'clientes': Cliente.objects.all(),
             'total_factura': total_factura,
         })
+
+
+
 
    
 
