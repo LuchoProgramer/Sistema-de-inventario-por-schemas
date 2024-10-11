@@ -86,6 +86,7 @@ def crear_factura(cliente, sucursal, usuario, carrito_items):
                 detalle = DetalleFactura.objects.create(
                     factura=factura,
                     producto=item.producto,
+                    presentacion=presentacion,
                     cantidad=total_unidades_solicitadas,
                     precio_unitario=presentacion.precio,
                     subtotal=subtotal_item.quantize(Decimal('0.01')),

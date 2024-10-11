@@ -14,9 +14,9 @@ class CalculoPrecioService:
             precio_total = presentacion.precio * cantidad
             print(f"Presentación 'Unidad' seleccionada. Precio unitario: {presentacion.precio}. Total calculado: {precio_total}")
         else:
-            # Para "Media" o "Entera", usar el precio global de la presentación
-            precio_total = presentacion.precio
-            print(f"Presentación '{presentacion.nombre_presentacion}' seleccionada. Precio total por paquete: {precio_total}. No se multiplica por la cantidad de unidades.")
+            # Para "Media" o "Entera", usar el precio global de la presentación y multiplicar por la cantidad de paquetes
+            precio_total = presentacion.precio * cantidad
+            print(f"Presentación '{presentacion.nombre_presentacion}' seleccionada. Precio total por paquete: {presentacion.precio}. Total calculado: {precio_total} para {cantidad} paquetes.")
 
         print(f"Precio total final calculado: {precio_total} para {cantidad} presentaciones de {presentacion.nombre_presentacion}")
 

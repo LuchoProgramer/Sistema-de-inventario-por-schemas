@@ -64,56 +64,51 @@ class Inventario(models.Model):
         if self.cantidad < 0:
             raise ValidationError("La cantidad en inventario no puede ser negativa.")
 
+class Proveedor(models.Model):
+    nombre = models.CharField(max_length=255)  # Razón Social
+    ruc = models.CharField(max_length=13)  # Registro Único de Contribuyentes
+    direccion = models.CharField(max_length=255)
+    telefono = models.CharField(max_length=15, null=True, blank=True)
+    email = models.EmailField(null=True, blank=True)
+    activo = models.BooleanField(default=True)
 
+    def __str__(self):
+        return self.nombre
 
 class Compra(models.Model):
     sucursal = models.ForeignKey('sucursales.Sucursal', on_delete=models.CASCADE)
-    producto = models.ForeignKey(Producto, on_delete=models.CASCADE)
-    cantidad = models.IntegerField()
-    precio_unitario = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)  # Permitir que sea nulo inicialmente
-    fecha = models.DateTimeField(auto_now_add=True)
-
-    def clean(self):
-        # Validar que la cantidad sea un número positivo
-        if self.cantidad <= 0:
-            raise ValidationError('La cantidad debe ser mayor que cero.')
-
-        # Si el precio_unitario es None, establece un valor predeterminado antes de la validación
-        if self.precio_unitario is None:
-            self.precio_unitario = self.producto.precio_compra
-
-        # Verificar que el precio unitario sea un valor positivo
-        if self.precio_unitario <= 0:
-            raise ValidationError('El precio unitario debe ser mayor que cero.')
-
-    @transaction.atomic
-    def save(self, *args, **kwargs):
-        # Ejecutar validaciones antes de guardar
-        self.full_clean()  # Esto ejecuta el método clean automáticamente
-
-        # Actualizar el inventario
-        inventario, created = Inventario.objects.get_or_create(
-            sucursal=self.sucursal,
-            producto=self.producto,
-            defaults={'cantidad': self.cantidad}
-        )
-        if not created:
-            inventario.cantidad += self.cantidad
-            inventario.save()
-
-        # Registrar el movimiento de compra
-        MovimientoInventario.objects.create(
-            producto=self.producto,
-            sucursal=self.sucursal,
-            tipo_movimiento='COMPRA',
-            cantidad=self.cantidad
-        )
-
-        super(Compra, self).save(*args, **kwargs)
+    proveedor = models.ForeignKey(Proveedor, on_delete=models.SET_NULL, null=True, blank=True)
+    numero_autorizacion = models.CharField(max_length=50)
+    fecha_emision = models.DateField()  # Extraído del XML
+    total_sin_impuestos = models.DecimalField(max_digits=10, decimal_places=2)
+    total_con_impuestos = models.DecimalField(max_digits=10, decimal_places=2)
+    total_descuento = models.DecimalField(max_digits=10, decimal_places=2, default=0.0)
+    metodo_pago = models.CharField(max_length=50, choices=[('efectivo', 'Efectivo'), ('transferencia', 'Transferencia')], default='efectivo')
+    estado = models.CharField(max_length=20, choices=[('completada', 'Completada'), ('pendiente', 'Pendiente'), ('cancelada', 'Cancelada')], default='pendiente')
 
     def __str__(self):
-        return f"Compra de {self.cantidad} {self.producto.unidad_medida} de {self.producto.nombre} para {self.sucursal.nombre}"
+        return f"Compra en {self.sucursal.nombre} el {self.fecha_emision.strftime('%Y-%m-%d')}"
+    
 
+class DetalleCompra(models.Model):
+    compra = models.ForeignKey(Compra, related_name='detalles', on_delete=models.CASCADE)
+    producto = models.ForeignKey(Producto, on_delete=models.CASCADE)
+    codigo_principal = models.CharField(max_length=50)  # Código principal del producto
+    descripcion = models.CharField(max_length=255)  # Descripción del producto
+    cantidad = models.DecimalField(max_digits=10, decimal_places=2)
+    precio_unitario = models.DecimalField(max_digits=10, decimal_places=2)
+    total_por_producto = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    impuesto_aplicado = models.DecimalField(max_digits=5, decimal_places=2, null=True, blank=True)  # Porcentaje de impuesto
+    valor_impuesto = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)  # Valor del impuesto aplicado
+
+    def save(self, *args, **kwargs):
+        # Calcular el total por producto (cantidad * precio unitario)
+        self.total_por_producto = self.cantidad * self.precio_unitario
+        super(DetalleCompra, self).save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.cantidad} x {self.descripcion} en {self.compra.sucursal.nombre}"
+    
 
 
 class Transferencia(models.Model):
@@ -156,6 +151,8 @@ class Transferencia(models.Model):
         )
 
         super(Transferencia, self).save(*args, **kwargs)
+
+
 
 class MovimientoInventario(models.Model):
     TIPOS_MOVIMIENTO = [

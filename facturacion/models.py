@@ -127,6 +127,7 @@ class Factura(models.Model):
 class DetalleFactura(models.Model):
     factura = models.ForeignKey('facturacion.Factura', on_delete=models.CASCADE, related_name='detalles')
     producto = models.ForeignKey('inventarios.Producto', on_delete=models.CASCADE)
+    presentacion = models.ForeignKey('inventarios.Presentacion', on_delete=models.CASCADE)  # Nueva relación con Presentacion
     codigo_principal = models.CharField(max_length=20, null=True, blank=True)  # Código único del producto
     cantidad = models.IntegerField()
     precio_unitario = models.DecimalField(max_digits=10, decimal_places=2)

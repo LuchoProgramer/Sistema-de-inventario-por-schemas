@@ -1,6 +1,5 @@
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
-from reportlab.lib import colors
 from reportlab.lib.units import inch
 
 # Constantes de márgenes
@@ -46,9 +45,23 @@ def agregar_detalles_productos(c, factura):
     c.setFont("Helvetica", 10)
 
     for detalle in factura.detalles.all():
-        # Formatear la línea de detalle
-        print(f"Agregando producto {detalle.producto.nombre} a la factura.")
-        c.drawString(MARGEN_X, y, f"{detalle.producto.nombre} - {detalle.cantidad} x {detalle.precio_unitario:.2f} = {detalle.total:.2f}")
+        # Acceder a la presentación desde el modelo DetalleFactura
+        presentacion_nombre = detalle.presentacion.nombre_presentacion
+
+        # Si la presentación es "Unidad", se multiplica por la cantidad; si es un paquete ("Media" o "Entera"), se usa el precio total del paquete
+        if presentacion_nombre == "Unidad":
+            precio_unitario = detalle.precio_unitario
+            total = detalle.cantidad * detalle.precio_unitario
+        else:
+            precio_unitario = detalle.precio_unitario  # Precio global por paquete
+            total = precio_unitario  # Total es el precio del paquete por la cantidad de paquetes
+
+        # Añadir print para verificar los datos
+        print(f"Producto: {detalle.producto.nombre}, Presentación: {presentacion_nombre}, "
+              f"Cantidad: {detalle.cantidad}, Precio unitario: {precio_unitario:.2f}, Total: {total:.2f}")
+
+        # Formatear la línea de detalle en el PDF
+        c.drawString(MARGEN_X, y, f"{detalle.producto.nombre} - {presentacion_nombre} - {detalle.cantidad} x {precio_unitario:.2f} = {total:.2f}")
         y -= 20
 
         # Comprobar si es necesario un salto de página
@@ -59,6 +72,7 @@ def agregar_detalles_productos(c, factura):
             c.setFont("Helvetica", 10)
 
     return c
+
 
 def agregar_totales(c, factura):
     c.setFont("Helvetica-Bold", 12)
