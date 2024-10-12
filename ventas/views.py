@@ -325,7 +325,7 @@ def finalizar_venta(request):
 
 @login_required
 def cerrar_turno(request):
-    usuario = request.user  # Cambiado de empleado a usuario
+    usuario = request.user
     turno_activo = RegistroTurno.objects.filter(usuario=usuario, fin_turno__isnull=True).first()
 
     if not turno_activo:
@@ -339,7 +339,7 @@ def cerrar_turno(request):
                 # Usar el servicio para cerrar el turno
                 TurnoService.cerrar_turno(turno_activo, form.cleaned_data)
                 messages.success(request, "Turno cerrado correctamente.")
-                return redirect('dashboard')  # Redirige al dashboard después del cierre
+                return redirect('dashboard')
             except ValueError as e:
                 messages.error(request, str(e))
         else:
@@ -349,6 +349,7 @@ def cerrar_turno(request):
         form = CierreCajaForm()
 
     return render(request, 'ventas/cierre_caja.html', {'form': form, 'turno': turno_activo})
+
 
 @login_required
 @user_passes_test(lambda u: u.is_staff)

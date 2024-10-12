@@ -11,13 +11,14 @@ from inventarios.services.validacion_inventario_service import ValidacionInventa
 class CierreCajaForm(forms.ModelForm):
     class Meta:
         model = CierreCaja
-        fields = ['efectivo_total', 'tarjeta_total', 'transferencia_total', 'salidas_caja']
+        fields = ['efectivo_total', 'tarjeta_total', 'transferencia_total', 'salidas_caja', 'motivo_salida']  # Añadido motivo_salida
 
         widgets = {
             'efectivo_total': forms.NumberInput(attrs={'class': 'form-control'}),
             'tarjeta_total': forms.NumberInput(attrs={'class': 'form-control'}),
             'transferencia_total': forms.NumberInput(attrs={'class': 'form-control'}),
             'salidas_caja': forms.NumberInput(attrs={'class': 'form-control'}),
+            'motivo_salida': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Motivo de la salida de caja'}),  # Widget para motivo_salida
         }
 
 class SeleccionVentaForm(forms.Form):
