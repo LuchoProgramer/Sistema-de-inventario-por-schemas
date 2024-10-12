@@ -204,12 +204,17 @@ def agregar_producto(request):
     if request.method == 'POST':
         form = ProductoForm(request.POST, request.FILES)
         if form.is_valid():
-            form.save()
-            return redirect('inventarios:lista_productos')  # Redirige a la lista de productos después de guardar
+            producto = form.save()
+            form.save_m2m()  # Guarda las relaciones Many-to-Many
+            messages.success(request, 'Producto agregado exitosamente.')
+            return redirect('inventarios:lista_productos')
+        else:
+            messages.error(request, 'Por favor, corrige los errores a continuación.')
     else:
         form = ProductoForm()
 
     return render(request, 'inventarios/agregar_producto.html', {'form': form})
+
 
 
 def lista_productos(request):

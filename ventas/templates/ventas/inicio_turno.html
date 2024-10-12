@@ -49,11 +49,9 @@
         <div class="col-md-12">
             <form method="GET" action="{% url 'ventas:inicio_turno' turno.id %}">
                 <div class="row">
-                    <!-- Input de búsqueda -->
                     <div class="col-md-6">
                         <input type="text" name="q" id="buscar-productos" class="form-control" placeholder="Buscar productos..." value="{{ request.GET.q }}">
                     </div>
-                    <!-- Filtro por categoría -->
                     <div class="col-md-6">
                         <select name="categoria" class="form-select" onchange="this.form.submit()">
                             <option value="">Todas las categorías</option>
@@ -69,7 +67,6 @@
         </div>
     </div>
 
-    <!-- Mostrar productos en tarjetas -->
     <div class="row row-cols-1 row-cols-sm-2 row-cols-md-3 g-4 mt-2">
         {% if inventarios %}
             {% for inventario in inventarios %}
@@ -82,21 +79,20 @@
                     {% endif %}
                     <div class="card-body">
                         <h5 class="card-title">{{ inventario.producto.nombre }}</h5>
-                        <p class="card-text">Precio: ${{ inventario.presentacion.precio }}</p>
                         <p class="card-text">Stock: {{ inventario.cantidad }} unidades</p>
                         <form method="POST" action="{% url 'ventas:agregar_al_carrito' inventario.producto.id %}">
                             {% csrf_token %}
-    
-                            <!-- Selector de presentación -->
+
+                            <!-- Selector de presentación filtrado -->
                             <label for="presentacion_{{ inventario.producto.id }}">Presentación:</label>
                             <select name="presentacion" id="presentacion_{{ inventario.producto.id }}" class="form-select" required>
-                                <option value="">Seleccione una presentación</option>
-                                {% for presentacion in inventario.producto.presentaciones.all %}
-                                <option value="{{ presentacion.id }}">{{ presentacion.nombre_presentacion }} - ${{ presentacion.precio }}</option>
+                                {% for presentacion in inventario.presentaciones %}
+                                    <option value="{{ presentacion.id }}" {% if forloop.first %}selected{% endif %}>
+                                        {{ presentacion.nombre_presentacion }} - ${{ presentacion.precio }}
+                                    </option>
                                 {% endfor %}
                             </select>
-    
-                            <!-- Selector de cantidad -->
+
                             <label for="cantidad_{{ inventario.producto.id }}">Cantidad:</label>
                             <input type="number" name="cantidad" id="cantidad_{{ inventario.producto.id }}" min="1" max="{{ inventario.cantidad }}" value="1" required>
                             <button type="submit" class="btn btn-primary mt-2">Agregar al Carrito</button>
@@ -109,14 +105,13 @@
             <p>No hay productos disponibles en inventario para esta sucursal.</p>
         {% endif %}
     </div>
-    
 
-    <!-- Carrito de Ventas -->
     <div class="mt-5">
         <a href="{% url 'ventas:ver_carrito' %}" class="btn btn-primary btn-carrito-flotante">Ver Carrito</a>
     </div>
 </div>
 {% endblock %}
+
 
 {% block extra_js %}
 <script>

@@ -16,7 +16,7 @@ class Producto(models.Model):
     descripcion = models.TextField(null=True, blank=True)
     unidad_medida = models.CharField(max_length=50, null=True, blank=True)
     categoria = models.ForeignKey('Categoria', on_delete=models.SET_NULL, null=True, blank=True)
-    sucursal = models.ForeignKey('sucursales.Sucursal', on_delete=models.CASCADE, null=True, blank=True)
+    sucursales = models.ManyToManyField('sucursales.Sucursal', blank=True)
     codigo_producto = models.CharField(max_length=50, unique=True, null=True, blank=True)
     impuesto = models.ForeignKey('facturacion.Impuesto', on_delete=models.CASCADE, null=True, blank=True)
     image = models.ImageField(upload_to='productos/', null=True, blank=True)

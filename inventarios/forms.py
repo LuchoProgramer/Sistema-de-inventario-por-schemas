@@ -31,17 +31,26 @@ class DetalleCompraForm(forms.ModelForm):
 class ProductoForm(forms.ModelForm):
     class Meta:
         model = Producto
-        fields = ['nombre', 'descripcion', 'unidad_medida', 'categoria', 'sucursal', 'codigo_producto', 'impuesto', 'image']
+        fields = [
+            'nombre', 'descripcion', 'unidad_medida', 'categoria',
+            'sucursales', 'codigo_producto', 'impuesto', 'image'
+        ]
         widgets = {
             'nombre': forms.TextInput(attrs={'class': 'form-control'}),
             'descripcion': forms.Textarea(attrs={'class': 'form-control'}),
             'unidad_medida': forms.TextInput(attrs={'class': 'form-control'}),
             'categoria': forms.Select(attrs={'class': 'form-control'}),
-            'sucursal': forms.Select(attrs={'class': 'form-control'}),
+            'sucursales': forms.SelectMultiple(attrs={'class': 'form-control'}),
             'codigo_producto': forms.TextInput(attrs={'class': 'form-control'}),
             'impuesto': forms.Select(attrs={'class': 'form-control'}),
             'image': forms.ClearableFileInput(attrs={'class': 'form-control'}),
         }
+
+    def clean_codigo_producto(self):
+        codigo = self.cleaned_data.get('codigo_producto')
+        if Producto.objects.filter(codigo_producto=codigo).exists():
+            raise forms.ValidationError(f"El código '{codigo}' ya está en uso.")
+        return codigo
 
 
 class CategoriaForm(forms.ModelForm):
