@@ -185,7 +185,6 @@ class Pago(models.Model):
         return f"{self.descripcion} - {self.total} USD"
 
 
-from django.db import models
 
 class Impuesto(models.Model):
     codigo_impuesto = models.CharField(max_length=2)  # Código SRI del impuesto (ej: '2' para IVA)

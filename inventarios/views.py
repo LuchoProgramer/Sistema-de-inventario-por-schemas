@@ -424,3 +424,5 @@ def cargar_inventario_excel(request):
         form = UploadFileForm()
 
     return render(request, 'inventarios/cargar_inventario_excel.html', {'form': form, 'sucursal': sucursal})
+
+
