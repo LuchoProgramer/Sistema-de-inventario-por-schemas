@@ -83,6 +83,7 @@ class CierreCaja(models.Model):
     transferencia_total = models.DecimalField(max_digits=10, decimal_places=2)
     salidas_caja = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     fecha_cierre = models.DateTimeField(auto_now_add=True)
+    motivo_salida = models.CharField(max_length=255, blank=True, null=True)
 
     def calcular_total_neto(self):
         return (self.efectivo_total + self.tarjeta_total + self.transferencia_total) - self.salidas_caja

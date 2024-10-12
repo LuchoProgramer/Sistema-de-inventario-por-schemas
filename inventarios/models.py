@@ -64,6 +64,7 @@ class Inventario(models.Model):
         if self.cantidad < 0:
             raise ValidationError("La cantidad en inventario no puede ser negativa.")
 
+
 class Proveedor(models.Model):
     nombre = models.CharField(max_length=255)  # Razón Social
     ruc = models.CharField(max_length=13)  # Registro Único de Contribuyentes
@@ -78,7 +79,7 @@ class Proveedor(models.Model):
 class Compra(models.Model):
     sucursal = models.ForeignKey('sucursales.Sucursal', on_delete=models.CASCADE)
     proveedor = models.ForeignKey(Proveedor, on_delete=models.SET_NULL, null=True, blank=True)
-    numero_autorizacion = models.CharField(max_length=50)
+    numero_autorizacion = models.CharField(max_length=50, default='0000000000')
     fecha_emision = models.DateField()  # Extraído del XML
     total_sin_impuestos = models.DecimalField(max_digits=10, decimal_places=2)
     total_con_impuestos = models.DecimalField(max_digits=10, decimal_places=2)
@@ -104,6 +105,19 @@ class DetalleCompra(models.Model):
     def save(self, *args, **kwargs):
         # Calcular el total por producto (cantidad * precio unitario)
         self.total_por_producto = self.cantidad * self.precio_unitario
+        
+        # Actualizar el inventario al guardar el detalle de la compra
+        inventario, created = Inventario.objects.get_or_create(
+            producto=self.producto,
+            sucursal=self.compra.sucursal,
+            defaults={'cantidad': self.cantidad}
+        )
+        
+        if not created:
+            inventario.cantidad += self.cantidad  # Sumar la cantidad comprada al inventario existente
+        inventario.save()
+
+        # Llamar al método save de la clase padre
         super(DetalleCompra, self).save(*args, **kwargs)
 
     def __str__(self):

@@ -200,34 +200,6 @@ def ajustar_inventario(request, producto_id, sucursal_id):
     })
 
 
-def agregar_compra(request):
-    if request.method == 'POST':
-        form = CompraForm(request.POST)
-        if form.is_valid():
-            compra = form.save(commit=False)
-            compra.save()
-            # Redirigir al inventario de la sucursal después de la compra
-            return redirect('inventarios:ver_inventario', sucursal_id=compra.sucursal.id)
-        else:
-            # Si el formulario no es válido, mostrar los errores
-            return render(request, 'inventarios/agregar_compra.html', {'form': form, 'errors': form.errors})
-
-    else:
-        form = CompraForm()
-
-    return render(request, 'inventarios/agregar_compra.html', {'form': form})
-
-
-def ver_compras(request):
-    compras = Compra.objects.all().order_by('-fecha')  # Ordenar por fecha más reciente
-
-    # Agregar paginación
-    paginator = Paginator(compras, 10)  # Muestra 10 compras por página
-    page_number = request.GET.get('page')
-    page_obj = paginator.get_page(page_number)
-
-    return render(request, 'inventarios/ver_compras.html', {'page_obj': page_obj})
-
 def agregar_producto(request):
     if request.method == 'POST':
         form = ProductoForm(request.POST, request.FILES)

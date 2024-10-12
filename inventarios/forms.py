@@ -1,17 +1,31 @@
 from django import forms
-from .models import Compra, Producto, Categoria, Transferencia, Presentacion
+from .models import Compra, Producto, Categoria, Transferencia, Presentacion, DetalleCompra
 from sucursales.models import Sucursal
 
 class CompraForm(forms.ModelForm):
     class Meta:
         model = Compra
-        fields = ['sucursal', 'producto', 'cantidad', 'precio_unitario']
+        fields = ['sucursal', 'proveedor', 'metodo_pago', 'estado', 'fecha_emision', 'total_sin_impuestos', 'total_con_impuestos']
         widgets = {
             'sucursal': forms.Select(attrs={'class': 'form-control'}),
+            'proveedor': forms.Select(attrs={'class': 'form-control'}),
+            'metodo_pago': forms.Select(attrs={'class': 'form-control'}),
+            'estado': forms.Select(attrs={'class': 'form-control'}),
+            'fecha_emision': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
+            'total_sin_impuestos': forms.NumberInput(attrs={'class': 'form-control'}),
+            'total_con_impuestos': forms.NumberInput(attrs={'class': 'form-control'}),
+        }
+
+class DetalleCompraForm(forms.ModelForm):
+    class Meta:
+        model = DetalleCompra
+        fields = ['producto', 'cantidad', 'precio_unitario']
+        widgets = {
             'producto': forms.Select(attrs={'class': 'form-control'}),
             'cantidad': forms.NumberInput(attrs={'class': 'form-control'}),
             'precio_unitario': forms.NumberInput(attrs={'class': 'form-control'}),
         }
+
 
 
 class ProductoForm(forms.ModelForm):
@@ -58,3 +72,7 @@ class PresentacionMultipleForm(forms.Form):
     precio = forms.DecimalField(max_digits=10, decimal_places=2, label="Precio")
     sucursales = forms.ModelMultipleChoiceField(queryset=Sucursal.objects.all(), label="Sucursales", widget=forms.CheckboxSelectMultiple)
     
+
+class CompraXMLForm(forms.Form):
+    sucursal = forms.ModelChoiceField(queryset=Sucursal.objects.all(), label="Sucursal")
+    archivo_xml = forms.FileField(label="Subir archivo XML")

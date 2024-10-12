@@ -1,0 +1,32 @@
+<h1>Lista de Compras</h1>
+<table>
+    <thead>
+        <tr>
+            <th>Sucursal</th>
+            <th>Proveedor</th>
+            <th>Fecha</th>
+            <th>Total</th>
+            <th>Acciones</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for compra in compras %}
+        <tr>
+            <td>{{ compra.sucursal.nombre }}</td>
+            <td>{{ compra.proveedor.nombre }}</td>
+            <td>{{ compra.fecha_emision }}</td>
+            <td>{{ compra.total_con_impuestos }}</td>
+            <td>
+                <!-- Enlace al detalle de la compra -->
+                <a href="{% url 'compras:detalle_compra' compra.id %}">Ver Detalles</a>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<!-- Enlace para crear una nueva compra -->
+<a href="{% url 'compras:crear_compra_con_productos' %}">Nueva Compra</a>
+
+<!-- Enlace para subir y procesar un archivo XML -->
+<a href="{% url 'compras:procesar_compra_xml' %}">Cargar Compra desde XML</a>
