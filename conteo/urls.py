@@ -4,5 +4,4 @@ from . import views
 urlpatterns = [
     path('registrar/', views.registrar_conteo, name='registrar_conteo'),
     path('exitoso/', views.conteo_exitoso, name='conteo_exitoso'),
-    path('incompleto/', views.conteo_incompleto, name='conteo_incompleto'),
 ]
