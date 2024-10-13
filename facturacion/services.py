@@ -13,7 +13,8 @@ from facturacion.pdf.factura_pdf import generar_pdf_factura
 import os
 from django.conf import settings
 from inventarios.services.validacion_inventario_service import ValidacionInventarioService
-from inventarios.services.movimiento_inventario_service import MovimientoInventarioService
+from inventarios.services.ajuste_inventario_service import AjusteInventarioService
+
 
 def crear_factura(cliente, sucursal, usuario, carrito_items):
     print("Iniciando la creación de la factura...")
@@ -102,7 +103,7 @@ def crear_factura(cliente, sucursal, usuario, carrito_items):
                     raise ValidationError(f"No hay suficiente inventario disponible para {item.producto.nombre}.")
 
                 # Ajuste del inventario a través del servicio de movimiento
-                MovimientoInventarioService.ajustar_inventario(item.producto, presentacion, item.cantidad)
+                AjusteInventarioService.ajustar_inventario(item.producto, presentacion, item.cantidad)
 
             if not factura.detalles.exists():
                 print("Error: La factura no tiene detalles asociados.")

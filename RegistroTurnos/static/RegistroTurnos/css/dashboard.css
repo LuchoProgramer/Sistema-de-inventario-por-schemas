@@ -1,48 +1,39 @@
-/* Estilos generales */
+/* Estilos para el sidebar */
+#sidebar .nav-link {
+    font-weight: bold;
+    padding: 10px;
+}
+
+#sidebar .dropdown-item:hover {
+    background-color: #D6D8DA; /* Gris más oscuro al hacer hover */
+    color: black;
+}
+
+#sidebar .nav-link:hover {
+    color: #2C2C2C; /* Gris oscuro para el texto al hacer hover */
+}
+
 #sidebar {
-    min-height: 100vh;
-    transition: width 0.3s ease;
-    width: 250px; /* Ancho inicial del sidebar */
-    overflow: hidden;
-    background-color: #f8f9fa;
+    box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1); /* Sombra para separar el sidebar */
 }
-#content {
-    transition: margin-left 0.3s ease;
-    margin-left: 40px !important; /* Margen para acomodar el sidebar */
+
+/* Estilos para el offcanvas */
+.offcanvas-body .nav-link {
+    font-weight: bold;
+    padding: 10px;
 }
-/* Cuando el sidebar está colapsado */
-#sidebar.collapsed {
-    width: 0;
+
+.offcanvas-body .dropdown-item:hover {
+    background-color: #D6D8DA;
+    color: black;
 }
-/* Ajuste del margen izquierdo del contenido cuando el sidebar está colapsado */
-#sidebar.collapsed ~ #content {
-    margin-left: 0;
+
+.btn-close {
+    filter: invert(1); /* Hace que el botón de cierre sea blanco */
 }
-/* Ajustes para pantallas pequeñas */
-@media (max-width: 768px) {
-    #sidebar {
-        display: none; /* Ocultar sidebar en pantallas pequeñas */
-    }
-    #toggle-sidebar {
-        display: none; /* Ocultar botón colapsar sidebar en pantallas pequeñas */
-    }
-    #offcanvasMenuToggle {
-        display: block; /* Mostrar el botón de offcanvas solo en pantallas pequeñas */
-    }
-    /* Ajustar el contenido para ocupar todo el ancho en pantallas pequeñas */
-    #content {
-        margin-left: 0 !important; /* Eliminar margen izquierdo en pantallas pequeñas */
-    }
-}
-@media (min-width: 769px) {
-    #offcanvasMenuToggle {
-        display: none; /* Ocultar el botón de offcanvas en pantallas grandes */
-    }
-    #sidebar {
-        display: block; /* Mostrar sidebar en pantallas grandes */
-    }
-    /* Ajustar el margen izquierdo del contenido para que considere el ancho del sidebar */
-    #content {
-        margin-left: 250px; /* Debe ser igual al ancho inicial del sidebar */
+
+@media (max-width: 576px) {
+    .offcanvas {
+        width: 80%; /* Ajusta el ancho en pantallas pequeñas */
     }
 }

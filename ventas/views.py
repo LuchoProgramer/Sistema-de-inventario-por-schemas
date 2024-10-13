@@ -93,9 +93,6 @@ def registrar_venta(request):
                     # 5. Ajustar inventario después de la venta
                     AjusteInventarioService.ajustar_inventario(producto, presentacion, cantidad)
 
-                    # 6. Registrar el movimiento de inventario
-                    MovimientoInventarioService.registrar_movimiento_inventario(producto, cantidad, 'VENTA', turno_activo.sucursal)
-
                     return redirect('dashboard')
 
             except Exception as e:

@@ -20,67 +20,98 @@ PresentacionFormSet = inlineformset_factory(
     Presentacion, 
     form=PresentacionMultipleForm, 
     extra=1,
-    fields=['nombre_presentacion', 'cantidad', 'precio', 'sucursal']  # Especifica los campos que quieres incluir
+    fields=['nombre_presentacion', 'cantidad', 'precio', 'sucursal']
 )
 
 # @login_required
 def agregar_presentaciones_multiples(request, producto_id):
     producto = get_object_or_404(Producto, id=producto_id)
-    print(f"Producto cargado: {producto.nombre}")
 
     if request.method == 'POST':
-        print("Método POST recibido")
-        print(f"Datos POST: {request.POST}")
         form = PresentacionMultipleForm(request.POST)
-        print("Formulario creado")
-
         if form.is_valid():
-            print("El formulario es válido")
-            # Obtener las sucursales seleccionadas
             sucursales = form.cleaned_data['sucursales']
-            print(f"Sucursales seleccionadas: {[s.nombre for s in sucursales]}")
+            nombre_presentacion = form.cleaned_data['nombre_presentacion']
+
+            # Almacenar errores si alguna presentación ya existe
+            errores = []
+
+            # Iterar sobre las sucursales seleccionadas
+            presentaciones_creadas = []  # Guardar las presentaciones que se crearon
 
             for sucursal in sucursales:
+                print(f"Procesando sucursal: {sucursal.nombre}")
+
                 # Verificar si ya existe la presentación en la misma sucursal
                 if Presentacion.objects.filter(
                     producto=producto,
-                    nombre_presentacion=form.cleaned_data['nombre_presentacion'],
+                    nombre_presentacion=nombre_presentacion,
                     sucursal=sucursal
                 ).exists():
-                    print(f"Presentación ya existe para la sucursal: {sucursal.nombre}")
-                    continue  # Saltar a la siguiente sucursal
+                    error = f'La presentación "{nombre_presentacion}" ya existe en {sucursal.nombre}.'
+                    print(error)
+                    errores.append(error)
+                    continue  # Saltar esta iteración si ya existe
 
-                # Si no existe, crear la nueva presentación
+                # Crear la nueva presentación si no existe
                 nueva_presentacion = Presentacion(
                     producto=producto,
-                    nombre_presentacion=form.cleaned_data['nombre_presentacion'],
+                    nombre_presentacion=nombre_presentacion,
                     cantidad=form.cleaned_data['cantidad'],
                     precio=form.cleaned_data['precio'],
-                    sucursal=sucursal  # Asignar la sucursal
+                    sucursal=sucursal
                 )
                 nueva_presentacion.save()
-                print(f"Presentación agregada para la sucursal: {sucursal.nombre}")
+                print(f"Presentación creada en sucursal: {sucursal.nombre}")
+                presentaciones_creadas.append(nueva_presentacion)
 
-            # Enviar respuesta de éxito
-            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-                return JsonResponse({'success': True})
-            return redirect('inventarios:producto_detalle', producto_id=producto.id)
+            # Si hubo errores, devolverlos como respuesta
+            if errores:
+                return JsonResponse({
+                    'success': False,
+                    'error': ' | '.join(errores)  # Mostrar todos los errores encontrados
+                }, status=400)
+
+            # Devolver una respuesta exitosa con los datos de todas las presentaciones creadas
+            presentaciones_data = [
+                {
+                    'id': p.id,
+                    'nombre_presentacion': p.nombre_presentacion,
+                    'cantidad': p.cantidad,
+                    'precio': p.precio,
+                    'sucursal': p.sucursal.nombre
+                }
+                for p in presentaciones_creadas
+            ]
+
+            return JsonResponse({
+                'success': True,
+                'presentaciones': presentaciones_data  # Devolver las presentaciones creadas
+            })
+
         else:
-            print("El formulario no es válido")
             print(f"Errores en el formulario: {form.errors}")
-            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
-                return JsonResponse({'success': False, 'errors': form.errors})
+            return JsonResponse({'success': False, 'errors': form.errors}, status=400)
 
-    else:
-        print("Método GET recibido, cargando formulario")
-        form = PresentacionMultipleForm()
+    # Lógica para el método GET
+    presentaciones_existentes = Presentacion.objects.filter(producto=producto)
+    form = PresentacionMultipleForm()
 
     return render(request, 'inventarios/agregar_presentaciones_multiples.html', {
         'form': form,
         'producto': producto,
+        'presentaciones_existentes': presentaciones_existentes,
     })
 
-
+def eliminar_presentacion(request, presentacion_id):
+    if request.method == 'POST':
+        try:
+            presentacion = Presentacion.objects.get(id=presentacion_id)
+            presentacion.delete()
+            return JsonResponse({'success': True})
+        except Presentacion.DoesNotExist:
+            return JsonResponse({'success': False, 'error': 'Presentación no encontrada.'})
+    return JsonResponse({'success': False, 'error': 'Método no permitido.'})
 
 
 def seleccionar_sucursal(request):

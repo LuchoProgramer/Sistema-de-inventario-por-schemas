@@ -10,60 +10,71 @@
     <link rel="stylesheet" href="{% static 'RegistroTurnos/css/dashboard.css' %}">
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
 </head>
+
 <body>
 
     <!-- Encabezado con el nombre de la empresa y botón de menú -->
-    <nav class="navbar navbar-light bg-light">
+    <nav class="navbar" style="background-color: #E9ECEF;">
         <div class="container-fluid">
-            <button class="btn btn-primary" id="toggle-sidebar">
+            <!-- Botón Menú Lateral -->
+            <button class="btn btn-dark" id="toggle-sidebar" style="background-color: #2C2C2C; border-color: #2C2C2C;">
                 ☰ Menú Lateral
             </button>
-            <button class="btn btn-primary" type="button" id="offcanvasMenuToggle" data-bs-toggle="offcanvas" data-bs-target="#offcanvasMenu" aria-controls="offcanvasMenu">
+    
+            <!-- Botón Menú Offcanvas -->
+            <button class="btn btn-dark" type="button" id="offcanvasMenuToggle" data-bs-toggle="offcanvas" data-bs-target="#offcanvasMenu" aria-controls="offcanvasMenu" style="background-color: #2C2C2C; border-color: #2C2C2C;">
                 ☰ Menú
             </button>
-            <a class="navbar-brand ms-3" href="#">La Huequita Quiteña</a>
+    
+            <!-- Logo redondo y nombre de la empresa -->
+            <a class="navbar-brand ms-3 d-flex align-items-center" href="{% url 'dashboard' %}">
+                <img src="https://lahuequitaquitena.netlify.app/Imagenes/Logo%20La%20Huequita%20200px.png" 
+                     alt="Logo La Huequita Quiteña" width="50" height="50" class="me-2 rounded-circle">
+                <span style="font-family: 'Cinzel', serif; font-weight: bold; color: #2C2C2C;">
+                    La Huequita Quiteña
+                </span>
+            </a>
         </div>
     </nav>
-
+    
+    
     <!-- Offcanvas Menu para pantallas pequeñas -->
-    <div class="offcanvas offcanvas-start" tabindex="-1" id="offcanvasMenu" aria-labelledby="offcanvasMenuLabel">
+    <div class="offcanvas offcanvas-start" tabindex="-1" id="offcanvasMenu" aria-labelledby="offcanvasMenuLabel" style="background-color: #E9ECEF;">
         <div class="offcanvas-header">
             <h5 class="offcanvas-title" id="offcanvasMenuLabel">Menú Principal</h5>
-            <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close"></button>
+            <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close" style="background-color: #2C2C2C;"></button>
         </div>
         <div class="offcanvas-body">
             <ul class="nav flex-column">
-                <li class="nav-item">
-                    <a class="nav-link" href="{% url 'crear_usuario' %}">Agregar Nuevo Empleado</a>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="{% url 'registrar_conteo' %}">Registrar Conteo</a>
-                </li>
-
-                <!-- Dropdown de Inventarios -->
+            
+                <!-- Inventarios -->
                 <li class="nav-item dropdown">
-                    <a class="nav-link dropdown-toggle" href="#" id="offcanvasInventariosDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                    <a class="nav-link dropdown-toggle text-dark" href="#" id="offcanvasInventariosDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                         Inventarios
                     </a>
                     <ul class="dropdown-menu" aria-labelledby="offcanvasInventariosDropdown">
-                        <li><a class="dropdown-item" href="{% url 'inventarios:seleccionar_sucursal' %}">Seleccionar Sucursal</a></li>
-                        <li><a class="dropdown-item" href="{% url 'compras:crear_compra_con_productos' %}">Agregar Compra</a></li>
-                        <li><a class="dropdown-item" href="{% url 'compras:lista_compras' %}">Ver Compras</a></li>
                         <li><a class="dropdown-item" href="{% url 'inventarios:lista_productos' %}">Lista de Productos</a></li>
                         <li><a class="dropdown-item" href="{% url 'inventarios:lista_categorias' %}">Lista de Categorías</a></li>
-                        <li><a class="dropdown-item" href="{% url 'inventarios:lista_transferencias' %}">Lista de Transferencias</a></li>
                         <li><a class="dropdown-item" href="{% url 'inventarios:lista_movimientos_inventario' %}">Movimientos de Inventario</a></li>
+                        <li><a class="dropdown-item" href="{% url 'inventarios:lista_transferencias' %}">Transferencias</a></li>
+                        <li><a class="dropdown-item" href="{% url 'inventarios:seleccionar_sucursal' %}">Seleccionar Sucursal</a></li>
                     </ul>
                 </li>
-
-                <!-- Sucursales -->
-                <li class="nav-item">
-                    <a class="nav-link" href="{% url 'sucursales:lista_sucursales' %}">Lista de Sucursales</a>
-                </li>
-
-                <!-- Dropdown de Reportes -->
+            
+                <!-- Compras -->
                 <li class="nav-item dropdown">
-                    <a class="nav-link dropdown-toggle" href="#" id="offcanvasReportesDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                    <a class="nav-link dropdown-toggle text-dark" href="#" id="offcanvasComprasDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                        Compras
+                    </a>
+                    <ul class="dropdown-menu" aria-labelledby="offcanvasComprasDropdown">
+                        <li><a class="dropdown-item" href="{% url 'compras:crear_compra_con_productos' %}">Agregar Compra</a></li>
+                        <li><a class="dropdown-item" href="{% url 'compras:lista_compras' %}">Ver Compras</a></li>
+                    </ul>
+                </li>
+            
+                <!-- Reportes -->
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle text-dark" href="#" id="offcanvasReportesDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                         Reportes
                     </a>
                     <ul class="dropdown-menu" aria-labelledby="offcanvasReportesDropdown">
@@ -71,52 +82,59 @@
                         <li><a class="dropdown-item" href="{% url 'reporte_ventas_filtrado' %}">Reporte de Ventas Filtrado</a></li>
                     </ul>
                 </li>
-
-                <!-- Facturación -->
-                <li class="nav-item">
-                    <a class="nav-link" href="{% url 'facturacion:lista_impuestos' %}">Lista de Impuestos</a>
+            
+                <!-- Configuraciones -->
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle text-dark" href="#" id="offcanvasConfiguracionesDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                        Configuraciones
+                    </a>
+                    <ul class="dropdown-menu" aria-labelledby="offcanvasConfiguracionesDropdown">
+                        <li><a class="dropdown-item" href="{% url 'crear_usuario' %}">Agregar Nuevo Empleado</a></li>
+                        <li><a class="dropdown-item" href="{% url 'sucursales:lista_sucursales' %}">Lista de Sucursales</a></li>
+                        <li><a class="dropdown-item" href="{% url 'facturacion:lista_impuestos' %}">Lista de Impuestos</a></li>
+                    </ul>
                 </li>
+    
             </ul>
-        </div>
+        </div>        
     </div>
+    
 
     <!-- Contenedor principal -->
     <div class="container-fluid">
         <div class="row">
             <!-- Sidebar para pantallas grandes -->
-            <div id="sidebar" class="col-auto">
+            <div id="sidebar" class="col-auto" style="background-color: #E9ECEF; min-height: 100vh;">
                 <ul class="nav flex-column mt-3">
-                    <li class="nav-item">
-                        <a class="nav-link" href="{% url 'crear_usuario' %}">Agregar Nuevo Empleado</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="{% url 'registrar_conteo' %}">Registrar Conteo</a>
-                    </li>
-
-                    <!-- Dropdown de Inventarios -->
+            
+                    <!-- Inventarios -->
                     <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" id="inventariosDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                        <a class="nav-link dropdown-toggle text-dark" href="#" id="inventariosDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                             Inventarios
                         </a>
                         <ul class="dropdown-menu" aria-labelledby="inventariosDropdown">
-                            <li><a class="dropdown-item" href="{% url 'inventarios:seleccionar_sucursal' %}">Seleccionar Sucursal</a></li>
-                            <li><a class="dropdown-item" href="{% url 'compras:crear_compra_con_productos' %}">Agregar Compra</a></li>
-                            <li><a class="dropdown-item" href="{% url 'compras:lista_compras' %}">Ver Compras</a></li>
                             <li><a class="dropdown-item" href="{% url 'inventarios:lista_productos' %}">Lista de Productos</a></li>
                             <li><a class="dropdown-item" href="{% url 'inventarios:lista_categorias' %}">Lista de Categorías</a></li>
-                            <li><a class="dropdown-item" href="{% url 'inventarios:lista_transferencias' %}">Lista de Transferencias</a></li>
                             <li><a class="dropdown-item" href="{% url 'inventarios:lista_movimientos_inventario' %}">Movimientos de Inventario</a></li>
+                            <li><a class="dropdown-item" href="{% url 'inventarios:lista_transferencias' %}">Transferencias</a></li>
+                            <li><a class="dropdown-item" href="{% url 'inventarios:seleccionar_sucursal' %}">Seleccionar Sucursal</a></li>
                         </ul>
                     </li>
-
-                    <!-- Sucursales -->
-                    <li class="nav-item">
-                        <a class="nav-link" href="{% url 'sucursales:lista_sucursales' %}">Lista de Sucursales</a>
-                    </li>
-
-                    <!-- Dropdown de Reportes -->
+            
+                    <!-- Compras -->
                     <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle" href="#" id="reportesDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                        <a class="nav-link dropdown-toggle text-dark" href="#" id="comprasDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            Compras
+                        </a>
+                        <ul class="dropdown-menu" aria-labelledby="comprasDropdown">
+                            <li><a class="dropdown-item" href="{% url 'compras:crear_compra_con_productos' %}">Agregar Compra</a></li>
+                            <li><a class="dropdown-item" href="{% url 'compras:lista_compras' %}">Ver Compras</a></li>
+                        </ul>
+                    </li>
+            
+                    <!-- Reportes -->
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle text-dark" href="#" id="reportesDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                             Reportes
                         </a>
                         <ul class="dropdown-menu" aria-labelledby="reportesDropdown">
@@ -124,87 +142,100 @@
                             <li><a class="dropdown-item" href="{% url 'reporte_ventas_filtrado' %}">Reporte de Ventas Filtrado</a></li>
                         </ul>
                     </li>
-
-                    <!-- Facturación -->
-                    <li class="nav-item">
-                        <a class="nav-link" href="{% url 'facturacion:lista_impuestos' %}">Lista de Impuestos</a>
+            
+                    <!-- Configuraciones -->
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle text-dark" href="#" id="configuracionesDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            Configuraciones
+                        </a>
+                        <ul class="dropdown-menu" aria-labelledby="configuracionesDropdown">
+                            <li><a class="dropdown-item" href="{% url 'crear_usuario' %}">Agregar Nuevo Empleado</a></li>
+                            <li><a class="dropdown-item" href="{% url 'sucursales:lista_sucursales' %}">Lista de Sucursales</a></li>
+                            <li><a class="dropdown-item" href="{% url 'facturacion:lista_impuestos' %}">Lista de Impuestos</a></li>
+                        </ul>
                     </li>
+            
                 </ul>
-            </div>
+            </div>            
+            
 
             <!-- Contenido Principal -->
             <div id="content" class="col">
                 <div class="container mt-5">
-                    <h1>Bienvenido al Dashboard</h1>
-                    <p>Usuario: {{ request.user.username }}</p>
-
+                    <h1 class="mb-4">Bienvenido al Dashboard</h1>
+                    <p><strong>Usuario:</strong> {{ request.user.username }}</p>
+            
                     <!-- Sección de Tarjetas -->
                     <div class="row row-cols-1 row-cols-md-2 g-4">
                         <!-- Tarjeta 1: Inicio de Turno -->
                         <div class="col">
-                            <div class="card h-100">
-                                <div class="card-body">
+                            <div class="card h-100 shadow-sm">
+                                <div class="card-body d-flex flex-column justify-content-between">
                                     <h5 class="card-title">Iniciar Turno</h5>
                                     <p class="card-text">Selecciona tu sucursal para iniciar el turno y empezar a trabajar.</p>
                                     <form id="form-inicio-turno" method="POST" data-dashboard-url="{% url 'dashboard' %}">
                                         {% csrf_token %}
-                                        <label for="sucursal_id">Seleccionar Sucursal:</label>
+                                        <label for="sucursal_id" class="form-label">Seleccionar Sucursal:</label>
                                         {{ form.sucursal }}
-                                        <button type="submit" class="btn btn-primary mt-2">Iniciar Turno</button>
+                                        <button type="submit" class="btn btn-dark btn-lg w-100 mt-3 rounded-pill">
+                                            Iniciar Turno
+                                        </button>
                                     </form>
                                 </div>
                             </div>
                         </div>
-
+            
                         <!-- Tarjeta 2: Placeholder -->
                         <div class="col">
-                            <div class="card h-100">
-                                <div class="card-body">
+                            <div class="card h-100 shadow-sm">
+                                <div class="card-body d-flex flex-column justify-content-between">
                                     <h5 class="card-title">Tarjeta 2</h5>
                                     <p class="card-text">Contenido para la segunda tarjeta (puedes definir más adelante).</p>
                                 </div>
                             </div>
                         </div>
-
+            
                         <!-- Tarjeta 3: Placeholder -->
                         <div class="col">
-                            <div class="card h-100">
-                                <div class="card-body">
+                            <div class="card h-100 shadow-sm">
+                                <div class="card-body d-flex flex-column justify-content-between">
                                     <h5 class="card-title">Tarjeta 3</h5>
                                     <p class="card-text">Contenido para la tercera tarjeta (puedes definir más adelante).</p>
                                 </div>
                             </div>
                         </div>
-
+            
                         <!-- Tarjeta 4: Placeholder -->
                         <div class="col">
-                            <div class="card h-100">
-                                <div class="card-body">
+                            <div class="card h-100 shadow-sm">
+                                <div class="card-body d-flex flex-column justify-content-between">
                                     <h5 class="card-title">Tarjeta 4</h5>
                                     <p class="card-text">Contenido para la cuarta tarjeta (puedes definir más adelante).</p>
                                 </div>
                             </div>
                         </div>
                     </div>
-
+            
                     <!-- Formulario de Logout -->
-                    <div class="mt-5">
+                    <div class="mt-5 d-flex justify-content-end">
                         <form id="logout-form" action="{% url 'logout' %}" method="POST">
                             {% csrf_token %}
-                            <button type="submit" class="btn btn-danger">Cerrar Sesión</button>
+                            <button type="submit" class="btn btn-danger btn-lg">
+                                Cerrar Sesión
+                            </button>
                         </form>
                     </div>
-
+            
                     <!-- Mensajes de Éxito o Error -->
                     {% if messages %}
-                    <ul class="messages mt-3">
+                    <ul class="list-group mt-4">
                         {% for message in messages %}
-                        <li class="{{ message.tags }}">{{ message }}</li>
+                        <li class="list-group-item {{ message.tags }}">{{ message }}</li>
                         {% endfor %}
                     </ul>
                     {% endif %}
                 </div>
-            </div>
+            </div>            
         </div>
     </div>
     <!-- Scripts -->

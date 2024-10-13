@@ -1,6 +1,8 @@
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
 from reportlab.lib.units import inch
+from decimal import Decimal
+
 
 # Constantes de márgenes
 MARGEN_X = 50
@@ -45,30 +47,45 @@ def agregar_detalles_productos(c, factura):
     c.setFont("Helvetica", 10)
 
     for detalle in factura.detalles.all():
-        # Acceder a la presentación desde el modelo DetalleFactura
         presentacion_nombre = detalle.presentacion.nombre_presentacion
 
-        # Si la presentación es "Unidad", se multiplica por la cantidad; si es un paquete ("Media" o "Entera"), se usa el precio total del paquete
-        if presentacion_nombre == "Unidad":
+        # Verificar si es "Unidad" o un "paquete"
+        if presentacion_nombre != "Unidad":
+            # Usar la cantidad de paquetes directamente
+            cantidad_paquetes = detalle.cantidad // detalle.presentacion.cantidad  
             precio_unitario = detalle.precio_unitario
-            total = detalle.cantidad * detalle.precio_unitario
+            total = precio_unitario * cantidad_paquetes
+
+            print(f"Producto: {detalle.producto.nombre}, Presentación: {presentacion_nombre}, "
+                  f"Paquetes: {cantidad_paquetes}, Precio por paquete: {precio_unitario:.2f}, Total: {total:.2f}")
+
+            # Formatear la línea de detalle en el PDF
+            c.drawString(
+                MARGEN_X, y,
+                f"{detalle.producto.nombre} - {presentacion_nombre} - {cantidad_paquetes} paquete(s) x {precio_unitario:.2f} = {total:.2f}"
+            )
         else:
-            precio_unitario = detalle.precio_unitario  # Precio global por paquete
-            total = precio_unitario  # Total es el precio del paquete por la cantidad de paquetes
+            # Si es "Unidad", usar la cantidad y precio por unidad
+            cantidad = detalle.cantidad
+            precio_unitario = detalle.precio_unitario
+            total = cantidad * precio_unitario
 
-        # Añadir print para verificar los datos
-        print(f"Producto: {detalle.producto.nombre}, Presentación: {presentacion_nombre}, "
-              f"Cantidad: {detalle.cantidad}, Precio unitario: {precio_unitario:.2f}, Total: {total:.2f}")
+            print(f"Producto: {detalle.producto.nombre}, Presentación: {presentacion_nombre}, "
+                  f"Unidades: {cantidad}, Precio unitario: {precio_unitario:.2f}, Total: {total:.2f}")
 
-        # Formatear la línea de detalle en el PDF
-        c.drawString(MARGEN_X, y, f"{detalle.producto.nombre} - {presentacion_nombre} - {detalle.cantidad} x {precio_unitario:.2f} = {total:.2f}")
+            # Formatear la línea de detalle en el PDF
+            c.drawString(
+                MARGEN_X, y,
+                f"{detalle.producto.nombre} - {presentacion_nombre} - {cantidad} x {precio_unitario:.2f} = {total:.2f}"
+            )
+
         y -= 20
 
-        # Comprobar si es necesario un salto de página
+        # Verificar si se necesita un salto de página
         if y < 100:
-            c.showPage()  # Añadir una nueva página
-            agregar_cabecera(c, factura)  # Reagregar la cabecera en la nueva página
-            y = 800  # Reiniciar la posición y
+            c.showPage()
+            agregar_cabecera(c, factura)
+            y = 800
             c.setFont("Helvetica", 10)
 
     return c
@@ -78,17 +95,37 @@ def agregar_totales(c, factura):
     c.setFont("Helvetica-Bold", 12)
     c.drawString(MARGEN_X, 200, "Totales:")
     c.setFont("Helvetica", 10)
-    
-    # Cálculo dinámico del IVA
-    iva = factura.total_con_impuestos - factura.total_sin_impuestos
-    porcentaje_iva = factura.impuesto.porcentaje if hasattr(factura, 'impuesto') else 15
-    
-    print(f"Subtotal: {factura.total_sin_impuestos}, Total con impuestos: {factura.total_con_impuestos}, IVA: {iva:.2f} ({porcentaje_iva}%)")
-    
-    c.drawString(MARGEN_X, 180, f"Subtotal sin impuestos: {factura.total_sin_impuestos:.2f}")
-    c.drawString(MARGEN_X, 160, f"Impuestos (IVA {porcentaje_iva}%): {iva:.2f}")
-    c.drawString(MARGEN_X, 140, f"Total con impuestos: {factura.total_con_impuestos:.2f}")
-    
+
+    total_sin_impuestos = Decimal('0.00')
+    total_iva = Decimal('0.00')
+    total_con_impuestos = Decimal('0.00')
+
+    # Iterar sobre los detalles para sumar correctamente los totales
+    for detalle in factura.detalles.all():
+        presentacion = detalle.presentacion
+        cantidad = detalle.cantidad  # En este caso, es la cantidad de paquetes
+
+        if presentacion.nombre_presentacion == "Unidad":
+            # Si es "Unidad", multiplicamos por la cantidad
+            subtotal = detalle.precio_unitario * cantidad
+        else:
+            # Si es un paquete, usamos directamente el precio del paquete
+            subtotal = detalle.precio_unitario  # Precio total del paquete
+
+        # Calcular IVA (por ejemplo, 15%)
+        iva_item = subtotal * Decimal('0.15')
+
+        total_sin_impuestos += subtotal
+        total_iva += iva_item
+        total_con_impuestos += subtotal + iva_item
+
+    print(f"Subtotal calculado: {total_sin_impuestos}, Total con IVA: {total_con_impuestos}, IVA: {total_iva}")
+
+    # Mostrar los totales en el PDF
+    c.drawString(MARGEN_X, 180, f"Subtotal sin impuestos: {total_sin_impuestos:.2f}")
+    c.drawString(MARGEN_X, 160, f"Impuestos (IVA 15%): {total_iva:.2f}")
+    c.drawString(MARGEN_X, 140, f"Total con impuestos: {total_con_impuestos:.2f}")
+
     return c
 
 def agregar_mensaje_legal(c):

@@ -10,10 +10,8 @@
     <div class="container mt-5">
         <h1 class="mb-4">Agregar Presentaciones para {{ producto.nombre }}</h1>
 
-        <!-- Formulario de presentaciones -->
         <form id="presentacionForm" method="post" action="{% url 'inventarios:agregar_presentaciones_multiples' producto.id %}">
             {% csrf_token %}
-            <!-- Campos del formulario de presentaciones -->
             <div class="mb-3">
                 <label for="nombre_presentacion" class="form-label">Nombre de la Presentación</label>
                 {{ form.nombre_presentacion }}
@@ -26,7 +24,6 @@
                 <label for="precio" class="form-label">Precio</label>
                 {{ form.precio }}
             </div>
-            <!-- Selección múltiple de sucursales -->
             <div class="mb-3">
                 <label for="sucursales" class="form-label">Sucursales</label>
                 {{ form.sucursales }}
@@ -39,46 +36,150 @@
             La presentación se guardó exitosamente.
         </div>
 
-        <button id="btnNuevaPresentacion" class="btn btn-info mt-4">Agregar otra Presentación</button>
+        <h2 class="mt-5">Presentaciones Existentes</h2>
+        <table class="table table-bordered mt-3">
+            <thead class="table-dark">
+                <tr>
+                    <th>Nombre de Presentación</th>
+                    <th>Cantidad</th>
+                    <th>Precio</th>
+                    <th>Sucursal</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody id="tablaPresentaciones">
+                {% for presentacion in presentaciones_existentes %}
+                <tr id="presentacion-{{ presentacion.id }}">
+                    <td>{{ presentacion.nombre_presentacion }}</td>
+                    <td>{{ presentacion.cantidad }}</td>
+                    <td>{{ presentacion.precio }}</td>
+                    <td>{{ presentacion.sucursal.nombre }}</td>
+                    <td>
+                        <button 
+                            class="btn btn-danger btn-sm btn-eliminar" 
+                            data-id="{{ presentacion.id }}">Eliminar</button>
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="5" class="text-center">No hay presentaciones registradas.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        
 
         <a href="{% url 'inventarios:lista_productos' %}" class="btn btn-secondary mt-4">Volver al Inventario</a>
     </div>
 
-    <!-- Bootstrap JS (opcional) -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 
-    <!-- JavaScript para manejar el envío por AJAX -->
     <script>
+        // Configurar los botones de eliminar
+        function configurarBotonesEliminar() {
+            document.querySelectorAll('.btn-eliminar').forEach(button => {
+                button.addEventListener('click', function () {
+                    const presentacionId = this.getAttribute('data-id');
+                    const urlEliminar = `{% url 'inventarios:eliminar_presentacion' 0 %}`.replace('0', presentacionId);
+
+                    console.log(`Intentando eliminar la presentación con ID: ${presentacionId}`);
+                    console.log(`URL generada: ${urlEliminar}`);
+
+                    if (confirm('¿Estás seguro de que deseas eliminar esta presentación?')) {
+                        fetch(urlEliminar, {
+                            method: 'POST',
+                            headers: { 
+                                'X-Requested-With': 'XMLHttpRequest',
+                                'X-CSRFToken': '{{ csrf_token }}'  // Enviar token CSRF
+                            }
+                        })
+                        .then(response => {
+                            console.log('Respuesta del servidor:', response);
+                            if (!response.ok) {
+                                throw new Error(`Error HTTP: ${response.status}`);
+                            }
+                            return response.json();
+                        })
+                        .then(data => {
+                            console.log("Respuesta JSON:", data);
+
+                            if (data.success) {
+                                console.log(`Presentación ${presentacionId} eliminada con éxito.`);
+                                document.getElementById(`presentacion-${presentacionId}`).remove();
+                            } else {
+                                console.error(`Error al eliminar la presentación: ${data.error}`);
+                                alert('Error al eliminar la presentación.');
+                            }
+                        })
+                        .catch(error => {
+                            console.error('Error en la petición AJAX:', error);
+                            alert('Hubo un problema al eliminar la presentación.');
+                        });
+                    }
+                });
+            });
+        }
+
+        // Enviar el formulario por AJAX y agregar la nueva presentación dinámicamente
         document.getElementById('presentacionForm').addEventListener('submit', function(e) {
-            e.preventDefault(); // Prevenir que se recargue la página
-            
+            e.preventDefault();
             const form = this;
             const formData = new FormData(form);
-            
+
             fetch(form.action, {
                 method: 'POST',
                 body: formData,
-                headers: {
+                headers: { 
                     'X-Requested-With': 'XMLHttpRequest',
+                    'X-CSRFToken': '{{ csrf_token }}'  // Enviar token CSRF
                 }
             })
             .then(response => response.json())
             .then(data => {
+                console.log('Respuesta AJAX:', data);
+
                 if (data.success) {
-                    document.getElementById('mensajeExito').style.display = 'block';
-                    form.reset(); // Limpiar el formulario para una nueva presentación
+                    // Agregar todas las presentaciones creadas a la tabla
+                    data.presentaciones.forEach(presentacion => {
+                        const nuevaFila = `
+                            <tr id="presentacion-${presentacion.id}">
+                                <td>${presentacion.nombre_presentacion}</td>
+                                <td>${presentacion.cantidad}</td>
+                                <td>${presentacion.precio}</td>
+                                <td>${presentacion.sucursal}</td>
+                                <td>
+                                    <button class="btn btn-danger btn-sm btn-eliminar" data-id="${presentacion.id}">
+                                        Eliminar
+                                    </button>
+                                </td>
+                            </tr>`;
+                        document.getElementById('tablaPresentaciones').innerHTML += nuevaFila;
+                    });
+
+                    // Reconfigurar los botones de eliminar
+                    configurarBotonesEliminar();
+
+                    // Limpiar el formulario
+                    form.reset();
                 } else {
-                    alert('Error al guardar la presentación.');
-                    console.log('Errores:', data.errors);  // Mostrar los errores exactos en la consola
+                    console.error('Error:', data.error);
+                    alert(data.error);
                 }
             })
             .catch(error => {
-                console.error('Error:', error);
+                console.error('Error en la petición AJAX:', error);
                 alert('Hubo un problema al enviar la presentación.');
             });
         });
 
+
+        // Configurar los botones de eliminar al cargar la página
+        document.addEventListener('DOMContentLoaded', function () {
+            configurarBotonesEliminar();
+        });
+
     </script>
+    
     
 </body>
 </html>

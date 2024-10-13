@@ -22,4 +22,6 @@ urlpatterns = [
     path('agregar-inventario-manual/', views.agregar_inventario_manual, name='agregar_inventario_manual'),
     path('cargar-inventario-excel/', views.cargar_inventario_excel, name='cargar_inventario_excel'),
     path('producto/<int:producto_id>/presentaciones/', views.agregar_presentaciones_multiples, name='agregar_presentaciones_multiples'),
+    path('presentacion/eliminar/<int:presentacion_id>/', views.eliminar_presentacion, name='eliminar_presentacion'),
+
 ]
