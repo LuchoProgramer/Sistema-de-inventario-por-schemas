@@ -1,72 +1,70 @@
 {% extends 'base.html' %}
 
-{% block title %}Registrar Conteo Diario{% endblock %}
+{% block title %}Productos Disponibles{% endblock %}
 
 {% block content %}
-<div class="container mt-5">
-    <h2 class="text-center">Registrar Conteo Diario</h2>
+<div class="container mt-4">
+    <h1 class="text-center">Turno Iniciado en {{ turno.sucursal.nombre }}</h1>
 
-    <form id="conteo-form" method="post">
-        {% csrf_token %}
-
-        <!-- Sucursal Activa (solo informativo) -->
-        <div class="form-group">
-            <label for="sucursal">Sucursal:</label>
-            <input type="text" name="sucursal" class="form-control" value="{{ sucursal_activa.nombre }}" readonly>
+    <div class="row align-items-center mt-3">
+        <div class="col-md-6">
+            <label for="categoria-select">Filtrar por Categoría:</label>
+            <select id="categoria-select" name="categoria" class="form-control">
+                <option value="">Todas las Categorías</option>
+                {% for categoria in categorias %}
+                    <option value="{{ categoria.id }}">
+                        {{ categoria.nombre }}
+                    </option>
+                {% endfor %}
+            </select>
         </div>
 
-        <!-- Filtrar Productos por Categoría y Búsqueda -->
-        <div class="form-row mt-4">
-            <div class="form-group col-md-6">
-                <label for="categoria-select">Filtrar por Categoría:</label>
-                <select id="categoria-select" name="categoria" class="form-control">
-                    <option value="">Todas las Categorías</option>
-                    {% for categoria in categorias %}
-                        <option value="{{ categoria.id }}" {% if categoria.id|stringformat:"s" == categoria_seleccionada %}selected{% endif %}>
-                            {{ categoria.nombre }}
-                        </option>
-                    {% endfor %}
-                </select>
-            </div>
-            <div class="form-group col-md-6">
-                <label for="buscar-producto">Buscar Producto:</label>
-                <input type="text" id="buscar-producto" class="form-control" placeholder="Ingrese el nombre del producto">
-            </div>
+        <div class="col-md-6">
+            <label for="buscar-producto">Buscar Producto:</label>
+            <input type="text" id="buscar-producto" class="form-control" placeholder="Ingrese el nombre del producto">
         </div>
+    </div>
 
-        <!-- Listado de Productos -->
-        <h3 class="mt-4">Productos:</h3>
-        <div id="productos-list" class="mt-3">
-            {% for item in productos_con_campos %}
-                <div class="product-item" data-categoria="{{ item.producto.categoria_id }}" data-nombre="{{ item.producto.nombre|lower }}">
-                    <div class="card mb-3">
-                        <div class="card-body">
-                            <div class="form-check form-switch">
-                                <input 
-                                    type="checkbox" 
-                                    class="form-check-input producto-checkbox" 
-                                    id="{{ item.producto_field.id_for_label }}" 
-                                    name="{{ item.producto_field.html_name }}"
-                                    value="on"  
-                                    {% if item.producto_field.value %} checked {% endif %}  
-                                />
-                                <label for="{{ item.producto_field.id_for_label }}" class="form-check-label">
-                                    {{ item.producto.nombre }}
-                                </label>
-                            </div>
-                            
-                            <div class="form-group mt-2 cantidad-group">
-                                <label for="{{ item.cantidad_field.id_for_label }}">Cantidad Contada:</label>
-                                {{ item.cantidad_field }}
-                            </div>
-                        </div>
-                    </div>
+    <div id="productos-container" class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-lg-4 g-4 mt-3">
+        {% for inventario in inventarios %}
+        <div class="col d-flex align-items-stretch product-item" 
+             data-categoria="{{ inventario.producto.categoria_id }}" 
+             data-nombre="{{ inventario.producto.nombre|lower }}">
+            <div class="card product-card w-100">
+                {% load static %}
+                <img 
+                    src="{% if inventario.producto.image %}{{ inventario.producto.image.url }}{% else %}{% static 'images/default_image.jpg' %}{% endif %}" 
+                    class="card-img-top" 
+                    alt="{{ inventario.producto.nombre }}">
+                <div class="card-body d-flex flex-column justify-content-between">
+                    <h5 class="card-title">{{ inventario.producto.nombre }}</h5>
+                    <p class="card-text">Stock: {{ inventario.cantidad }} unidades</p>
+
+                    <form method="POST" action="{% url 'ventas:agregar_al_carrito' inventario.producto.id %}" 
+                          class="agregar-carrito-form">
+                        {% csrf_token %}
+                        <select name="presentacion" class="form-select" required>
+                            {% for presentacion in inventario.presentaciones %}
+                                <option value="{{ presentacion.id }}">
+                                    {{ presentacion.nombre_presentacion }} - ${{ presentacion.precio }}
+                                </option>
+                            {% endfor %}
+                        </select>
+                        <input type="number" name="cantidad" min="1" max="{{ inventario.cantidad }}" value="1" 
+                               class="form-control mt-2" required>
+                        <button type="submit" class="btn btn-primary mt-2 agregar-carrito-btn">Agregar al Carrito</button>
+                    </form>
                 </div>
-            {% endfor %}
+            </div>
         </div>
+        {% empty %}
+        <p>No hay productos disponibles en inventario para esta sucursal.</p>
+        {% endfor %}
+    </div>
 
-        <button type="submit" class="btn btn-primary mt-4">Guardar Conteo</button>
-    </form>
+    <a href="{% url 'ventas:ver_carrito' %}" class="btn btn-primary btn-carrito-flotante">
+        <i class="fas fa-shopping-cart"></i> Carrito (<span id="cart-count">0</span>)
+    </a>
 </div>
 {% endblock %}
 
@@ -81,7 +79,7 @@
             filtrarProductos();
         });
 
-        // Filtrar productos según la búsqueda
+        // Filtrar productos según la búsqueda en vivo
         $('#buscar-producto').on('input', function() {
             filtrarProductos();
         });
@@ -104,85 +102,24 @@
                 }
             });
         }
-
-        // Validación en tiempo real de cantidad
-        $('.cantidad-group input').on('input', function() {
-            var cantidad = $(this).val();
-            if (cantidad <= 0 || cantidad === '') {
-                $(this).addClass('is-invalid');
-            } else {
-                $(this).removeClass('is-invalid');
-            }
-        });
-
-        // Validar formulario antes de enviar
-        $('#conteo-form').on('submit', function(event) {
-            var isValid = true;
-
-            $('.product-item:visible').each(function() {
-                var checkbox = $(this).find('input.producto-checkbox');
-                var cantidadInput = $(this).find('.cantidad-group input');
-
-                if (!checkbox.is(':checked')) {
-                    isValid = false;
-                    checkbox.closest('.card').addClass('border-danger');
-                } else {
-                    checkbox.closest('.card').removeClass('border-danger');
-                }
-
-                if (cantidadInput.val() <= 0 || cantidadInput.val() === '') {
-                    isValid = false;
-                    cantidadInput.addClass('is-invalid');
-                } else {
-                    cantidadInput.removeClass('is-invalid');
-                }
-            });
-
-            if (!isValid) {
-                event.preventDefault();
-                alert('Por favor, completa todos los campos obligatorios antes de continuar.');
-            }
-        });
-
-        // Marcar o desmarcar cantidad según el checkbox
-        $('.producto-checkbox').change(function() {
-            var cantidadInput = $(this).closest('.card-body').find('.cantidad-group input');
-            if ($(this).is(':checked')) {
-                cantidadInput.prop('disabled', false);
-            } else {
-                cantidadInput.prop('disabled', true).val('');
-            }
-        }).trigger('change'); // Inicializar estado al cargar la página
     });
 </script>
 
 <style>
-    .is-invalid {
-        border-color: #dc3545;
+    .btn-carrito-flotante {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        z-index: 1000;
+        padding: 15px 20px;
+        border-radius: 50px;
+        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
     }
-    .border-danger {
-        border-color: #dc3545 !important;
-    }
-    .card {
-        border: 1px solid #ced4da;
-    }
-    .card-body {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-    }
-    .cantidad-group {
-        width: 200px;
-    }
-    @media (max-width: 576px) {
-        .card-body {
-            flex-direction: column;
-            align-items: flex-start;
-        }
-        .cantidad-group {
-            width: 100%;
-            margin-top: 10px;
-        }
+
+    .product-card img {
+        height: 200px;
+        object-fit: cover;
+        width: 100%;
     }
 </style>
 {% endblock %}
