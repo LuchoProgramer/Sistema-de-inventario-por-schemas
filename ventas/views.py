@@ -18,6 +18,7 @@ from ventas.services import TurnoService
 from datetime import timedelta
 from django.http import JsonResponse
 from django.db import transaction
+from .utils import obtener_total_items_en_carrito
 from inventarios.models import Inventario, Categoria, Presentacion
 from inventarios.services.validacion_inventario_service import ValidacionInventarioService
 from inventarios.services.ajuste_inventario_service import AjusteInventarioService
@@ -166,56 +167,65 @@ def inicio_turno(request, turno_id):
 
 
 
+from django.http import JsonResponse, HttpResponseNotAllowed
+
 @login_required
 def agregar_al_carrito(request, producto_id):
-    # Obtener el producto con la categoría precargada para evitar una consulta adicional
-    producto = get_object_or_404(Producto.objects.select_related('categoria'), id=producto_id)
-    print(f"Producto seleccionado: {producto.nombre}")
+    if request.method == 'POST':
+        # Obtener el producto con la categoría precargada para evitar una consulta adicional
+        producto = get_object_or_404(Producto.objects.select_related('categoria'), id=producto_id)
+        print(f"Producto seleccionado: {producto.nombre}")
 
-    # Obtener el turno activo del usuario con la sucursal ya cargada para evitar más consultas
-    turno = RegistroTurno.objects.filter(usuario=request.user, fin_turno__isnull=True).select_related('sucursal').first()
-    print(f"Turno activo encontrado: {turno.id} en la sucursal {turno.sucursal.nombre}" if turno else "No hay turno activo")
+        # Obtener el turno activo del usuario con la sucursal ya cargada para evitar más consultas
+        turno = RegistroTurno.objects.filter(usuario=request.user, fin_turno__isnull=True).select_related('sucursal').first()
+        print(f"Turno activo encontrado: {turno.id} en la sucursal {turno.sucursal.nombre}" if turno else "No hay turno activo")
 
-    if turno:
-        # Obtener la presentación seleccionada desde el formulario
-        presentacion_id = request.POST.get('presentacion')  # Obtener el id de la presentación seleccionada
-        presentacion = get_object_or_404(Presentacion, id=presentacion_id, producto=producto)
-        print(f"Presentación seleccionada: {presentacion.nombre_presentacion} con {presentacion.cantidad} unidades por presentación")
+        if turno:
+            # Obtener la presentación seleccionada desde el formulario
+            presentacion_id = request.POST.get('presentacion')  # Obtener el id de la presentación seleccionada
+            presentacion = get_object_or_404(Presentacion, id=presentacion_id, producto=producto)
+            print(f"Presentación seleccionada: {presentacion.nombre_presentacion} con {presentacion.cantidad} unidades por presentación")
 
-        # Obtener la cantidad solicitada desde el formulario
-        cantidad = int(request.POST.get('cantidad', 1))  # Obtener la cantidad del formulario, por defecto 1
-        total_unidades_solicitadas = presentacion.cantidad * cantidad  # Calcular las unidades totales según la presentación
-        print(f"Total de unidades solicitadas: {total_unidades_solicitadas} (Cantidad solicitada: {cantidad}, Unidades por presentación: {presentacion.cantidad})")
+            # Obtener la cantidad solicitada desde el formulario
+            cantidad = int(request.POST.get('cantidad', 1))  # Obtener la cantidad del formulario, por defecto 1
+            total_unidades_solicitadas = presentacion.cantidad * cantidad  # Calcular las unidades totales según la presentación
+            print(f"Total de unidades solicitadas: {total_unidades_solicitadas} (Cantidad solicitada: {cantidad}, Unidades por presentación: {presentacion.cantidad})")
 
-        # Validar inventario usando el servicio ValidacionInventarioService
-        if not ValidacionInventarioService.validar_inventario(producto, presentacion, cantidad):
-            messages.error(request, f'No hay suficiente inventario disponible para {producto.nombre}.')
-            return redirect('ventas:inicio_turno', turno_id=turno.id)
+            # Validar inventario usando el servicio ValidacionInventarioService
+            if not ValidacionInventarioService.validar_inventario(producto, presentacion, cantidad):
+                messages.error(request, f'No hay suficiente inventario disponible para {producto.nombre}.')
+                return redirect('ventas:inicio_turno', turno_id=turno.id)
 
-        # Obtener o crear un ítem en el carrito para esta presentación
-        carrito_items = Carrito.objects.filter(turno=turno, producto=producto, presentacion=presentacion)
+            # Obtener o crear un ítem en el carrito para esta presentación
+            carrito_items = Carrito.objects.filter(turno=turno, producto=producto, presentacion=presentacion)
 
-        if carrito_items.exists():
-            carrito_item = carrito_items.first()  # Obtener el primer ítem existente en el carrito
-            nueva_cantidad = carrito_item.cantidad + cantidad  # Sumar la cantidad al existente
-            print(f"Carrito actualizado para el producto: {producto.nombre}, Presentación: {presentacion.nombre_presentacion}")
+            if carrito_items.exists():
+                carrito_item = carrito_items.first()  # Obtener el primer ítem existente en el carrito
+                nueva_cantidad = carrito_item.cantidad + cantidad  # Sumar la cantidad al existente
+                print(f"Carrito actualizado para el producto: {producto.nombre}, Presentación: {presentacion.nombre_presentacion}")
+            else:
+                carrito_item = Carrito(turno=turno, producto=producto, presentacion=presentacion, cantidad=cantidad)
+                nueva_cantidad = cantidad
+                print(f"Carrito creado para el producto: {producto.nombre}, Presentación: {presentacion.nombre_presentacion}")
+
+            total_unidades_en_carrito = presentacion.cantidad * nueva_cantidad  # Unidades según la presentación
+            print(f"Total de unidades en carrito: {total_unidades_en_carrito} (Nueva cantidad: {nueva_cantidad})")
+
+            carrito_item.cantidad = nueva_cantidad
+            carrito_item.save()
+            print(f"Cantidad actualizada en el carrito: {nueva_cantidad}")
+
+            if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+                # Obtener el número total de productos en el carrito
+                total_items = obtener_total_items_en_carrito(request)
+                return JsonResponse({'message': 'Producto agregado al carrito', 'total_items': total_items}, status=200)
+            else:
+                return redirect('ventas:productos_disponibles')
         else:
-            carrito_item = Carrito(turno=turno, producto=producto, presentacion=presentacion, cantidad=cantidad)
-            nueva_cantidad = cantidad
-            print(f"Carrito creado para el producto: {producto.nombre}, Presentación: {presentacion.nombre_presentacion}")
-
-        total_unidades_en_carrito = presentacion.cantidad * nueva_cantidad  # Unidades según la presentación
-        print(f"Total de unidades en carrito: {total_unidades_en_carrito} (Nueva cantidad: {nueva_cantidad})")
-
-        carrito_item.cantidad = nueva_cantidad
-        carrito_item.save()
-        print(f"Cantidad actualizada en el carrito: {nueva_cantidad}")
-
-        messages.success(request, f'Se ha agregado {cantidad} de la presentación {presentacion.nombre_presentacion} de {producto.nombre} al carrito.')
-        return redirect('ventas:inicio_turno', turno_id=turno.id)
+            messages.error(request, 'No tienes un turno activo.')
+            return JsonResponse({'status': 'error', 'message': 'No tienes un turno activo.'})
     else:
-        messages.error(request, 'No tienes un turno activo.')
-        return redirect('ventas:inicio_turno', turno_id=request.POST.get('turno_id', 0))
+        return HttpResponseNotAllowed(['POST'])
 
 
 

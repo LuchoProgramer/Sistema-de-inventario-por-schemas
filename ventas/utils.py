@@ -54,3 +54,12 @@ def vaciar_carrito(usuario):
     else:
         logger.warning(f"Intento de vaciar carrito sin turno activo para el usuario: {usuario}")
 
+
+def obtener_total_items_en_carrito(request):
+    """
+    Obtiene el número total de ítems en el carrito de un usuario.
+    """
+    # Suponiendo que usas sesiones para almacenar los datos del carrito
+    cart = request.session.get('cart', {})
+    total_items = sum(item['quantity'] for item in cart.values())
+    return total_items
