@@ -215,12 +215,24 @@ def agregar_al_carrito(request, producto_id):
             carrito_item.save()
             print(f"Cantidad actualizada en el carrito: {nueva_cantidad}")
 
-            if request.headers.get('x-requested-with') == 'XMLHttpRequest':
-                # Obtener el número total de productos en el carrito
-                total_items = obtener_total_items_en_carrito(request)
-                return JsonResponse({'message': 'Producto agregado al carrito', 'total_items': total_items}, status=200)
+            # Después de agregar al carrito, actualizar la sesión
+            cart = request.session.get('cart', {})
+            key = f"{producto_id}_{presentacion.id}"  # Usar un identificador único para producto y presentación
+            if key in cart:
+                cart[key]['quantity'] += cantidad
             else:
-                return redirect('ventas:productos_disponibles')
+                cart[key] = {
+                    'producto_id': producto_id,
+                    'presentacion_id': presentacion.id,
+                    'quantity': cantidad
+                }
+            request.session['cart'] = cart
+            request.session.modified = True
+            print("Contenido del carrito en la sesión después de la actualización:", cart)
+
+            # Devolver la respuesta JSON
+            total_items = obtener_total_items_en_carrito(request)
+            return JsonResponse({'message': 'Producto agregado al carrito', 'total_items': total_items}, status=200)
         else:
             messages.error(request, 'No tienes un turno activo.')
             return JsonResponse({'status': 'error', 'message': 'No tienes un turno activo.'})
@@ -249,13 +261,38 @@ def ver_carrito(request):
         item_id = request.POST.get('item_id')  # Obtener el ID del producto del formulario
         carrito_item = get_object_or_404(Carrito, id=item_id)
         print(f"Eliminando el producto del carrito: {carrito_item.producto.nombre} con presentación {carrito_item.presentacion.nombre_presentacion}")
-        carrito_item.delete()  # Eliminar el producto del carrito
+        
+        # Eliminar el producto del carrito en la base de datos
+        carrito_item.delete()
+        
+        # Actualizar la sesión para reflejar la eliminación
+        cart = request.session.get('cart', {})
+        key = f"{carrito_item.producto.id}_{carrito_item.presentacion.id}"
+        if key in cart:
+            del cart[key]
+            request.session['cart'] = cart
+            request.session.modified = True
+            print("Carrito actualizado en la sesión después de la eliminación:", cart)
+        
         return redirect('ventas:ver_carrito')  # Redirigir al carrito actualizado
 
     if turno:
         # Obtener los items del carrito con el producto y presentación precargados
         carrito_items = Carrito.objects.filter(turno=turno).select_related('producto', 'presentacion')
         print(f"Carrito contiene {carrito_items.count()} items.")
+
+        # Actualizar la sesión con los ítems actuales del carrito para mantener sincronización
+        cart = {}
+        for item in carrito_items:
+            key = f"{item.producto.id}_{item.presentacion.id}"
+            cart[key] = {
+                'producto_id': item.producto.id,
+                'presentacion_id': item.presentacion.id,
+                'quantity': item.cantidad
+            }
+        request.session['cart'] = cart
+        request.session.modified = True
+        print("Carrito sincronizado con la sesión:", cart)
 
         # Calcular el total utilizando los datos ya cargados
         total = sum(item.subtotal() for item in carrito_items)
@@ -269,7 +306,6 @@ def ver_carrito(request):
     else:
         print("No hay turno activo.")
         return render(request, 'ventas/error.html', {'mensaje': 'No tienes un turno activo.'})
-
 
 
     

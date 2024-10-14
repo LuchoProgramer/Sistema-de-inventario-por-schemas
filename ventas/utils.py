@@ -61,5 +61,6 @@ def obtener_total_items_en_carrito(request):
     """
     # Suponiendo que usas sesiones para almacenar los datos del carrito
     cart = request.session.get('cart', {})
+    print("Contenido del carrito en la sesión:", cart)  # Log para depuración
     total_items = sum(item['quantity'] for item in cart.values())
     return total_items
