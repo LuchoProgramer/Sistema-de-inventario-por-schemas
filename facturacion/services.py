@@ -66,7 +66,8 @@ def crear_factura(cliente, sucursal, usuario, carrito_items):
                 total_sin_impuestos=total_sin_impuestos.quantize(Decimal('0.01')),
                 valor_iva=total_iva.quantize(Decimal('0.01')),
                 total_con_impuestos=total_con_impuestos.quantize(Decimal('0.01')),
-                estado='EN_PROCESO'
+                estado='EN_PROCESO',
+                es_cotizacion=False
             )
             print(f"Factura creada con número de autorización {factura.numero_autorizacion}...")
 

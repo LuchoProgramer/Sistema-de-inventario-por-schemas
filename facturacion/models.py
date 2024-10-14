@@ -89,7 +89,8 @@ class Factura(models.Model):
         # Agregar la relación con RegistroTurno
     registroturno = models.ForeignKey('RegistroTurnos.RegistroTurno', on_delete=models.CASCADE, null=True, blank=True)
     archivo_pdf = models.FileField(upload_to=ruta_factura, null=True, blank=True)  # Campo para almacenar el PDF de la factura
-
+    es_cotizacion = models.BooleanField(default=False)
+    
     class Meta:
         unique_together = ('sucursal', 'numero_autorizacion')
 
