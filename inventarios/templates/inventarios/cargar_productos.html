@@ -1,6 +1,17 @@
-<h2>Cargar Productos</h2>
-<form method="post" enctype="multipart/form-data">
-    {% csrf_token %}
-    {{ form.as_p }}
-    <button type="submit">Subir Archivo</button>
-</form>
+{% extends 'base_administrador.html' %}
+
+{% block content %}
+    <div class="container mt-5">
+        <h2 class="mb-4">Cargar Productos</h2>
+        <form method="post" enctype="multipart/form-data">
+            {% csrf_token %}
+            {{ form.as_p }}
+            {% if error %}
+                <div class="alert alert-danger mt-3">{{ error }}</div>
+            {% elif mensaje %}
+                <div class="alert alert-success mt-3">{{ mensaje }}</div>
+            {% endif %}
+            <button type="submit" class="btn btn-primary mt-3">Subir Archivo</button>
+        </form>
+    </div>
+{% endblock %}

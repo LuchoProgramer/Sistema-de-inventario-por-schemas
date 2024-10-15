@@ -1,99 +1,7 @@
+{% extends 'base_administrador.html' %}
 {% load static %}
 
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="{% static 'RegistroTurnos/css/dashboard.css' %}">
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
-</head>
-
-<body>
-
-    <!-- Encabezado con el nombre de la empresa y botón de menú -->
-    <nav class="navbar" style="background-color: #E9ECEF;">
-        <div class="container-fluid">    
-            <!-- Botón Menú Offcanvas -->
-            <button class="btn btn-dark" type="button" id="offcanvasMenuToggle" data-bs-toggle="offcanvas" data-bs-target="#offcanvasMenu" aria-controls="offcanvasMenu" style="background-color: #2C2C2C; border-color: #2C2C2C;">
-                ☰ Menú
-            </button>
-    
-            <!-- Logo redondo y nombre de la empresa -->
-            <a class="navbar-brand ms-3 d-flex align-items-center" href="{% url 'dashboard' %}">
-                <img src="https://lahuequitaquitena.netlify.app/Imagenes/Logo%20La%20Huequita%20200px.png" 
-                     alt="Logo La Huequita Quiteña" width="50" height="50" class="me-2 rounded-circle">
-                <span style="font-family: 'Cinzel', serif; font-weight: bold; color: #2C2C2C;">
-                    La Huequita Quiteña
-                </span>
-            </a>
-        </div>
-    </nav>
-    
-    
-    <!-- Offcanvas Menu para pantallas pequeñas -->
-    <div class="offcanvas offcanvas-start" tabindex="-1" id="offcanvasMenu" aria-labelledby="offcanvasMenuLabel" style="background-color: #E9ECEF;">
-        <div class="offcanvas-header">
-            <h5 class="offcanvas-title" id="offcanvasMenuLabel">Menú Principal</h5>
-            <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Close" style="background-color: #2C2C2C;"></button>
-        </div>
-        <div class="offcanvas-body">
-            <ul class="nav flex-column">
-            
-                <!-- Inventarios -->
-                <li class="nav-item dropdown">
-                    <a class="nav-link dropdown-toggle text-dark" href="#" id="offcanvasInventariosDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                        Inventarios
-                    </a>
-                    <ul class="dropdown-menu" aria-labelledby="offcanvasInventariosDropdown">
-                        <li><a class="dropdown-item" href="{% url 'inventarios:lista_productos' %}">Lista de Productos</a></li>
-                        <li><a class="dropdown-item" href="{% url 'inventarios:lista_categorias' %}">Lista de Categorías</a></li>
-                        <li><a class="dropdown-item" href="{% url 'inventarios:lista_movimientos_inventario' %}">Movimientos de Inventario</a></li>
-                        <li><a class="dropdown-item" href="{% url 'inventarios:lista_transferencias' %}">Transferencias</a></li>
-                        <li><a class="dropdown-item" href="{% url 'inventarios:seleccionar_sucursal' %}">Seleccionar Sucursal</a></li>
-                    </ul>
-                </li>
-            
-                <!-- Compras -->
-                <li class="nav-item dropdown">
-                    <a class="nav-link dropdown-toggle text-dark" href="#" id="offcanvasComprasDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                        Compras
-                    </a>
-                    <ul class="dropdown-menu" aria-labelledby="offcanvasComprasDropdown">
-                        <li><a class="dropdown-item" href="{% url 'compras:crear_compra_con_productos' %}">Agregar Compra</a></li>
-                        <li><a class="dropdown-item" href="{% url 'compras:lista_compras' %}">Ver Compras</a></li>
-                    </ul>
-                </li>
-            
-                <!-- Reportes -->
-                <li class="nav-item dropdown">
-                    <a class="nav-link dropdown-toggle text-dark" href="#" id="offcanvasReportesDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                        Reportes
-                    </a>
-                    <ul class="dropdown-menu" aria-labelledby="offcanvasReportesDropdown">
-                        <li><a class="dropdown-item" href="{% url 'reporte_ventas' %}">Reporte de Ventas</a></li>
-                        <li><a class="dropdown-item" href="{% url 'reporte_ventas_filtrado' %}">Reporte de Ventas Filtrado</a></li>
-                    </ul>
-                </li>
-            
-                <!-- Configuraciones -->
-                <li class="nav-item dropdown">
-                    <a class="nav-link dropdown-toggle text-dark" href="#" id="offcanvasConfiguracionesDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                        Configuraciones
-                    </a>
-                    <ul class="dropdown-menu" aria-labelledby="offcanvasConfiguracionesDropdown">
-                        <li><a class="dropdown-item" href="{% url 'crear_usuario' %}">Agregar Nuevo Empleado</a></li>
-                        <li><a class="dropdown-item" href="{% url 'sucursales:lista_sucursales' %}">Lista de Sucursales</a></li>
-                        <li><a class="dropdown-item" href="{% url 'facturacion:lista_impuestos' %}">Lista de Impuestos</a></li>
-                    </ul>
-                </li>
-    
-            </ul>
-        </div>        
-    </div>
-    
+{% block content %}
 
     <!-- Contenedor principal -->
     <div class="container-fluid">
@@ -178,8 +86,5 @@
             </div>            
         </div>
     </div>
-    <!-- Scripts -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="{% static 'RegistroTurnos/js/dashboard.js' %}"></script>
-</body>
-</html>
+
+{% endblock %}
