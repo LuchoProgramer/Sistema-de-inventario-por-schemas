@@ -1,8 +1,11 @@
 from django.shortcuts import render, redirect, get_object_or_404
-from .models import Compra, Proveedor, DetalleCompra, Inventario, Producto, MovimientoInventario
+from .models import Compra, Proveedor, DetalleCompra, Inventario, Producto, MovimientoInventario, Presentacion,Categoria
+from sucursales.models import Sucursal
 from .forms import CompraForm, DetalleCompraForm, CompraXMLForm
 from django.forms import inlineformset_factory
 from django.http import JsonResponse
+import pandas as pd
+
 
 def lista_compras(request):
     compras = Compra.objects.all()
@@ -155,4 +158,129 @@ def procesar_compra_xml(request):
         form = CompraXMLForm()
 
     return render(request, 'compras/subir_xml.html', {'form': form})
+
+
+
+import pandas as pd
+from django.shortcuts import render, redirect
+from inventarios.models import Producto, Presentacion
+from sucursales.models import Sucursal
+
+import traceback  # Para capturar el stack trace en caso de error
+
+from django.db import transaction
+
+
+def normalizar_clave(clave):
+    """Elimina espacios y normaliza los nombres de las claves."""
+    return str(clave).strip().lower()
+
+import unicodedata
+
+from django.db import transaction
+from django.core.exceptions import ObjectDoesNotExist
+import unicodedata
+
+from django.db import transaction
+from django.core.exceptions import ObjectDoesNotExist
+import unicodedata
+
+def normalizar_texto(texto):
+    """Elimina acentos, convierte a minúsculas y elimina espacios extra."""
+    texto = texto.strip().lower()
+    texto = unicodedata.normalize('NFKD', texto).encode('ascii', 'ignore').decode('utf-8')
+    return texto
+
+def cargar_productos(request):
+    if request.method == 'POST':
+        archivo = request.FILES.get('archivo')
+
+        if not archivo or not archivo.name.endswith('.xlsx'):
+            return render(request, 'compras/cargar_productos.html', {'error': 'El archivo debe ser .xlsx'})
+
+        try:
+            df = pd.read_excel(archivo)
+            print("Columnas detectadas:", df.columns.tolist())
+
+            columnas_sucursales = [
+                col for col in df.columns if normalizar_texto(col).startswith('sucursal: ')
+            ]
+
+            if not columnas_sucursales:
+                print("No se detectaron columnas de sucursales.")
+                return render(request, 'compras/cargar_productos.html', {'error': 'No se detectaron columnas de sucursales.'})
+
+            for index, row in df.iterrows():
+                print(f"\nProcesando fila {index + 1}...")
+                print(f"Valores de la fila {index + 1}: {row.to_dict()}")
+
+                codigo = row.get('Código')
+                nombre = row.get('Nombre')
+                categoria = row.get('Categoría')
+
+                if pd.isna(codigo) or pd.isna(nombre) or pd.isna(categoria):
+                    print(f"Fila {index + 1} ignorada: Falta Código, Nombre o Categoría.")
+                    continue
+
+                categoria_obj, _ = Categoria.objects.get_or_create(nombre=categoria)
+                producto, _ = Producto.objects.update_or_create(
+                    codigo_producto=codigo,
+                    defaults={'nombre': nombre, 'categoria': categoria_obj}
+                )
+                print(f"Producto actualizado: {producto.nombre}")
+
+                for sucursal_col in columnas_sucursales:
+                    if row[sucursal_col].strip().lower() == 'si':
+                        nombre_sucursal = sucursal_col.replace('Sucursal: ', '').strip()
+
+                        # Intentar encontrar la sucursal con icontains
+                        try:
+                            sucursal = Sucursal.objects.get(nombre__icontains=nombre_sucursal)
+                            print(f"  Sucursal encontrada: {sucursal.nombre}")
+                        except ObjectDoesNotExist:
+                            print(f"  Error: La sucursal '{nombre_sucursal}' no existe en la base de datos.")
+                            continue
+
+                        with transaction.atomic():
+                            for precio_tipo in ['Precio1', 'Precio2', 'Precio4']:
+                                if precio_tipo in row:
+                                    print(f"    Verificando {precio_tipo}...")
+                                    precio = row.get(precio_tipo)
+                                    if pd.notna(precio):
+                                        cantidad = row.get('Cantidad', 1)
+                                        print(f"    {precio_tipo} válido: {precio}, Cantidad: {cantidad}")
+
+                                        try:
+                                            presentacion = Presentacion(
+                                                producto=producto,
+                                                nombre_presentacion=precio_tipo.replace('Precio', 'Precio '),
+                                                sucursal=sucursal,
+                                                cantidad=cantidad,
+                                                precio=precio
+                                            )
+                                            presentacion.save()
+                                            print(f"    Presentación creada: {presentacion.nombre_presentacion}")
+
+                                            if Presentacion.objects.filter(
+                                                    producto=producto,
+                                                    nombre_presentacion=precio_tipo.replace('Precio', 'Precio '),
+                                                    sucursal=sucursal).exists():
+                                                print(f"    Confirmación: Presentación guardada correctamente.")
+                                            else:
+                                                print(f"    Error: La presentación no se encuentra en la base de datos.")
+                                        except Exception as e:
+                                            print(f"    Error al guardar la presentación: {str(e)}")
+                                    else:
+                                        print(f"    {precio_tipo} es NaN o no válido.")
+                                else:
+                                    print(f"    {precio_tipo} no encontrado en la fila.")
+
+            return render(request, 'compras/cargar_productos.html', {'mensaje': 'Archivo cargado exitosamente.'})
+
+        except Exception as e:
+            print(f"Error al procesar el archivo: {str(e)}")
+            traceback.print_exc()
+            return render(request, 'compras/cargar_productos.html', {'error': f'Error al procesar el archivo: {str(e)}'})
+
+    return render(request, 'compras/cargar_productos.html')
 

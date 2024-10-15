@@ -8,4 +8,5 @@ urlpatterns = [
     path('crear/', compras_views.crear_compra_con_productos, name='crear_compra_con_productos'),
     path('<int:compra_id>/', compras_views.detalle_compra, name='detalle_compra'),
     path('subir-xml/', compras_views.procesar_compra_xml, name='procesar_compra_xml'),
+    path('cargar-productos/', compras_views.cargar_productos, name='cargar_productos'),
 ]
