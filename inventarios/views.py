@@ -234,9 +234,16 @@ def ajustar_inventario(request, producto_id, sucursal_id):
 def agregar_producto(request):
     if request.method == 'POST':
         form = ProductoForm(request.POST, request.FILES)
+
         if form.is_valid():
-            producto = form.save()
-            form.save_m2m()  # Guarda las relaciones Many-to-Many
+            # Guardar el producto sin confirmar relaciones Many-to-Many
+            producto = form.save(commit=False)
+            producto.save()  # Guardar el producto en la base de datos
+
+            # Solo llamar a save_m2m() si el formulario lo soporta
+            if hasattr(form, 'save_m2m'):
+                form.save_m2m()  # Guardar las relaciones Many-to-Many
+
             messages.success(request, 'Producto agregado exitosamente.')
             return redirect('inventarios:lista_productos')
         else:
@@ -305,19 +312,44 @@ def crear_transferencia(request):
         if form.is_valid():
             # Obtener los datos del formulario
             transferencia = form.save(commit=False)
-            
+
             # Verificar si hay suficiente inventario en la sucursal de origen
-            inventario_origen = Inventario.objects.get(sucursal=transferencia.sucursal_origen, producto=transferencia.producto)
+            inventario_origen = Inventario.objects.get(
+                sucursal=transferencia.sucursal_origen, 
+                producto=transferencia.producto
+            )
+
             if inventario_origen.cantidad < transferencia.cantidad:
                 form.add_error('cantidad', 'No hay suficiente inventario en la sucursal de origen.')
             else:
-                # Guardar la transferencia y actualizar inventarios
-                transferencia.save()  # Esto ejecuta el método save personalizado en el modelo Transferencia
-                return redirect('inventarios:lista_transferencias')  # Redirigir a una lista de transferencias o donde prefieras
+                # Actualizar inventario de origen
+                inventario_origen.cantidad -= transferencia.cantidad
+                inventario_origen.save()
+
+                # Obtener o crear inventario en la sucursal destino
+                inventario_destino, created = Inventario.objects.get_or_create(
+                    sucursal=transferencia.sucursal_destino,
+                    producto=transferencia.producto,
+                    defaults={'cantidad': 0}  # Asignar cantidad inicial si no existe
+                )
+
+                if not created:
+                    inventario_destino.cantidad += transferencia.cantidad
+                else:
+                    inventario_destino.cantidad = transferencia.cantidad
+                
+                inventario_destino.save()
+
+                # Guardar la transferencia
+                transferencia.save()
+
+                # Redirigir a la lista de transferencias
+                return redirect('inventarios:lista_transferencias')
     else:
         form = TransferenciaForm()
 
     return render(request, 'inventarios/crear_transferencia.html', {'form': form})
+
 
 def lista_transferencias(request):
     transferencias = Transferencia.objects.all()
