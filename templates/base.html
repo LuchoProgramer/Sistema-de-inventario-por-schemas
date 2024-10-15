@@ -20,12 +20,12 @@
     
             <!-- Logo redondo y nombre de la empresa -->
             <a class="navbar-brand ms-3 d-flex align-items-center" 
-               href="{% url 'ventas:inicio_turno' turno_id=turno_activo.id %}">  <!-- Cambia 1 por el turno_id dinámico -->
-                <img src="https://lahuequitaquitena.netlify.app/Imagenes/Logo%20La%20Huequita%20200px.png" 
-                     alt="Logo La Huequita Quiteña" width="50" height="50" class="me-2 rounded-circle">
-                <span style="font-family: 'Cinzel', serif; font-weight: bold; color: #2C2C2C;">
-                    La Huequita Quiteña
-                </span>
+            href="{% if turno_activo %}{% url 'ventas:inicio_turno' turno_id=turno_activo.id %}{% else %}#{% endif %}">
+             <img src="https://lahuequitaquitena.netlify.app/Imagenes/Logo%20La%20Huequita%20200px.png" 
+                  alt="Logo La Huequita Quiteña" width="50" height="50" class="me-2 rounded-circle">
+             <span style="font-family: 'Cinzel', serif; font-weight: bold; color: #2C2C2C;">
+                 La Huequita Quiteña
+             </span>
             </a>
     
             <!-- Botón navbar-toggler -->

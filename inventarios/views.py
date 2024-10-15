@@ -433,27 +433,36 @@ def cargar_inventario_excel(request):
             file = request.FILES['file']
             df = pd.read_excel(file)
 
-            required_columns = ['Producto', 'Cantidad']
+            # Cambiar la verificación de columnas a 'Nombre' y 'Cantidad'
+            required_columns = ['Nombre', 'Cantidad']
             for column in required_columns:
                 if column not in df.columns:
                     return HttpResponse(f"El archivo debe contener la columna: {column}")
 
+            # Iterar por las filas del DataFrame y actualizar el inventario
             for index, row in df.iterrows():
-                producto = Producto.objects.get(nombre=row['Producto'])
-                inventario, created = Inventario.objects.get_or_create(
-                    producto=producto,
-                    sucursal=sucursal,
-                    defaults={'cantidad': row['Cantidad']}
-                )
-                # Si el inventario ya existe, sobrescribe la cantidad en lugar de sumarla
-                if not created:
-                    inventario.cantidad = row['Cantidad']
-                inventario.save()
+                try:
+                    # Buscar el producto por el campo 'nombre' en minúsculas
+                    producto = Producto.objects.get(nombre=row['Nombre'])
+
+                    inventario, created = Inventario.objects.get_or_create(
+                        producto=producto,
+                        sucursal=sucursal,
+                        defaults={'cantidad': row['Cantidad']}
+                    )
+
+                    # Si el inventario ya existe, sobrescribe la cantidad
+                    if not created:
+                        inventario.cantidad = row['Cantidad']
+
+                    inventario.save()
+
+                except Producto.DoesNotExist:
+                    return HttpResponse(f"El producto con nombre '{row['Nombre']}' no existe.")
 
             return redirect(reverse('inventarios:ver_inventario', args=[sucursal.id]))
+
     else:
         form = UploadFileForm()
 
     return render(request, 'inventarios/cargar_inventario_excel.html', {'form': form, 'sucursal': sucursal})
-
-
