@@ -10,7 +10,7 @@ db.sqlite3
 /uploads/
 
 # Static files #
-/staticfiles/
+#/staticfiles/
 
 # Environment variables #
 .env
