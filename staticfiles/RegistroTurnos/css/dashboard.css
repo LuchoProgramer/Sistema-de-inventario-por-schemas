@@ -1,0 +1,39 @@
+/* Estilos para el sidebar */
+#sidebar .nav-link {
+    font-weight: bold;
+    padding: 10px;
+}
+
+#sidebar .dropdown-item:hover {
+    background-color: #D6D8DA; /* Gris más oscuro al hacer hover */
+    color: black;
+}
+
+#sidebar .nav-link:hover {
+    color: #2C2C2C; /* Gris oscuro para el texto al hacer hover */
+}
+
+#sidebar {
+    box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1); /* Sombra para separar el sidebar */
+}
+
+/* Estilos para el offcanvas */
+.offcanvas-body .nav-link {
+    font-weight: bold;
+    padding: 10px;
+}
+
+.offcanvas-body .dropdown-item:hover {
+    background-color: #D6D8DA;
+    color: black;
+}
+
+.btn-close {
+    filter: invert(1); /* Hace que el botón de cierre sea blanco */
+}
+
+@media (max-width: 576px) {
+    .offcanvas {
+        width: 80%; /* Ajusta el ancho en pantallas pequeñas */
+    }
+}
