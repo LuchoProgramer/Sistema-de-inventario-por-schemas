@@ -115,10 +115,9 @@ def registrar_venta(request):
 
 from inventarios.models import Presentacion
 
+
 @login_required
 def inicio_turno(request, turno_id):
-    print(f"Usuario {request.user} accediendo a inicio_turno para el turno {turno_id}")
-
     # Obtener el turno activo para el usuario
     turno = get_object_or_404(RegistroTurno, id=turno_id, usuario=request.user)
 
@@ -132,16 +131,13 @@ def inicio_turno(request, turno_id):
 
     if categoria_seleccionada:
         inventarios = inventarios.filter(producto__categoria_id=categoria_seleccionada)
-        print(f"Categoría seleccionada: {categoria_seleccionada}")
 
     if termino_busqueda:
         inventarios = inventarios.filter(producto__nombre__icontains=termino_busqueda)
-        print(f"Término de búsqueda: {termino_busqueda}")
 
     # Filtrar presentaciones por la sucursal del turno
     for inventario in inventarios:
         inventario.presentaciones = inventario.producto.presentaciones.filter(sucursal=turno.sucursal)
-        print(f"Producto: {inventario.producto.nombre}, Presentaciones para sucursal {turno.sucursal.nombre}: {[p.nombre_presentacion for p in inventario.presentaciones]}")
 
     # Obtener los items del carrito
     carrito_items = Carrito.objects.filter(turno=turno).select_related('producto')
@@ -150,7 +146,6 @@ def inicio_turno(request, turno_id):
     for item in carrito_items:
         if not ValidacionInventarioService.validar_stock_disponible(item.producto, item.cantidad):
             messages.warning(request, f'El producto {item.producto.nombre} ya tiene todo su stock agregado al carrito.')
-        print(f"Producto en carrito: {item.producto.nombre}, Cantidad en carrito: {item.cantidad}")
 
     # Renderizar la plantilla con los datos necesarios
     return render(request, 'ventas/inicio_turno.html', {
