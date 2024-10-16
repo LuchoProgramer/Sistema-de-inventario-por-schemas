@@ -51,7 +51,7 @@
         </div>
     </div>
 
-    <div id="productos-container" class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-lg-4 g-4 mt-3">
+    <div id="productos-container" class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-lg-5 g-4 mt-3">
         {% for inventario in inventarios %}
         <div class="col d-flex align-items-stretch producto-item"
              data-nombre="{{ inventario.producto.nombre|lower }}"
