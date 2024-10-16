@@ -18,6 +18,7 @@ from django.contrib import admin
 from django.urls import path, include  # Asegúrate de importar include
 from django.conf import settings
 from django.conf.urls.static import static
+from django.views.generic import RedirectView
 
 urlpatterns = [
     path("admin/", admin.site.urls),
@@ -30,6 +31,9 @@ urlpatterns = [
     path('reportes/', include('reportes.urls')),
     path('sucursales/', include('sucursales.urls')),
     path('compras/', include('inventarios.compras_urls')),
+
+    # Redirige la raíz del sitio a 'registro-turnos/'
+    path('', RedirectView.as_view(url='/registro-turnos/')),
 ]
 
 if settings.DEBUG:
