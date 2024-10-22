@@ -14,39 +14,51 @@ import os
 from django.conf import settings
 from inventarios.services.validacion_inventario_service import ValidacionInventarioService
 from inventarios.services.ajuste_inventario_service import AjusteInventarioService
+from sucursales.models import RazonSocial
+
+
+
+
+def obtener_valor_base_iva(precio_con_iva, porcentaje_iva):
+    # Convertir ambos valores a Decimal para garantizar compatibilidad
+    precio_con_iva = Decimal(precio_con_iva)
+    porcentaje_iva = Decimal(porcentaje_iva)
+
+    # Calcular el valor base y el IVA desde el precio con IVA incluido
+    valor_base = precio_con_iva / (Decimal('1') + (porcentaje_iva / Decimal('100')))
+    valor_iva = precio_con_iva - valor_base
+    return valor_base, valor_iva
+
 
 
 def crear_factura(cliente, sucursal, usuario, carrito_items):
     print("Iniciando la creación de la factura...")
 
-    # Obtener el IVA activo
     iva = Impuesto.objects.filter(codigo_impuesto='2', activo=True).first()
-    if not iva:
-        print("No se encontró un IVA activo.")
-        raise ValidationError("No se encontró un IVA activo en la base de datos")
+    porcentaje_iva = Decimal(iva.porcentaje) if iva else Decimal('0.00')
 
     total_sin_impuestos = Decimal('0.00')
     total_iva = Decimal('0.00')
     total_con_impuestos = Decimal('0.00')
 
-    for item in carrito_items:
-        print(f"Procesando producto {item.producto.nombre}...")
-
-        presentacion = item.presentacion
-        total_unidades_solicitadas = item.cantidad * presentacion.cantidad
-
-        # Obtener el valor base e IVA del producto
-        valor_base, valor_iva = item.producto.obtener_valor_base_iva(presentacion)
-
-        subtotal_item = valor_base * total_unidades_solicitadas
-        iva_item = valor_iva * total_unidades_solicitadas
-
-        total_sin_impuestos += subtotal_item
-        total_iva += iva_item
-        total_con_impuestos += subtotal_item + iva_item
-
     try:
         with transaction.atomic():
+            for item in carrito_items:
+                print(f"Procesando producto {item.producto.nombre}...")
+
+                presentacion = item.presentacion
+                cantidad_paquetes = item.cantidad
+
+                # Desglosar el valor base e IVA del precio total por paquete
+                valor_base, valor_iva = obtener_valor_base_iva(presentacion.precio, porcentaje_iva)
+
+                subtotal_item = valor_base * cantidad_paquetes
+                iva_item = valor_iva * cantidad_paquetes
+
+                total_sin_impuestos += subtotal_item
+                total_iva += iva_item
+                total_con_impuestos += subtotal_item + iva_item
+
             print("Iniciando transacción para crear la factura y los detalles...")
             sucursal.incrementar_secuencial()
             sucursal.save()
@@ -60,6 +72,7 @@ def crear_factura(cliente, sucursal, usuario, carrito_items):
             # Crear la factura
             factura = Factura.objects.create(
                 sucursal=sucursal,
+                razon_social=sucursal.razon_social,
                 cliente=cliente,
                 usuario=usuario,
                 numero_autorizacion=numero_autorizacion,
@@ -71,25 +84,25 @@ def crear_factura(cliente, sucursal, usuario, carrito_items):
             )
             print(f"Factura creada con número de autorización {factura.numero_autorizacion}...")
 
-            # Crear los detalles de la factura y actualizar el inventario
+            # Crear los detalles de la factura
             for item in carrito_items:
                 presentacion = item.presentacion
-                total_unidades_solicitadas = item.cantidad * presentacion.cantidad
+                cantidad_paquetes = item.cantidad
 
-                # Calcular valores de detalle
-                valor_base, valor_iva = item.producto.obtener_valor_base_iva(presentacion)
-                subtotal_item = valor_base * total_unidades_solicitadas
-                iva_item = valor_iva * total_unidades_solicitadas
+                # Calcular valores de detalle usando cantidad de paquetes
+                valor_base, valor_iva = obtener_valor_base_iva(presentacion.precio, porcentaje_iva)
+                subtotal_item = valor_base * cantidad_paquetes
+                iva_item = valor_iva * cantidad_paquetes
                 total_item = subtotal_item + iva_item
 
-                print(f"Valores de detalle: cantidad={total_unidades_solicitadas}, precio_unitario={presentacion.precio}, subtotal={subtotal_item}, total={total_item}")
+                print(f"Valores de detalle: cantidad={cantidad_paquetes}, precio_unitario={presentacion.precio}, subtotal={subtotal_item}, total={total_item}")
 
                 # Crear el detalle de la factura
                 detalle = DetalleFactura.objects.create(
                     factura=factura,
                     producto=item.producto,
                     presentacion=presentacion,
-                    cantidad=total_unidades_solicitadas,
+                    cantidad=cantidad_paquetes * presentacion.cantidad,
                     precio_unitario=presentacion.precio,
                     subtotal=subtotal_item.quantize(Decimal('0.01')),
                     descuento=0,
@@ -98,24 +111,23 @@ def crear_factura(cliente, sucursal, usuario, carrito_items):
                 )
                 print(f"Detalle creado: {detalle}")
 
-                # Validar y ajustar inventario usando los servicios especializados
-                if not ValidacionInventarioService.validar_inventario(item.producto, presentacion, item.cantidad):
-                    print(f"No hay suficiente inventario para {item.producto.nombre}.")
-                    raise ValidationError(f"No hay suficiente inventario disponible para {item.producto.nombre}.")
-
-                # Ajuste del inventario a través del servicio de movimiento
-                AjusteInventarioService.ajustar_inventario(item.producto, presentacion, item.cantidad)
-
             if not factura.detalles.exists():
                 print("Error: La factura no tiene detalles asociados.")
                 raise ValidationError("La factura no tiene detalles asociados.")
-            
+
+            # Ajustar inventario después de la creación de la factura
+            for item in carrito_items:
+                AjusteInventarioService.ajustar_inventario(item.producto, item.presentacion, item.cantidad)
+
             print(f"Factura {factura.numero_autorizacion} completada con {factura.detalles.count()} detalles.")
             return factura
 
     except Exception as e:
         print(f"Error general en la transacción: {e}")
         raise e
+
+
+
 
 
 

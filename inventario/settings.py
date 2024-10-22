@@ -51,6 +51,7 @@ INSTALLED_APPS = [
     'facturacion',
     'reportes.apps.ReportesConfig',
     'django_extensions',
+    'django_select2',
 ]
 
 if DEBUG:

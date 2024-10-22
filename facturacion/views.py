@@ -10,7 +10,7 @@ from inventarios.models import Inventario, MovimientoInventario
 from django.db import transaction
 from decimal import Decimal
 from .services import crear_factura
-from sucursales.models import Sucursal
+from sucursales.models import Sucursal, RazonSocial
 from .forms import ImpuestoForm
 import os
 from django.conf import settings
@@ -115,7 +115,7 @@ def generar_factura(request):
             print(f"Turno activo: {turno_activo}")
             sucursal = turno_activo.sucursal
 
-            # Obtener carrito y verificar inventario
+            # Obtener carrito y verificar inventario sin modificarlo
             carrito_items = Carrito.objects.filter(turno=turno_activo).select_related('producto', 'presentacion')
             print(f"Carrito del usuario {usuario}: {list(carrito_items)}")
 
@@ -127,11 +127,12 @@ def generar_factura(request):
                 cantidad_solicitada = item.cantidad
                 print(f"Producto: {item.producto.nombre}, Cantidad solicitada: {cantidad_solicitada}")
 
+                # Validar inventario sin ajustar
                 if not ValidacionInventarioService.validar_inventario(item.producto, presentacion, cantidad_solicitada):
                     return JsonResponse({'error': f'No hay suficiente inventario para {item.producto.nombre}.'}, status=400)
 
             # Crear factura
-            print(f"Creando factura para cliente {cliente} en sucursal {sucursal}")
+            print(f"Creando factura para cliente {cliente} en sucursal {sucursal.razon_social.nombre}")
             factura = crear_factura(cliente, sucursal, usuario, carrito_items)
             print(f"Factura creada: {factura}")
 

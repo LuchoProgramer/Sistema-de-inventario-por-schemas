@@ -20,6 +20,7 @@ class ValidacionInventarioService:
 
         return True
 
+
     @staticmethod
     def validar_stock_disponible(producto, cantidad):
         """

@@ -1,13 +1,47 @@
 {% extends "base.html" %}
 
 {% block content %}
-  <div class="container">
-    <h2>Crear Sucursal</h2>
+  <div class="container mt-5">
+    <h2 class="mb-4">Crear Sucursal</h2>
 
+    <!-- Mostrar mensajes de éxito o error -->
+    {% if messages %}
+      <div class="mt-3">
+        {% for message in messages %}
+          <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+            {{ message }}
+            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+          </div>
+        {% endfor %}
+      </div>
+    {% endif %}
+
+    <!-- Formulario de creación de sucursal -->
     <form method="POST">
       {% csrf_token %}
-      {{ form.as_p }}
+      
+      <!-- Mostrar errores del formulario -->
+      {% if form.errors %}
+        <div class="alert alert-danger">
+          <ul>
+          {% for field in form %}
+            {% for error in field.errors %}
+              <li>{{ error }}</li>
+            {% endfor %}
+          {% endfor %}
+          {% for error in form.non_field_errors %}
+            <li>{{ error }}</li>
+          {% endfor %}
+          </ul>
+        </div>
+      {% endif %}
+      
+      <!-- Renderizar los campos del formulario -->
+      <div class="mb-3">
+        {{ form.as_p }}
+      </div>
 
+      <!-- Botón de envío -->
       <button type="submit" class="btn btn-primary">Crear Sucursal</button>
     </form>
   </div>

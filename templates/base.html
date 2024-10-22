@@ -9,6 +9,10 @@
 
     <!-- Bootstrap CSS -->
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <!-- Select2 CSS -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/css/select2.min.css" rel="stylesheet">
+
     {% block extra_css %}{% endblock %}
 </head>
 <body>
@@ -17,24 +21,23 @@
     {% block navbar %}
     <nav class="navbar navbar-expand-lg" style="background-color: #E9ECEF;">
         <div class="container-fluid">
-    
             <!-- Logo redondo y nombre de la empresa -->
             <a class="navbar-brand ms-3 d-flex align-items-center" 
             href="{% if turno_activo %}{% url 'ventas:inicio_turno' turno_id=turno_activo.id %}{% else %}#{% endif %}">
-             <img src="https://lahuequitaquitena.netlify.app/Imagenes/Logo%20La%20Huequita%20200px.png" 
-                  alt="Logo La Huequita Quiteña" width="50" height="50" class="me-2 rounded-circle">
-             <span style="font-family: 'Cinzel', serif; font-weight: bold; color: #2C2C2C;">
-                 La Huequita Quiteña
-             </span>
+                <img src="https://lahuequitaquitena.netlify.app/Imagenes/Logo%20La%20Huequita%20200px.png" 
+                    alt="Logo La Huequita Quiteña" width="50" height="50" class="me-2 rounded-circle">
+                <span style="font-family: 'Cinzel', serif; font-weight: bold; color: #2C2C2C;">
+                    La Huequita Quiteña
+                </span>
             </a>
-    
+
             <!-- Botón navbar-toggler -->
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" 
                     data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" 
                     aria-label="Toggle navigation">
                 <span class="navbar-toggler-icon"></span>
             </button>
-    
+
             <!-- Menú desplegable -->
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav ms-auto">
@@ -69,7 +72,23 @@
 
     <!-- Bootstrap JS -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
+
+    <!-- jQuery (necesario para Select2) -->
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+
+    <!-- Select2 JS -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/js/select2.min.js"></script>
+
+    <!-- Inicialización de Select2 -->
+    <script>
+        $(document).ready(function() {
+            // Aplica Select2 a todos los campos con la clase 'django-select2'
+            $('.django-select2').select2({
+                width: '100%'  // Ajusta el ancho al contenedor
+            });
+        });
+    </script>
+
     {% block extra_js %}{% endblock %}
 
 </body>

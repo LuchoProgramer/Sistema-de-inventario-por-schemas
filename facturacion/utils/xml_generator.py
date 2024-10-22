@@ -10,15 +10,16 @@ def generar_xml_para_sri(factura):
     info_tributaria = etree.SubElement(factura_xml, 'infoTributaria')
     etree.SubElement(info_tributaria, 'ambiente').text = '1'  # 1 para pruebas, 2 para producción
     etree.SubElement(info_tributaria, 'tipoEmision').text = '1'  # 1 para emisión normal
-    etree.SubElement(info_tributaria, 'razonSocial').text = factura.cliente.razon_social
+    # Ajuste: acceso a razon_social a través de la relación
+    etree.SubElement(info_tributaria, 'razonSocial').text = factura.sucursal.razon_social.nombre
     etree.SubElement(info_tributaria, 'nombreComercial').text = factura.sucursal.nombre
-    etree.SubElement(info_tributaria, 'ruc').text = factura.sucursal.ruc
-    
+    etree.SubElement(info_tributaria, 'ruc').text = factura.sucursal.razon_social.ruc  # Ajuste aquí también
+
     # Generar y asignar la clave de acceso
     clave_acceso = generar_clave_acceso(
         fecha_emision=factura.fecha_emision,
         tipo_comprobante='01',  # Código de factura
-        ruc=factura.sucursal.ruc,
+        ruc=factura.sucursal.razon_social.ruc,  # Ajuste aquí también
         ambiente='1',  # Asumiendo ambiente 1 para pruebas
         estab=factura.sucursal.codigo_establecimiento,
         pto_emi=factura.sucursal.punto_emision,
@@ -60,7 +61,7 @@ def generar_xml_para_sri(factura):
 
     # Detalles de los productos o servicios
     detalles = etree.SubElement(factura_xml, 'detalles')
-    for detalle in factura.detalles.all():  # Utilizando 'detalles'
+    for detalle in factura.detalles.all():
         detalle_element = etree.SubElement(detalles, 'detalle')
         etree.SubElement(detalle_element, 'codigoPrincipal').text = str(detalle.producto.id)
         etree.SubElement(detalle_element, 'descripcion').text = detalle.producto.nombre

@@ -49,6 +49,9 @@ def ruta_factura(instance, filename):
     return filename  # Solo devolvemos el nombre del archivo, sin crear subcarpetas
 
     
+from django.db import models
+from decimal import Decimal
+
 class Factura(models.Model):
     ESTADOS_FACTURA = [
         ('EN_PROCESO', 'En Proceso'),
@@ -72,6 +75,7 @@ class Factura(models.Model):
     ]
 
     sucursal = models.ForeignKey('sucursales.Sucursal', on_delete=models.CASCADE)
+    razon_social = models.ForeignKey('sucursales.RazonSocial', on_delete=models.SET_NULL, null=True, blank=True)  # Nueva relación
     cliente = models.ForeignKey(Cliente, on_delete=models.CASCADE)
     usuario = models.ForeignKey('auth.User', on_delete=models.SET_NULL, null=True, blank=True)
     fecha_emision = models.DateTimeField(auto_now_add=True)
@@ -86,10 +90,10 @@ class Factura(models.Model):
     estado = models.CharField(max_length=20, choices=ESTADOS_FACTURA, default='EN_PROCESO')
     estado_pago = models.CharField(max_length=20, choices=ESTADOS_PAGO, default='PENDIENTE')
     valor_iva = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal('0.00'))
-        # Agregar la relación con RegistroTurno
     registroturno = models.ForeignKey('RegistroTurnos.RegistroTurno', on_delete=models.CASCADE, null=True, blank=True)
-    archivo_pdf = models.FileField(upload_to=ruta_factura, null=True, blank=True)  # Campo para almacenar el PDF de la factura
+    archivo_pdf = models.FileField(upload_to=ruta_factura, null=True, blank=True)
     es_cotizacion = models.BooleanField(default=False)
+
     
     class Meta:
         unique_together = ('sucursal', 'numero_autorizacion')
@@ -201,6 +205,11 @@ class Impuesto(models.Model):
             # Desactiva otros impuestos antes de guardar este como activo
             Impuesto.objects.filter(activo=True).update(activo=False)
         super(Impuesto, self).save(*args, **kwargs)
+
+        impuestos_activos = Impuesto.objects.filter(activo=True)
+        print(f"Impuestos activos después de guardar: {[impuesto.nombre for impuesto in impuestos_activos]}")
+
+
 
 
 class FacturaImpuesto(models.Model):
