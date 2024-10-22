@@ -13,5 +13,6 @@ urlpatterns = [
     path('impuestos/', views.lista_impuestos, name='lista_impuestos'),  # Listar todos los impuestos
     path('impuestos/nuevo/', views.crear_impuesto, name='crear_impuesto'),  # Crear un nuevo impuesto
     path('impuestos/<int:impuesto_id>/editar/', views.actualizar_impuesto, name='actualizar_impuesto'),  # Editar un impuesto existente
-    path('impuestos/<int:impuesto_id>/eliminar/', views.eliminar_impuesto, name='eliminar_impuesto'),  # Eliminar un impuesto
+    path('impuestos/<int:impuesto_id>/eliminar/', views.eliminar_impuesto, name='eliminar_impuesto'), 
+    path('crear_cliente_ajax/', views.crear_cliente_ajax, name='crear_cliente_ajax'),
 ]

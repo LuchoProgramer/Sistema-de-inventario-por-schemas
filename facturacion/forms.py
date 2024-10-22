@@ -1,5 +1,20 @@
 from django import forms
 from .models import Impuesto
+from .models import Cliente
+
+class ClienteForm(forms.ModelForm):
+    class Meta:
+        model = Cliente
+        fields = ['tipo_identificacion', 'identificacion', 'razon_social', 'direccion', 'telefono', 'email']
+        widgets = {
+            'tipo_identificacion': forms.Select(attrs={'class': 'form-select'}),
+            'identificacion': forms.TextInput(attrs={'class': 'form-control'}),
+            'razon_social': forms.TextInput(attrs={'class': 'form-control'}),
+            'direccion': forms.TextInput(attrs={'class': 'form-control'}),
+            'telefono': forms.TextInput(attrs={'class': 'form-control'}),
+            'email': forms.EmailInput(attrs={'class': 'form-control'}),
+        }
+
 
 class PagoMixtoForm(forms.Form):
     metodo_pago = forms.ChoiceField(

@@ -1,106 +1,171 @@
-document.addEventListener('DOMContentLoaded', function () {
-    const totalFacturaInput = document.getElementById('total_factura');
-    const saldoRestanteInput = document.getElementById('saldo_restante');
-    const paymentMethodsContainer = document.getElementById('payment-methods-container');
-    const addPaymentMethodButton = document.getElementById('add-payment-method');
-    const form = document.querySelector('form');
-    const clienteSelect = document.getElementById('cliente');
-    const identificacionInput = document.getElementById('identificacion');
-    const nuevoClienteCheck = document.getElementById('nuevo_cliente_check');
-    const nuevoClienteForm = document.getElementById('nuevo_cliente_form');
+// Obtener el token CSRF
+function getCookie(name) {
+    var cookieValue = null;
+    if (document.cookie && document.cookie !== '') {
+        var cookies = document.cookie.split(';');
+        for (var i = 0; i < cookies.length; i++) {
+            var cookie = cookies[i].trim();
+            // Comprueba si este es el cookie que buscamos
+            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                break;
+            }
+        }
+    }
+    return cookieValue;
+}
+var csrftoken = getCookie('csrftoken');
 
-    // Convertir el total de la factura a decimal con dos decimales
-    const totalFactura = parseFloat(totalFacturaInput.value).toFixed(2);
+// Configurar AJAX para incluir el token CSRF en las solicitudes
+$.ajaxSetup({
+    beforeSend: function(xhr, settings) {
+        if (!/^GET|HEAD|OPTIONS|TRACE$/i.test(settings.type) && !this.crossDomain) {
+            xhr.setRequestHeader('X-CSRFToken', csrftoken);
+        }
+    }
+});
 
-    // Mostrar u ocultar el formulario de nuevo cliente
-    nuevoClienteCheck.addEventListener('change', function () {
-        nuevoClienteForm.style.display = this.checked ? 'block' : 'none';
+$(document).ready(function() {
+    // Envío del formulario de nuevo cliente
+    $('#nuevo-cliente-form').submit(function(event) {
+        event.preventDefault();
+        var formData = $(this).serialize();
+
+        $.ajax({
+            url: crearClienteURL, // Asegúrate de definir esta variable en tu plantilla
+            type: 'POST',
+            data: formData,
+            success: function(response) {
+                if (response.success) {
+                    // Cerrar el modal
+                    $('#nuevoClienteModal').modal('hide');
+                    // Limpiar el formulario
+                    $('#nuevo-cliente-form')[0].reset();
+                    // Limpiar mensajes anteriores
+                    $('#modal-mensaje').html('');
+                    // Actualizar el select de clientes
+                    $('#cliente').append(`<option value="${response.cliente_id}" selected>${response.razon_social} - ${response.identificacion}</option>`);
+                    // Mostrar mensaje de éxito en el formulario principal
+                    mostrarMensaje('Cliente creado exitosamente.', 'success');
+                } else {
+                    // Mostrar errores en el modal
+                    mostrarErroresModal(response.errors);
+                }
+            },
+            error: function(xhr, status, error) {
+                mostrarErroresModal({'__all__': ['Ocurrió un error al crear el cliente.']});
+            }
+        });
     });
 
-    // Normalizar el separador decimal (coma a punto)
-    function normalizarMonto(monto) {
-        return parseFloat(monto.replace(',', '.')) || 0;
-    }
-
-    // Función para actualizar el saldo restante con tolerancia por redondeo
-    function actualizarSaldoRestante() {
-        const totalFactura = normalizarMonto(totalFacturaInput.value);
-        let sumaPagos = 0;
-
-        // Iterar sobre los montos de pago y sumar sus valores normalizados
-        document.querySelectorAll('input[name="montos_pago"]').forEach(input => {
-            sumaPagos += normalizarMonto(input.value);
+    function mostrarErroresModal(errors) {
+        var html = '<div class="alert alert-danger">';
+        $.each(errors, function(field, messages) {
+            html += '<p><strong>' + field + ':</strong> ' + messages.join('<br>') + '</p>';
         });
-
-        let saldoRestante = (totalFactura - sumaPagos).toFixed(2);
-
-        // Tolerancia mínima para evitar errores de redondeo
-        if (Math.abs(saldoRestante) < 0.01) {
-            saldoRestante = '0.00';
-        }
-
-        saldoRestanteInput.value = saldoRestante;
-
-        console.log(`Total Factura: ${totalFactura}, Pagos: ${sumaPagos}, Saldo Restante: ${saldoRestante}`);
-
-        if (saldoRestante < 0) {
-            alert("El monto total pagado excede el valor de la factura.");
-        }
+        html += '</div>';
+        $('#modal-mensaje').html(html);
     }
 
-    // Asignar eventos a los inputs de montos de pago
-    function asignarEventoMontoPago(input) {
-        input.addEventListener('input', actualizarSaldoRestante);
-    }
-
-    // Función para agregar un nuevo método de pago
-    function agregarMetodoDePago() {
-        const newPaymentMethod = paymentMethodsContainer.children[0].cloneNode(true);
-        newPaymentMethod.querySelector('select').value = '01'; // Valor por defecto
-        const input = newPaymentMethod.querySelector('input');
-        input.value = '';
-        paymentMethodsContainer.appendChild(newPaymentMethod);
-
-        asignarEventoMontoPago(input);
+    // Agregar otro método de pago
+    $('#add-payment-method').click(function() {
+        var paymentMethodHtml = `
+            <div class="payment-method row mb-3">
+                <div class="col-md-6">
+                    <label class="form-label">Método de Pago:</label>
+                    <select name="metodos_pago[]" class="form-select metodos_pago">
+                        <option value="01">Efectivo</option>
+                        <option value="16">Tarjeta de Débito</option>
+                        <option value="19">Tarjeta de Crédito</option>
+                        <option value="20">Transferencia</option>
+                        <option value="17">Dinero Electrónico</option>
+                    </select>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Monto:</label>
+                    <input type="number" name="montos_pago[]" class="form-control montos_pago" step="0.01" min="0" required>
+                </div>
+            </div>
+        `;
+        $('#payment-methods-container').append(paymentMethodHtml);
         actualizarSaldoRestante();
+    });
+
+    // Actualizar saldo restante al cambiar los montos de pago
+    $(document).on('input', '.montos_pago', function() {
+        actualizarSaldoRestante();
+    });
+
+    function actualizarSaldoRestante() {
+        var totalFactura = parseFloat($('#total_factura').val().replace(',', '.')) || 0;
+        var totalPagado = 0;
+    
+        $('.montos_pago').each(function() {
+            var monto = parseFloat($(this).val().replace(',', '.')) || 0;
+            totalPagado += monto;
+        });
+    
+        // Convertir a centavos para evitar problemas de precisión
+        var totalFacturaCents = Math.round(totalFactura * 100);
+        var totalPagadoCents = Math.round(totalPagado * 100);
+    
+        var saldoRestanteCents = totalFacturaCents - totalPagadoCents;
+        var saldoRestante = saldoRestanteCents / 100;
+    
+        // Ajustar pequeños errores de precisión
+        if (Math.abs(saldoRestante) < 0.01) {
+            saldoRestante = 0;
+        }
+    
+        $('#saldo_restante').val(saldoRestante.toFixed(2));
     }
+    
+    
 
-    // Asignar eventos a los inputs existentes al cargar la página
-    document.querySelectorAll('input[name="montos_pago"]').forEach(asignarEventoMontoPago);
+    // Manejar el envío del formulario vía AJAX
+    $('#factura-form').submit(function(event) {
+        event.preventDefault(); // Prevenir el envío normal del formulario
 
-    // Evento para agregar un nuevo método de pago
-    addPaymentMethodButton.addEventListener('click', agregarMetodoDePago);
-
-    // Manejo del envío del formulario
-    form.addEventListener('submit', function (event) {
-        event.preventDefault();
-
-        if (!clienteSelect.value && (!nuevoClienteCheck.checked || !identificacionInput.value)) {
-            alert("Por favor, selecciona un cliente o ingresa los datos de un nuevo cliente.");
+        // Validar que el saldo restante sea cero
+        var saldoRestante = parseFloat($('#saldo_restante').val());
+        if (Math.abs(saldoRestante) > 0.01) {
+            mostrarMensaje('Debes completar el total de la factura con los métodos de pago.', 'danger');
             return;
         }
 
-        // Enviar el formulario con fetch
-        fetch(form.action, {
-            method: 'POST',
-            body: new FormData(form),
-            headers: {
-                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+        // Crear objeto FormData para enviar los datos
+        var formData = new FormData(this);
+
+        $.ajax({
+            url: generarFacturaURL, // Asegúrate de definir esta variable en tu plantilla
+            type: 'POST',
+            data: formData,
+            processData: false,
+            contentType: false,
+            success: function(response) {
+                if (response.success) {
+                    // Mostrar mensaje de éxito
+                    mostrarMensaje('Factura generada exitosamente.', 'success');
+                    // Redirigir o actualizar la interfaz según sea necesario
+                    window.location.href = response.redirect_url;
+                } else {
+                    mostrarMensaje(response.error, 'danger');
+                }
+            },
+            error: function(xhr, status, error) {
+                mostrarMensaje('Ocurrió un error al generar la factura.', 'danger');
             }
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.error) {
-                const errorAlert = document.createElement('div');
-                errorAlert.className = 'alert alert-danger';
-                errorAlert.role = 'alert';
-                errorAlert.innerText = data.error;
-                form.prepend(errorAlert);
-            } else if (data.pdf_url && data.redirect_url) {
-                window.open(data.pdf_url, '_blank');
-                window.location.href = data.redirect_url;
-            }
-        })
-        .catch(error => console.error('Error:', error));
+        });
     });
+
+    function mostrarMensaje(mensaje, tipo) {
+        var html = `
+            <div class="alert alert-${tipo} alert-dismissible fade show" role="alert">
+                ${mensaje}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+        `;
+        $('#mensaje').html(html);
+    }
 });
+    

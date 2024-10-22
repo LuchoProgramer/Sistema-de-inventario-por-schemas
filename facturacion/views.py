@@ -78,109 +78,120 @@ logger = logging.getLogger(__name__)
 
 
 
+#@login_required
 @transaction.atomic
 def generar_factura(request):
     if request.method == 'POST':
         print("POST request para generar factura")
 
-        cliente_id = request.POST.get('cliente_id')
-        identificacion = request.POST.get('identificacion')
-        print(f"Cliente ID: {cliente_id}, Identificación: {identificacion}")
+        # Verificar si es una solicitud AJAX
+        if request.headers.get('x-requested-with') == 'XMLHttpRequest':
+            # Aquí manejamos la solicitud AJAX
+            try:
+                # Obtener los datos del formulario
+                cliente_id = request.POST.get('cliente_id')
+                identificacion = request.POST.get('identificacion')
+                print(f"Cliente ID: {cliente_id}, Identificación: {identificacion}")
 
-        if not cliente_id and not identificacion:
-            return JsonResponse({'error': 'Debes seleccionar un cliente o ingresar los datos de un nuevo cliente.'}, status=400)
+                if not cliente_id and not identificacion:
+                    return JsonResponse({'error': 'Debes seleccionar un cliente o ingresar los datos de un nuevo cliente.'}, status=400)
 
-        try:
-            # Crear o validar cliente
-            data_cliente = {
-                'tipo_identificacion': request.POST.get('tipo_identificacion'),
-                'razon_social': request.POST.get('razon_social'),
-                'direccion': request.POST.get('direccion'),
-                'telefono': request.POST.get('telefono'),
-                'email': request.POST.get('email')
-            }
-            print(f"Datos del cliente: {data_cliente}")
+                # Crear o validar cliente
+                data_cliente = {
+                    'tipo_identificacion': request.POST.get('tipo_identificacion'),
+                    'razon_social': request.POST.get('razon_social'),
+                    'direccion': request.POST.get('direccion'),
+                    'telefono': request.POST.get('telefono'),
+                    'email': request.POST.get('email')
+                }
+                print(f"Datos del cliente: {data_cliente}")
 
-            cliente = obtener_o_crear_cliente(cliente_id, identificacion, data_cliente)
-            print(f"Cliente obtenido/creado: {cliente}")
+                cliente = obtener_o_crear_cliente(cliente_id, identificacion, data_cliente)
+                print(f"Cliente obtenido/creado: {cliente}")
 
-            usuario = request.user
-            turno_activo = RegistroTurno.objects.filter(
-                usuario=usuario, fin_turno__isnull=True
-            ).select_related('sucursal').first()
+                usuario = request.user
+                turno_activo = RegistroTurno.objects.filter(
+                    usuario=usuario, fin_turno__isnull=True
+                ).select_related('sucursal').first()
 
-            if not turno_activo:
-                return JsonResponse({'error': 'No tienes un turno activo.'}, status=400)
+                if not turno_activo:
+                    return JsonResponse({'error': 'No tienes un turno activo.'}, status=400)
 
-            print(f"Turno activo: {turno_activo}")
-            sucursal = turno_activo.sucursal
+                print(f"Turno activo: {turno_activo}")
+                sucursal = turno_activo.sucursal
 
-            # Obtener carrito y verificar inventario sin modificarlo
-            carrito_items = Carrito.objects.filter(turno=turno_activo).select_related('producto', 'presentacion')
-            print(f"Carrito del usuario {usuario}: {list(carrito_items)}")
+                # Obtener carrito y verificar inventario sin modificarlo
+                carrito_items = Carrito.objects.filter(turno=turno_activo).select_related('producto', 'presentacion')
+                print(f"Carrito del usuario {usuario}: {list(carrito_items)}")
 
-            if not carrito_items.exists():
-                return JsonResponse({'error': 'El carrito está vacío. No se puede generar una factura.'}, status=400)
+                if not carrito_items.exists():
+                    return JsonResponse({'error': 'El carrito está vacío. No se puede generar una factura.'}, status=400)
 
-            for item in carrito_items:
-                presentacion = item.presentacion
-                cantidad_solicitada = item.cantidad
-                print(f"Producto: {item.producto.nombre}, Cantidad solicitada: {cantidad_solicitada}")
+                for item in carrito_items:
+                    presentacion = item.presentacion
+                    cantidad_solicitada = item.cantidad
+                    print(f"Producto: {item.producto.nombre}, Cantidad solicitada: {cantidad_solicitada}")
 
-                # Validar inventario sin ajustar
-                if not ValidacionInventarioService.validar_inventario(item.producto, presentacion, cantidad_solicitada):
-                    return JsonResponse({'error': f'No hay suficiente inventario para {item.producto.nombre}.'}, status=400)
+                    # Validar inventario sin ajustar
+                    if not ValidacionInventarioService.validar_inventario(item.producto, presentacion, cantidad_solicitada):
+                        return JsonResponse({'error': f'No hay suficiente inventario para {item.producto.nombre}.'}, status=400)
 
-            # Crear factura
-            print(f"Creando factura para cliente {cliente} en sucursal {sucursal.razon_social.nombre}")
-            factura = crear_factura(cliente, sucursal, usuario, carrito_items)
-            print(f"Factura creada: {factura}")
+                # Crear factura
+                print(f"Creando factura para cliente {cliente} en sucursal {sucursal.razon_social.nombre}")
+                factura = crear_factura(cliente, sucursal, usuario, carrito_items)
+                print(f"Factura creada: {factura}")
 
-            # Procesar los métodos de pago
-            metodos_pago = request.POST.getlist('metodos_pago')
-            montos_pago = request.POST.getlist('montos_pago')
-            print(f"Métodos de pago recibidos: {metodos_pago}")
-            print(f"Montos de pago recibidos (original): {montos_pago}")
+                # Procesar los métodos de pago
+                metodos_pago = request.POST.getlist('metodos_pago[]')  # Notar el '[]' al final
+                montos_pago = request.POST.getlist('montos_pago[]')
+                print(f"Métodos de pago recibidos: {metodos_pago}")
+                print(f"Montos de pago recibidos (original): {montos_pago}")
 
-            # Convertir los montos a Decimal
-            montos_pago = [Decimal(monto) for monto in montos_pago]
-            print(f"Montos de pago convertidos a Decimal: {montos_pago}")
+                # Convertir los montos a Decimal
+                montos_pago = [Decimal(monto) for monto in montos_pago]
+                print(f"Montos de pago convertidos a Decimal: {montos_pago}")
 
-            if len(metodos_pago) != len(montos_pago):
-                raise ValueError('Los métodos de pago y los montos no coinciden.')
+                if len(metodos_pago) != len(montos_pago):
+                    raise ValueError('Los métodos de pago y los montos no coinciden.')
 
-            # Validación flexible del total pagado con tolerancia
-            total_pagado = sum(montos_pago)
-            diferencia = abs(total_pagado - factura.total_con_impuestos)
+                # Validación flexible del total pagado con tolerancia
+                total_pagado = sum(montos_pago)
+                diferencia = abs(total_pagado - factura.total_con_impuestos)
 
-            if diferencia > Decimal('0.01'):
-                raise ValueError('El total pagado no coincide con el total de la factura.')
+                if diferencia > Decimal('0.01'):
+                    raise ValueError('El total pagado no coincide con el total de la factura.')
 
-            # Asignar los pagos a la factura
-            print(f"Asignando pagos a la factura {factura}")
-            asignar_pagos_a_factura(factura, metodos_pago, montos_pago)
+                # Asignar los pagos a la factura
+                print(f"Asignando pagos a la factura {factura}")
+                asignar_pagos_a_factura(factura, metodos_pago, montos_pago)
 
-            # Generar PDF y guardar
-            pdf_url = generar_pdf_factura_y_guardar(factura)
-            print(f"PDF generado: {pdf_url}")
+                # Generar PDF y guardar
+                pdf_url = generar_pdf_factura_y_guardar(factura)
+                print(f"PDF generado: {pdf_url}")
 
-            # Limpiar el carrito después de la venta
-            carrito_items.delete()
-            print(f"Artículos eliminados del carrito del usuario {usuario}")
+                # Limpiar el carrito después de la venta
+                carrito_items.delete()
+                print(f"Artículos eliminados del carrito del usuario {usuario}")
 
-            redirect_url = reverse('ventas:inicio_turno', args=[turno_activo.id])
-            print(f"Redirigiendo a {redirect_url}")
+                # URL a redirigir después de generar la factura
+                redirect_url = reverse('ventas:inicio_turno', args=[turno_activo.id])
+                print(f"Redirigiendo a {redirect_url}")
 
-            return JsonResponse({'pdf_url': pdf_url, 'redirect_url': redirect_url})
+                return JsonResponse({'success': True, 'pdf_url': pdf_url, 'redirect_url': redirect_url})
 
-        except ValueError as e:
-            print(f"ValueError: {str(e)}")
-            return JsonResponse({'error': str(e)}, status=400)
-        except Exception as e:
-            print(f"Error al generar la factura: {str(e)}")
-            return JsonResponse({'error': 'Ocurrió un error al generar la factura.'}, status=500)
+            except ValueError as e:
+                print(f"ValueError: {str(e)}")
+                return JsonResponse({'error': str(e)}, status=400)
+            except Exception as e:
+                print(f"Error al generar la factura: {str(e)}")
+                return JsonResponse({'error': 'Ocurrió un error al generar la factura.'}, status=500)
+
+        else:
+            # Si no es una solicitud AJAX, devolver un error o redirigir
+            return JsonResponse({'error': 'Solicitud inválida.'}, status=400)
 
     else:
+        # Lógica para manejar GET
         carrito_items = obtener_carrito(request.user).select_related('producto')
         total_factura = sum(item.subtotal() for item in carrito_items)
         print(f"Detalles del carrito (GET): {list(carrito_items)}, Total factura: {total_factura}")
@@ -190,6 +201,29 @@ def generar_factura(request):
             'total_factura': total_factura,
         })
 
+
+from django.contrib.auth.decorators import login_required
+from django.http import JsonResponse
+from django.views.decorators.http import require_POST
+from .forms import ClienteForm
+
+@login_required
+@require_POST
+def crear_cliente_ajax(request):
+    form = ClienteForm(request.POST)
+    if form.is_valid():
+        cliente = form.save()
+        response = {
+            'success': True,
+            'cliente_id': cliente.id,
+            'razon_social': cliente.razon_social,
+            'identificacion': cliente.identificacion
+        }
+        return JsonResponse(response)
+    else:
+        errors = form.errors.get_json_data()
+        formatted_errors = {field: [error['message'] for error in error_list] for field, error_list in errors.items()}
+        return JsonResponse({'success': False, 'errors': formatted_errors}, status=400)
 
 
 

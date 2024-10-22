@@ -25,7 +25,7 @@ from inventarios.services.ajuste_inventario_service import AjusteInventarioServi
 from inventarios.services.movimiento_inventario_service import MovimientoInventarioService
 from inventarios.services.calculo_precio_service import CalculoPrecioService
 from inventarios.services.obtener_inventarios_sucursal_service import ObtenerInventariosSucursalService
-
+from django.views.decorators.http import require_POST
 
 
 @login_required
@@ -303,7 +303,69 @@ def ver_carrito(request):
         return render(request, 'ventas/error.html', {'mensaje': 'No tienes un turno activo.'})
 
 
+
+
+@login_required
+@require_POST
+def eliminar_item_carrito(request):
+    # Obtener el ID del item a eliminar
+    item_id = request.POST.get('item_id')
     
+    if item_id:
+        try:
+            # Verificar que el item pertenece al usuario actual y está en el turno activo
+            turno = RegistroTurno.objects.filter(usuario=request.user, fin_turno__isnull=True).first()
+            carrito_item = Carrito.objects.get(id=item_id, turno=turno)
+            print(f"Eliminando el producto del carrito: {carrito_item.producto.nombre} con presentación {carrito_item.presentacion.nombre_presentacion}")
+            
+            # Eliminar el producto del carrito
+            carrito_item.delete()
+            
+            # Recalcular el total
+            carrito_items = Carrito.objects.filter(turno=turno)
+            total = sum(item.subtotal() for item in carrito_items)
+            
+            return JsonResponse({'success': True, 'total': total})
+        except Carrito.DoesNotExist:
+            return JsonResponse({'success': False, 'error': 'El item no existe o no pertenece al usuario.'})
+    else:
+        return JsonResponse({'success': False, 'error': 'No se proporcionó un ID de item válido.'})
+
+    
+@login_required
+@require_POST
+def actualizar_cantidad_carrito(request):
+    item_id = request.POST.get('item_id')
+    nueva_cantidad = request.POST.get('cantidad')
+    
+    if item_id and nueva_cantidad:
+        try:
+            nueva_cantidad = int(nueva_cantidad)
+            if nueva_cantidad < 1:
+                return JsonResponse({'success': False, 'error': 'La cantidad debe ser al menos 1.'})
+            turno = RegistroTurno.objects.filter(usuario=request.user, fin_turno__isnull=True).first()
+            carrito_item = Carrito.objects.get(id=item_id, turno=turno)
+            carrito_item.cantidad = nueva_cantidad
+            carrito_item.save()
+            
+            # Calcular el nuevo subtotal y total
+            nuevo_subtotal = carrito_item.subtotal()
+            carrito_items = Carrito.objects.filter(turno=turno)
+            total = sum(item.subtotal() for item in carrito_items)
+            
+            return JsonResponse({
+                'success': True,
+                'nuevo_subtotal': nuevo_subtotal,
+                'total': total
+            })
+        except ValueError:
+            return JsonResponse({'success': False, 'error': 'La cantidad debe ser un número entero.'})
+        except Carrito.DoesNotExist:
+            return JsonResponse({'success': False, 'error': 'El item no existe o no pertenece al usuario.'})
+    else:
+        return JsonResponse({'success': False, 'error': 'Datos incompletos.'})
+
+
 
 
 @login_required
