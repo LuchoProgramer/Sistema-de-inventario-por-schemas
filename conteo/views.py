@@ -21,15 +21,18 @@ from django.utils.timezone import now
 @login_required
 @empleado_o_admin_con_turno_y_sucursal_required
 def registrar_conteo(request):
+    # Obtener el turno activo del usuario
     turno_activo = RegistroTurno.objects.filter(usuario=request.user, fin_turno__isnull=True).first()
     if not turno_activo:
         return redirect('dashboard')
 
     sucursal_activa = turno_activo.sucursal
+
+    # Obtener los productos de la sucursal activa sin incluir el stock
     inventarios = Inventario.objects.filter(sucursal=sucursal_activa)
     productos = [inventario.producto for inventario in inventarios]
-    categorias = Categoria.objects.all()
 
+    # Filtrar por categoría si está seleccionada
     categoria_seleccionada = request.GET.get('categoria')
     if categoria_seleccionada:
         productos = [producto for producto in productos if str(producto.categoria.id) == categoria_seleccionada]
@@ -37,7 +40,7 @@ def registrar_conteo(request):
     if request.method == 'POST':
         form = ConteoProductoForm(request.POST, productos=productos)
         if form.is_valid():
-            # Verificar si todos los productos están marcados
+            # Verificar si todos los productos están marcados con cantidad contada
             todos_marcados = all(form.cleaned_data.get(f'producto_{producto.id}') for producto in productos)
             if not todos_marcados:
                 messages.error(request, "Todos los productos deben estar marcados y tener una cantidad.")
@@ -54,18 +57,13 @@ def registrar_conteo(request):
                     cantidad_contada=cantidad
                 )
 
-            # Generar y enviar el Excel por correo al usuario y administradores
-            generar_y_enviar_excel(
-                sucursal=sucursal_activa,  # Pasamos la instancia completa de la sucursal
-                usuario=request.user,
-                email_destino=request.user.email
-            )
-
-            messages.success(request, "El conteo se ha registrado y el informe se ha enviado por correo.")
+            # Notificar al usuario sobre el éxito del conteo
+            messages.success(request, "El conteo se ha registrado correctamente.")
             return redirect('conteo_exitoso')
     else:
         form = ConteoProductoForm(productos=productos)
 
+    # Estructura de productos con campos de formulario
     productos_con_campos = [
         {
             'producto': producto,
@@ -78,7 +76,7 @@ def registrar_conteo(request):
     context = {
         'form': form,
         'productos_con_campos': productos_con_campos,
-        'categorias': categorias,
+        'categorias': Categoria.objects.all(),
         'categoria_seleccionada': categoria_seleccionada,
     }
 

@@ -1,70 +1,62 @@
 {% extends 'base.html' %}
 
-{% block title %}Productos Disponibles{% endblock %}
+{% block title %}Registrar Conteo{% endblock %}
 
 {% block content %}
 <div class="container mt-4">
-    <h1 class="text-center">Turno Iniciado en {{ turno.sucursal.nombre }}</h1>
+    <h1 class="text-center">Registrar Conteo de Productos en {{ turno.sucursal.nombre }}</h1>
 
+    <!-- Filtro de categoría -->
     <div class="row align-items-center mt-3">
         <div class="col-md-6">
             <label for="categoria-select">Filtrar por Categoría:</label>
             <select id="categoria-select" name="categoria" class="form-control">
                 <option value="">Todas las Categorías</option>
                 {% for categoria in categorias %}
-                    <option value="{{ categoria.id }}">
+                    <option value="{{ categoria.id }}" {% if categoria.id == categoria_seleccionada %}selected{% endif %}>
                         {{ categoria.nombre }}
                     </option>
                 {% endfor %}
             </select>
         </div>
-
         <div class="col-md-6">
             <label for="buscar-producto">Buscar Producto:</label>
             <input type="text" id="buscar-producto" class="form-control" placeholder="Ingrese el nombre del producto">
         </div>
     </div>
 
-    <div id="productos-container" class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-lg-4 g-4 mt-3">
-        {% for inventario in inventarios %}
-        <div class="col d-flex align-items-stretch product-item" 
-             data-categoria="{{ inventario.producto.categoria_id }}" 
-             data-nombre="{{ inventario.producto.nombre|lower }}">
-            <div class="card product-card w-100">
-                {% load static %}
-                <img 
-                    src="{% if inventario.producto.image %}{{ inventario.producto.image.url }}{% else %}{% static 'images/default_image.jpg' %}{% endif %}" 
-                    class="card-img-top" 
-                    alt="{{ inventario.producto.nombre }}">
-                <div class="card-body d-flex flex-column justify-content-between">
-                    <h5 class="card-title">{{ inventario.producto.nombre }}</h5>
-                    <p class="card-text">Stock: {{ inventario.cantidad }} unidades</p>
+    <!-- Formulario para registrar el conteo -->
+    <form method="POST" class="mt-4">
+        {% csrf_token %}
+        
+        <!-- Lista de productos para contar -->
+        <div id="productos-container" class="row row-cols-1 g-4 mt-3">
+            {% for producto_campo in productos_con_campos %}
+            <div class="col producto-item" 
+                 data-categoria="{{ producto_campo.producto.categoria.id }}" 
+                 data-nombre="{{ producto_campo.producto.nombre|lower }}">
+                <div class="card w-100">
+                    <div class="card-body">
+                        <h5 class="card-title">{{ producto_campo.producto.nombre }}</h5>
 
-                    <form method="POST" action="{% url 'ventas:agregar_al_carrito' inventario.producto.id %}" 
-                          class="agregar-carrito-form">
-                        {% csrf_token %}
-                        <select name="presentacion" class="form-select" required>
-                            {% for presentacion in inventario.presentaciones %}
-                                <option value="{{ presentacion.id }}">
-                                    {{ presentacion.nombre_presentacion }} - ${{ presentacion.precio }}
-                                </option>
-                            {% endfor %}
-                        </select>
-                        <input type="number" name="cantidad" min="1" max="{{ inventario.cantidad }}" value="1" 
-                               class="form-control mt-2" required>
-                        <button type="submit" class="btn btn-primary mt-2 agregar-carrito-btn">Agregar al Carrito</button>
-                    </form>
+                        <!-- Campo de entrada para la cantidad contada -->
+                        <div class="mb-3">
+                            <label for="{{ producto_campo.producto_field.id_for_label }}" class="form-label">
+                                Cantidad Contada
+                            </label>
+                            {{ producto_campo.cantidad_field }}
+                        </div>
+                    </div>
                 </div>
             </div>
+            {% empty %}
+            <p>No hay productos disponibles para esta sucursal.</p>
+            {% endfor %}
         </div>
-        {% empty %}
-        <p>No hay productos disponibles en inventario para esta sucursal.</p>
-        {% endfor %}
-    </div>
 
-    <a href="{% url 'ventas:ver_carrito' %}" class="btn btn-primary btn-carrito-flotante">
-        <i class="fas fa-shopping-cart"></i> Carrito (<span id="cart-count">0</span>)
-    </a>
+        <!-- Botón para enviar el formulario -->
+        <button type="submit" class="btn btn-success mt-3">Registrar Conteo</button>
+    </form>
 </div>
 {% endblock %}
 
@@ -88,7 +80,7 @@
             var categoriaId = $('#categoria-select').val();
             var textoBusqueda = $('#buscar-producto').val().toLowerCase();
 
-            $('.product-item').each(function() {
+            $('.producto-item').each(function() {
                 var categoriaProducto = $(this).data('categoria').toString();
                 var nombreProducto = $(this).data('nombre');
 
@@ -106,20 +98,21 @@
 </script>
 
 <style>
-    .btn-carrito-flotante {
-        position: fixed;
-        bottom: 20px;
-        right: 20px;
-        z-index: 1000;
-        padding: 15px 20px;
-        border-radius: 50px;
-        box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+    .card {
+        border: 1px solid #ccc;
+        border-radius: 5px;
+        padding: 10px;
     }
 
-    .product-card img {
-        height: 200px;
-        object-fit: cover;
+    .producto-item {
+        display: flex;
+        align-items: center;
+    }
+
+    .btn-success {
         width: 100%;
+        padding: 15px;
+        font-size: 16px;
     }
 </style>
 {% endblock %}
