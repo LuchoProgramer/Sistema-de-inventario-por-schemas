@@ -1,88 +1,82 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Carrito de Ventas</title>
-    <!-- Bootstrap CSS -->
-    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css">
-    <!-- Font Awesome para iconos -->
-    <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.8.2/css/all.css">
-    <!-- jQuery -->
-    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
-</head>
-<body>
-    <div class="container mt-4">
-        <h1>Carrito de Ventas</h1>
 
-        {% if carrito_items %}
-            <!-- Contenedor para mensajes -->
-            <div id="mensaje" class="mt-2"></div>
 
-            <!-- Tabla para mostrar el carrito -->
-            <div class="table-responsive">
-                <table class="table">
-                    <thead class="thead-light">
-                        <tr>
-                            <th>Producto</th>
-                            <th>Cantidad</th>
-                            <th>Precio Unitario</th>
-                            <th>Subtotal</th>
-                            <th>Acciones</th>
+{% extends 'base.html' %}
+
+{% block title %}Carrito de Ventas{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <h1>Carrito de Ventas</h1>
+
+    {% if carrito_items %}
+        <!-- Contenedor para mensajes -->
+        <div id="mensaje" class="mt-2"></div>
+
+        <!-- Tabla para mostrar el carrito -->
+        <div class="table-responsive">
+            <table class="table">
+                <thead class="thead-light">
+                    <tr>
+                        <th>Producto</th>
+                        <th>Cantidad</th>
+                        <th>Precio Unitario</th>
+                        <th>Subtotal</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in carrito_items %}
+                        <tr id="item-{{ item.id }}">
+                            <td>
+                                <!-- Si tienes imágenes de productos, descomenta la siguiente línea -->
+                                <!-- <img src="{{ item.producto.imagen.url }}" alt="{{ item.producto.nombre }}" style="width: 50px; height: 50px; margin-right: 10px;"> -->
+                                {{ item.producto.nombre }}
+                            </td>
+                            <td>
+                                <input type="number" class="form-control cantidad-item" data-item-id="{{ item.id }}" value="{{ item.cantidad }}" min="1" style="width: 70px;">
+                            </td>
+                            <td>{{ item.producto.precio }} {{ item.producto.moneda }}</td>
+                            <td id="subtotal-{{ item.id }}">{{ item.subtotal }} {{ item.producto.moneda }}</td>
+                            <td>
+                                <!-- Botón para eliminar el producto -->
+                                <button type="button" class="btn btn-danger btn-sm eliminar-item" data-item-id="{{ item.id }}">
+                                    <i class="fas fa-trash-alt"></i> Eliminar
+                                </button>
+                            </td>
                         </tr>
-                    </thead>
-                    <tbody>
-                        {% for item in carrito_items %}
-                            <tr id="item-{{ item.id }}">
-                                <td>
-                                    <!-- Si tienes imágenes de productos, descomenta la siguiente línea -->
-                                    <!-- <img src="{{ item.producto.imagen.url }}" alt="{{ item.producto.nombre }}" style="width: 50px; height: 50px; margin-right: 10px;"> -->
-                                    {{ item.producto.nombre }}
-                                </td>
-                                <td>
-                                    <input type="number" class="form-control cantidad-item" data-item-id="{{ item.id }}" value="{{ item.cantidad }}" min="1" style="width: 70px;">
-                                </td>
-                                <td>{{ item.producto.precio }} {{ item.producto.moneda }}</td>
-                                <td id="subtotal-{{ item.id }}">{{ item.subtotal }} {{ item.producto.moneda }}</td>
-                                <td>
-                                    <!-- Botón para eliminar el producto -->
-                                    <button type="button" class="btn btn-danger btn-sm eliminar-item" data-item-id="{{ item.id }}">
-                                        <i class="fas fa-trash-alt"></i> Eliminar
-                                    </button>
-                                </td>
-                            </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-
-            <!-- Mostrar el total -->
-            <p class="font-weight-bold text-right" style="font-size: 1.5em;">
-                Total: <span id="total">{{ total }} {{ carrito_items.0.producto.moneda }}</span>
-            </p>
-        {% else %}
-            <p>El carrito está vacío. ¡Agrega productos al carrito!</p>
-        {% endif %}
-        
-        <!-- Botón para agregar productos al carrito -->
-        <div class="d-flex justify-content-between">
-            <a href="{% url 'ventas:inicio_turno' turno.id %}" class="btn btn-secondary">
-                <i class="fas fa-plus"></i> Agregar Productos al Carrito
-            </a>
-
-            <!-- Botones de cotización y facturación solo si hay productos en el carrito -->
-            {% if carrito_items %}
-                <div class="btn-group" role="group">
-                    <a href="{% url 'facturacion:generar_cotizacion' %}" class="btn btn-primary">
-                        <i class="fas fa-file-alt"></i> Generar Cotización
-                    </a>
-                    <a href="{% url 'facturacion:generar_factura' %}" class="btn btn-success">
-                        <i class="fas fa-file-invoice-dollar"></i> Generar Factura
-                    </a>
-                </div>
-            {% endif %}
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
+
+        <!-- Mostrar el total -->
+        <p class="font-weight-bold text-right" style="font-size: 1.5em;">
+            Total: <span id="total">{{ total }} {{ carrito_items.0.producto.moneda }}</span>
+        </p>
+    {% else %}
+        <p>El carrito está vacío. ¡Agrega productos al carrito!</p>
+    {% endif %}
+        
+    <!-- Botón para agregar productos al carrito -->
+    <div class="d-flex justify-content-between">
+        <a href="{% url 'ventas:inicio_turno' turno.id %}" class="btn btn-secondary">
+            <i class="fas fa-plus"></i> Agregar Productos al Carrito
+        </a>
+
+        <!-- Botones de cotización y facturación solo si hay productos en el carrito -->
+        {% if carrito_items %}
+            <div class="btn-group" role="group">
+                <a href="{% url 'facturacion:generar_cotizacion' %}" class="btn btn-primary">
+                    <i class="fas fa-file-alt"></i> Generar Cotización
+                </a>
+                <a href="{% url 'facturacion:generar_factura' %}" class="btn btn-success">
+                    <i class="fas fa-file-invoice-dollar"></i> Generar Factura
+                </a>
+            </div>
+        {% endif %}
     </div>
+</div>
+{% endblock %}
 
     <!-- Scripts -->
     <script type="text/javascript">
