@@ -9,6 +9,7 @@
             {{ compra_form.as_p }}
             {{ formset.management_form }}
 
+            <!-- Mostrar errores si existen -->
             {% if compra_form.errors %}
                 <div class="alert alert-danger">
                     <strong>Errores en el formulario de compra:</strong>
@@ -23,6 +24,7 @@
                 </div>
             {% endif %}
 
+            <!-- Tabla de productos -->
             <table id="productos-table" class="table table-striped mt-4">
                 <thead class="table-dark">
                     <tr>
@@ -39,13 +41,14 @@
                         <td>{{ form.cantidad }}</td>
                         <td>{{ form.precio_unitario }}</td>
                         <td>
-                            <input type="text" class="form-control" id="total-con-impuesto-{{ forloop.counter0 }}" readonly disabled>
+                            <input type="text" class="form-control" id="total-con-impuesto-{{ forloop.counter0 }}" readonly>
                         </td>
                     </tr>
                     {% endfor %}
                 </tbody>
             </table>
 
+            <!-- Mostrar errores en los detalles si existen -->
             {% for form in formset %}
                 {% if form.errors %}
                     <div class="alert alert-danger">
@@ -64,39 +67,66 @@
 
     {% block extra_js %}
     <script>
-        // Obtener el porcentaje de impuesto desde el contexto de Django
-        var impuestoPorcentaje = parseFloat("{{ impuesto_activo|default:0 }}");
+        var impuestoPorcentaje = parseFloat("{{ impuesto_activo|default:0 }}") || 0;
 
-        // Función para agregar eventos de cálculo dinámico
         function addEventListenersToInputs() {
             document.querySelectorAll('input[name$="precio_unitario"], input[name$="cantidad"]').forEach((input) => {
                 if (!input.dataset.listenerAdded) {
                     input.addEventListener('input', function() {
-                        // Obtener el índice del formulario actual
                         const index = this.name.match(/detalles-(\d+)-/)[1];
-
-                        // Obtener los valores de precio unitario y cantidad
                         const precioUnitario = parseFloat(document.querySelector(`input[name="detalles-${index}-precio_unitario"]`).value) || 0;
                         const cantidad = parseFloat(document.querySelector(`input[name="detalles-${index}-cantidad"]`).value) || 0;
 
-                        // Calcular el total con impuesto
                         const totalSinImpuesto = precioUnitario * cantidad;
                         const totalConImpuesto = totalSinImpuesto + (totalSinImpuesto * (impuestoPorcentaje / 100));
 
-                        // Mostrar el total con impuesto en el campo correspondiente
                         document.getElementById(`total-con-impuesto-${index}`).value = totalConImpuesto.toFixed(2);
+
+                        calculateTotals();
                     });
                     input.dataset.listenerAdded = 'true';
                 }
             });
         }
 
-        // Agregar un nuevo producto al formset dinámicamente
+        function calculateTotals() {
+            let totalSinImpuestos = 0;
+            let totalConImpuestos = 0;
+
+            document.querySelectorAll('.producto-form').forEach((row, index) => {
+                const precioUnitarioInput = row.querySelector(`input[name="detalles-${index}-precio_unitario"]`);
+                const cantidadInput = row.querySelector(`input[name="detalles-${index}-cantidad"]`);
+
+                const precioUnitario = parseFloat(precioUnitarioInput.value) || 0;
+                const cantidad = parseFloat(cantidadInput.value) || 0;
+
+                const totalLineaSinImpuesto = precioUnitario * cantidad;
+                const totalLineaConImpuesto = totalLineaSinImpuesto + (totalLineaSinImpuesto * (impuestoPorcentaje / 100));
+
+                totalSinImpuestos += totalLineaSinImpuesto;
+                totalConImpuestos += totalLineaConImpuesto;
+
+                const totalConImpuestoInput = row.querySelector(`input[id^="total-con-impuesto-"]`);
+                if (totalConImpuestoInput) {
+                    totalConImpuestoInput.value = totalLineaConImpuesto.toFixed(2);
+                }
+            });
+
+            const totalSinImpuestosInput = document.getElementById('id_total_sin_impuestos');
+            const totalConImpuestosInput = document.getElementById('id_total_con_impuestos');
+
+            if (totalSinImpuestosInput) {
+                totalSinImpuestosInput.value = totalSinImpuestos.toFixed(2);
+            }
+            if (totalConImpuestosInput) {
+                totalConImpuestosInput.value = totalConImpuestos.toFixed(2);
+            }
+        }
+
         document.getElementById('add-more-products').addEventListener('click', function() {
             const formCount = parseInt(document.getElementById('id_detalles-TOTAL_FORMS').value);
             const newForm = document.querySelector('.producto-form:last-of-type').cloneNode(true);
 
-            // Actualizar nombres y IDs de los inputs
             newForm.querySelectorAll('input, select, textarea').forEach(input => {
                 const name = input.getAttribute('name');
                 const id = input.getAttribute('id');
@@ -112,11 +142,9 @@
                     input.value = '';
                 }
 
-                // Resetear el atributo data-listener-added
                 delete input.dataset.listenerAdded;
             });
 
-            // Actualizar el ID del campo "Total con Impuesto"
             const totalConImpuestoInput = newForm.querySelector('input[id^="total-con-impuesto-"]');
             if (totalConImpuestoInput) {
                 const newId = 'total-con-impuesto-' + formCount;
@@ -127,12 +155,12 @@
             document.querySelector('#productos-table tbody').appendChild(newForm);
             document.getElementById('id_detalles-TOTAL_FORMS').value = formCount + 1;
 
-            // Agregar eventos al nuevo formulario
             addEventListenersToInputs();
+            calculateTotals();
         });
 
-        // Inicializar los eventos al cargar la página
         addEventListenersToInputs();
+        calculateTotals();
     </script>
     {% endblock %}
 {% endblock %}

@@ -21,7 +21,6 @@ def crear_compra_con_productos(request):
         Compra, DetalleCompra, form=DetalleCompraForm, extra=1
     )
 
-    # Obtener el impuesto activo
     impuesto_activo = Impuesto.objects.filter(activo=True).first()
     if not impuesto_activo:
         raise ValidationError("No hay un impuesto activo definido.")
@@ -31,30 +30,37 @@ def crear_compra_con_productos(request):
         formset = DetalleCompraFormSet(request.POST, prefix='detalles')
 
         if compra_form.is_valid() and formset.is_valid():
-            compra = compra_form.save()
+            compra = compra_form.save(commit=False)
+            compra.total_sin_impuestos = Decimal('0.00')
+            compra.total_con_impuestos = Decimal('0.00')
+            compra.save()
+
+            total_sin_impuestos = Decimal('0.00')
+            total_con_impuestos = Decimal('0.00')
 
             detalles = formset.save(commit=False)
             for detalle in detalles:
                 detalle.compra = compra
 
-                # Convertir valores a Decimal
-                precio_sin_impuesto = Decimal(str(detalle.precio_unitario))
-                porcentaje_impuesto = Decimal(str(impuesto_activo.porcentaje))
+                precio_unitario = Decimal(str(detalle.precio_unitario))
+                cantidad = Decimal(str(detalle.cantidad))
 
-                # Calcular el precio con impuesto
-                precio_con_impuesto = precio_sin_impuesto + (
-                    precio_sin_impuesto * (porcentaje_impuesto / Decimal('100'))
+                total_linea_sin_impuesto = precio_unitario * cantidad
+                total_linea_con_impuesto = total_linea_sin_impuesto + (
+                    total_linea_sin_impuesto * (Decimal(str(impuesto_activo.porcentaje)) / Decimal('100'))
                 )
 
-                # Redondear a 2 decimales
-                precio_con_impuesto = precio_con_impuesto.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+                total_sin_impuestos += total_linea_sin_impuesto
+                total_con_impuestos += total_linea_con_impuesto
 
-                detalle.precio_unitario = precio_con_impuesto
                 detalle.save()
+
+            compra.total_sin_impuestos = total_sin_impuestos.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+            compra.total_con_impuestos = total_con_impuestos.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+            compra.save()
 
             return redirect('compras:lista_compras')
         else:
-            # Imprimir errores de validación
             print('Errores en compra_form:', compra_form.errors)
             print('Errores en formset:')
             for form in formset:
@@ -68,8 +74,6 @@ def crear_compra_con_productos(request):
         'formset': formset,
         'impuesto_activo': impuesto_activo.porcentaje,
     })
-
-
 
 
 

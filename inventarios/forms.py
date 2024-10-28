@@ -13,8 +13,8 @@ class CompraForm(forms.ModelForm):
             'metodo_pago': forms.Select(attrs={'class': 'form-control'}),
             'estado': forms.Select(attrs={'class': 'form-control'}),
             'fecha_emision': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
-            'total_sin_impuestos': forms.NumberInput(attrs={'class': 'form-control'}),
-            'total_con_impuestos': forms.NumberInput(attrs={'class': 'form-control'}),
+            'total_sin_impuestos': forms.NumberInput(attrs={'class': 'form-control', 'readonly': 'readonly'}),
+            'total_con_impuestos': forms.NumberInput(attrs={'class': 'form-control', 'readonly': 'readonly'}),
         }
 
 
