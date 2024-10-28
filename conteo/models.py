@@ -12,10 +12,22 @@ class ConteoDiario(models.Model):
         return f"Conteo de {self.producto.nombre} en {self.sucursal.nombre} - {self.cantidad_contada} unidades"
 
     def clean(self):
-        if self.cantidad_contada < 0:
-            raise ValidationError('La cantidad contada no puede ser negativa.')
-        if not self.sucursal:
-            raise ValidationError('La sucursal no puede estar vacía.')
+        cleaned_data = super().clean()
+        errors = {}
 
-    def diferencia_stock(self):
-        return self.cantidad_contada - self.producto.stock  # Comparar con el stock actual
+        # Validamos que todas las cantidades estén ingresadas y no sean negativas
+        for producto in self.productos:
+            field_name = f'cantidad_{producto.id}'
+            cantidad = cleaned_data.get(field_name)
+
+            if cantidad is None or cantidad == '':
+                errors[field_name] = f'Debes ingresar una cantidad para {producto.nombre}.'
+            elif cantidad < 0:
+                errors[field_name] = f'La cantidad para {producto.nombre} no puede ser negativa.'
+
+        if errors:
+            for field, error in errors.items():
+                self.add_error(field, error)
+
+        return cleaned_data
+

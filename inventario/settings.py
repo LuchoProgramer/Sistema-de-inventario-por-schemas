@@ -166,7 +166,7 @@ EMAIL_HOST = 'smtp.gmail.com'
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
 EMAIL_HOST_USER = 'luchoviteri1990@gmail.com'
-EMAIL_HOST_PASSWORD = 'ytjriexvpwadrjtd'
+EMAIL_HOST_PASSWORD = 'baca hery xmcf fnuz'
 
 # Configuración de Celery
 CELERY_BROKER_URL = 'redis://localhost:6379/0'  # URL del broker de Redis

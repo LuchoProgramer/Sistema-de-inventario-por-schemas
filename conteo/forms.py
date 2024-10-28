@@ -7,35 +7,41 @@ class ConteoProductoForm(forms.Form):
         required=False,
         empty_label="Todas las Categorías",
         label="Filtrar por Categoría",
-        widget=forms.Select(attrs={'id': 'categoria-select'})
+        widget=forms.Select(attrs={
+            'id': 'categoria-select',
+            'class': 'form-control'
+        })
     )
 
     def __init__(self, *args, **kwargs):
         productos = kwargs.pop('productos')
-        super(ConteoProductoForm, self).__init__(*args, **kwargs)
+        super().__init__(*args, **kwargs)
         self.productos = productos  # Guardamos los productos para usarlos en la validación
+
         for producto in productos:
-            self.fields[f'producto_{producto.id}'] = forms.BooleanField(
-                required=False,
-                label=producto.nombre
-            )
-            self.fields[f'cantidad_{producto.id}'] = forms.IntegerField(
+            field_name = f'cantidad_{producto.id}'
+            self.fields[field_name] = forms.IntegerField(
                 required=False,
                 min_value=0,
-                widget=forms.NumberInput(attrs={'placeholder': 'Cantidad'})
+                label=producto.nombre,
+                widget=forms.NumberInput(attrs={
+                    'class': 'form-control',
+                    'placeholder': 'Cantidad',
+                    'type': 'number',
+                    'min': '0'
+                })
             )
 
     def clean(self):
         cleaned_data = super().clean()
 
-        # Validamos que si un producto está marcado, la cantidad debe estar presente y ser mayor que cero.
+        # Validamos que las cantidades no sean negativas
         for producto in self.productos:
-            producto_marcado = cleaned_data.get(f'producto_{producto.id}')
-            cantidad = cleaned_data.get(f'cantidad_{producto.id}')
+            field_name = f'cantidad_{producto.id}'
+            cantidad = cleaned_data.get(field_name)
 
-            if producto_marcado and (cantidad is None or cantidad <= 0):
-                self.add_error(f'cantidad_{producto.id}', f'Debes ingresar una cantidad válida para el producto {producto.nombre} marcado.')
-            elif not producto_marcado and (cantidad is not None and cantidad > 0):
-                self.add_error(f'producto_{producto.id}', 'Este producto no está marcado, no puedes asignar una cantidad.')
+            if cantidad is not None:
+                if cantidad < 0:
+                    self.add_error(field_name, f'La cantidad para {producto.nombre} no puede ser negativa.')
 
         return cleaned_data

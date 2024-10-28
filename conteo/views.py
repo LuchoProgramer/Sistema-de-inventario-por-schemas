@@ -28,59 +28,54 @@ def registrar_conteo(request):
 
     sucursal_activa = turno_activo.sucursal
 
-    # Obtener los productos de la sucursal activa sin incluir el stock
+    # Obtener los productos de la sucursal activa
     inventarios = Inventario.objects.filter(sucursal=sucursal_activa)
     productos = [inventario.producto for inventario in inventarios]
 
     # Filtrar por categoría si está seleccionada
-    categoria_seleccionada = request.GET.get('categoria')
-    if categoria_seleccionada:
-        productos = [producto for producto in productos if str(producto.categoria.id) == categoria_seleccionada]
-
+    categoria_seleccionada = None
     if request.method == 'POST':
         form = ConteoProductoForm(request.POST, productos=productos)
         if form.is_valid():
-            # Verificar si todos los productos están marcados con cantidad contada
-            todos_marcados = all(form.cleaned_data.get(f'producto_{producto.id}') for producto in productos)
-            if not todos_marcados:
-                messages.error(request, "Todos los productos deben estar marcados y tener una cantidad.")
-                return redirect('conteo_incompleto')
-
             # Guardar los registros de conteo
             for producto in productos:
-                cantidad = form.cleaned_data.get(f'cantidad_{producto.id}', 0)
-                ConteoDiario.objects.create(
-                    sucursal=sucursal_activa,
-                    usuario=request.user,
-                    fecha_conteo=now().date(),
-                    producto=producto,
-                    cantidad_contada=cantidad
-                )
+                cantidad = form.cleaned_data.get(f'cantidad_{producto.id}', None)
+                if cantidad is not None:
+                    ConteoDiario.objects.create(
+                        sucursal=sucursal_activa,
+                        usuario=request.user,
+                        fecha_conteo=now().date(),
+                        producto=producto,
+                        cantidad_contada=cantidad
+                    )
 
-            # Notificar al usuario sobre el éxito del conteo
-            messages.success(request, "El conteo se ha registrado correctamente.")
+            # Generar y enviar el archivo Excel
+            email_destino = 'luchoviteri1990@gmail.com'  # Puedes cambiar esto al email deseado
+            try:
+                generar_y_enviar_excel(sucursal_activa, request.user, email_destino)
+                messages.success(request, "El conteo se ha registrado y enviado correctamente.")
+            except Exception as e:
+                messages.error(request, f"El conteo se registró, pero no se pudo enviar el correo: {str(e)}")
+
             return redirect('conteo_exitoso')
     else:
+        categoria_seleccionada = request.GET.get('categoria')
+        if categoria_seleccionada:
+            productos = [producto for producto in productos if str(producto.categoria.id) == categoria_seleccionada]
         form = ConteoProductoForm(productos=productos)
-
-    # Estructura de productos con campos de formulario
-    productos_con_campos = [
-        {
-            'producto': producto,
-            'producto_field': form[f'producto_{producto.id}'],
-            'cantidad_field': form[f'cantidad_{producto.id}']
-        }
-        for producto in productos
-    ]
+        form.fields['categoria'].initial = categoria_seleccionada
 
     context = {
         'form': form,
-        'productos_con_campos': productos_con_campos,
         'categorias': Categoria.objects.all(),
         'categoria_seleccionada': categoria_seleccionada,
+        'turno': turno_activo,
+        'sucursal_activa': sucursal_activa,
     }
 
     return render(request, 'conteo/registrar_conteo.html', context)
+
+
 # Vista de Conteo Exitoso
 
 def conteo_exitoso(request):

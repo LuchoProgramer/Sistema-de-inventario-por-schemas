@@ -42,8 +42,9 @@ def generar_y_enviar_excel(sucursal, usuario, email_destino):
         subject=f'Reporte de Conteo Diario - {sucursal.nombre}',
         body=f'Adjunto encontrarás el reporte del conteo realizado por {usuario.get_full_name()}.',
         from_email='luchoviteri1990@gmail.com',
-        to=[email_destino],
+        to=[email_destino],  # Usar la variable de destinatario
     )
+
     email.attach_file(tmp_path)
     email.send()
 
