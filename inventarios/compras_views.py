@@ -8,6 +8,7 @@ import pandas as pd
 from django import forms
 from facturacion.models import Impuesto
 from django.core.exceptions import ValidationError
+from decimal import Decimal, ROUND_HALF_UP, getcontext
 
 
 
@@ -20,11 +21,11 @@ def crear_compra_con_productos(request):
         Compra, DetalleCompra, form=DetalleCompraForm, extra=1
     )
 
-    # Obtener el impuesto activo (suponiendo que hay un único impuesto activo)
+    # Obtener el impuesto activo
     impuesto_activo = Impuesto.objects.filter(activo=True).first()
     if not impuesto_activo:
         raise ValidationError("No hay un impuesto activo definido.")
-    
+
     if request.method == 'POST':
         compra_form = CompraForm(request.POST)
         formset = DetalleCompraFormSet(request.POST, prefix='detalles')
@@ -35,14 +36,29 @@ def crear_compra_con_productos(request):
             detalles = formset.save(commit=False)
             for detalle in detalles:
                 detalle.compra = compra
-                precio_sin_impuesto = detalle.precio_unitario
-                detalle.precio_unitario = precio_sin_impuesto + (
-                    precio_sin_impuesto * (impuesto_activo.porcentaje / 100)
+
+                # Convertir valores a Decimal
+                precio_sin_impuesto = Decimal(str(detalle.precio_unitario))
+                porcentaje_impuesto = Decimal(str(impuesto_activo.porcentaje))
+
+                # Calcular el precio con impuesto
+                precio_con_impuesto = precio_sin_impuesto + (
+                    precio_sin_impuesto * (porcentaje_impuesto / Decimal('100'))
                 )
+
+                # Redondear a 2 decimales
+                precio_con_impuesto = precio_con_impuesto.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+
+                detalle.precio_unitario = precio_con_impuesto
                 detalle.save()
 
             return redirect('compras:lista_compras')
-    
+        else:
+            # Imprimir errores de validación
+            print('Errores en compra_form:', compra_form.errors)
+            print('Errores en formset:')
+            for form in formset:
+                print(form.errors)
     else:
         compra_form = CompraForm()
         formset = DetalleCompraFormSet(prefix='detalles')
@@ -50,8 +66,10 @@ def crear_compra_con_productos(request):
     return render(request, 'compras/crear_compra_con_productos.html', {
         'compra_form': compra_form,
         'formset': formset,
-        'impuesto_activo': impuesto_activo,  # Pasar el impuesto activo al contexto
+        'impuesto_activo': impuesto_activo.porcentaje,
     })
+
+
 
 
 

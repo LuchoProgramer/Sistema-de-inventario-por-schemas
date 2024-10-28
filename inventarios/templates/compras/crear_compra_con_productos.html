@@ -9,13 +9,27 @@
             {{ compra_form.as_p }}
             {{ formset.management_form }}
 
+            {% if compra_form.errors %}
+                <div class="alert alert-danger">
+                    <strong>Errores en el formulario de compra:</strong>
+                    {{ compra_form.errors }}
+                </div>
+            {% endif %}
+
+            {% if formset.non_form_errors %}
+                <div class="alert alert-danger">
+                    <strong>Errores en los detalles de compra:</strong>
+                    {{ formset.non_form_errors }}
+                </div>
+            {% endif %}
+
             <table id="productos-table" class="table table-striped mt-4">
                 <thead class="table-dark">
                     <tr>
                         <th>Producto</th>
                         <th>Cantidad</th>
                         <th>Precio Unitario (sin Impuesto)</th>
-                        <th>Precio Unitario (con Impuesto)</th>
+                        <th>Total con Impuesto</th>
                     </tr>
                 </thead>
                 <tbody id="productos-rows">
@@ -25,12 +39,21 @@
                         <td>{{ form.cantidad }}</td>
                         <td>{{ form.precio_unitario }}</td>
                         <td>
-                            <input type="text" class="form-control" id="precio-con-impuesto-{{ forloop.counter }}" readonly>
+                            <input type="text" class="form-control" id="total-con-impuesto-{{ forloop.counter0 }}" readonly disabled>
                         </td>
                     </tr>
                     {% endfor %}
                 </tbody>
             </table>
+
+            {% for form in formset %}
+                {% if form.errors %}
+                    <div class="alert alert-danger">
+                        <strong>Errores en el producto {{ forloop.counter }}:</strong>
+                        {{ form.errors }}
+                    </div>
+                {% endif %}
+            {% endfor %}
 
             <button type="button" id="add-more-products" class="btn btn-secondary mt-3">Añadir más productos</button>
             <button type="submit" id="submit-compra" class="btn btn-primary mt-3">Guardar Compra</button>
@@ -41,13 +64,39 @@
 
     {% block extra_js %}
     <script>
-        // Asignar el porcentaje de impuesto desde una variable de Django a una variable global de JS
-        var impuestoPorcentaje = parseFloat("{{ impuesto_activo.porcentaje|default:0 }}");
+        // Obtener el porcentaje de impuesto desde el contexto de Django
+        var impuestoPorcentaje = parseFloat("{{ impuesto_activo|default:0 }}");
 
+        // Función para agregar eventos de cálculo dinámico
+        function addEventListenersToInputs() {
+            document.querySelectorAll('input[name$="precio_unitario"], input[name$="cantidad"]').forEach((input) => {
+                if (!input.dataset.listenerAdded) {
+                    input.addEventListener('input', function() {
+                        // Obtener el índice del formulario actual
+                        const index = this.name.match(/detalles-(\d+)-/)[1];
+
+                        // Obtener los valores de precio unitario y cantidad
+                        const precioUnitario = parseFloat(document.querySelector(`input[name="detalles-${index}-precio_unitario"]`).value) || 0;
+                        const cantidad = parseFloat(document.querySelector(`input[name="detalles-${index}-cantidad"]`).value) || 0;
+
+                        // Calcular el total con impuesto
+                        const totalSinImpuesto = precioUnitario * cantidad;
+                        const totalConImpuesto = totalSinImpuesto + (totalSinImpuesto * (impuestoPorcentaje / 100));
+
+                        // Mostrar el total con impuesto en el campo correspondiente
+                        document.getElementById(`total-con-impuesto-${index}`).value = totalConImpuesto.toFixed(2);
+                    });
+                    input.dataset.listenerAdded = 'true';
+                }
+            });
+        }
+
+        // Agregar un nuevo producto al formset dinámicamente
         document.getElementById('add-more-products').addEventListener('click', function() {
             const formCount = parseInt(document.getElementById('id_detalles-TOTAL_FORMS').value);
             const newForm = document.querySelector('.producto-form:last-of-type').cloneNode(true);
 
+            // Actualizar nombres y IDs de los inputs
             newForm.querySelectorAll('input, select, textarea').forEach(input => {
                 const name = input.getAttribute('name');
                 const id = input.getAttribute('id');
@@ -62,21 +111,28 @@
                 if (input.type !== 'hidden') {
                     input.value = '';
                 }
+
+                // Resetear el atributo data-listener-added
+                delete input.dataset.listenerAdded;
             });
+
+            // Actualizar el ID del campo "Total con Impuesto"
+            const totalConImpuestoInput = newForm.querySelector('input[id^="total-con-impuesto-"]');
+            if (totalConImpuestoInput) {
+                const newId = 'total-con-impuesto-' + formCount;
+                totalConImpuestoInput.setAttribute('id', newId);
+                totalConImpuestoInput.value = '';
+            }
 
             document.querySelector('#productos-table tbody').appendChild(newForm);
             document.getElementById('id_detalles-TOTAL_FORMS').value = formCount + 1;
+
+            // Agregar eventos al nuevo formulario
+            addEventListenersToInputs();
         });
 
-        // Calcular el precio con impuesto en tiempo real
-        document.querySelectorAll('input[name$="precio_unitario"]').forEach((input, index) => {
-            input.addEventListener('input', function() {
-                const precioSinImpuesto = parseFloat(this.value) || 0;
-                const precioConImpuesto = precioSinImpuesto + (precioSinImpuesto * (impuestoPorcentaje / 100));
-                
-                document.getElementById(`precio-con-impuesto-${index + 1}`).value = precioConImpuesto.toFixed(2);
-            });
-        });
+        // Inicializar los eventos al cargar la página
+        addEventListenersToInputs();
     </script>
     {% endblock %}
 {% endblock %}

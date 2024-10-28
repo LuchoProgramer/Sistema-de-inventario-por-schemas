@@ -17,26 +17,27 @@ class CompraForm(forms.ModelForm):
             'total_con_impuestos': forms.NumberInput(attrs={'class': 'form-control'}),
         }
 
+
 class DetalleCompraForm(forms.ModelForm):
     class Meta:
         model = DetalleCompra
         fields = ['producto', 'cantidad', 'precio_unitario']
         widgets = {
             'producto': forms.Select(attrs={'class': 'form-control'}),
-            'cantidad': forms.NumberInput(attrs={'class': 'form-control'}),
-            'precio_unitario': forms.NumberInput(attrs={'class': 'form-control'}),
+            'cantidad': forms.NumberInput(attrs={'class': 'form-control', 'step': '1'}),
+            'precio_unitario': forms.NumberInput(attrs={'class': 'form-control', 'step': '0.01'}),
         }
     
     def clean_precio_unitario(self):
         precio_unitario = self.cleaned_data.get('precio_unitario')
 
-        # Obtener el impuesto activo
-        impuesto_activo = Impuesto.objects.filter(activo=True).first()
-        if impuesto_activo:
-            # Calcular el precio con impuesto
-            precio_unitario += precio_unitario * (impuesto_activo.porcentaje / 100)
+        # Verificar que el precio_unitario no sea nulo o negativo
+        if precio_unitario is None or precio_unitario <= 0:
+            raise forms.ValidationError("El precio unitario debe ser un número positivo.")
 
         return precio_unitario
+
+
 
 
 class ProductoForm(forms.ModelForm):
