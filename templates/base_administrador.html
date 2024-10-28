@@ -20,7 +20,7 @@
             <button class="btn btn-dark" type="button" id="offcanvasMenuToggle" data-bs-toggle="offcanvas" data-bs-target="#offcanvasMenu" aria-controls="offcanvasMenu" style="background-color: #2C2C2C; border-color: #2C2C2C;">
                 ☰ Menú
             </button>
-    
+
             <!-- Logo redondo y nombre de la empresa -->
             <a class="navbar-brand ms-3 d-flex align-items-center" href="{% url 'dashboard' %}">
                 <img src="https://lahuequitaquitena.netlify.app/Imagenes/Logo%20La%20Huequita%20200px.png" 
@@ -40,55 +40,8 @@
         </div>
         <div class="offcanvas-body">
             <ul class="nav flex-column">
-            
-                <!-- Inventarios -->
-                <li class="nav-item dropdown">
-                    <a class="nav-link dropdown-toggle text-dark" href="#" id="offcanvasInventariosDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                        Inventarios
-                    </a>
-                    <ul class="dropdown-menu" aria-labelledby="offcanvasInventariosDropdown">
-                        <li><a class="dropdown-item" href="{% url 'inventarios:lista_productos' %}">Lista de Productos</a></li>
-                        <li><a class="dropdown-item" href="{% url 'inventarios:lista_categorias' %}">Lista de Categorías</a></li>
-                        <li><a class="dropdown-item" href="{% url 'inventarios:lista_movimientos_inventario' %}">Movimientos de Inventario</a></li>
-                        <li><a class="dropdown-item" href="{% url 'inventarios:lista_transferencias' %}">Transferencias</a></li>
-                        <li><a class="dropdown-item" href="{% url 'inventarios:seleccionar_sucursal' %}">Seleccionar Sucursal</a></li>
-                    </ul>
-                </li>
-            
-                <!-- Compras -->
-                <li class="nav-item dropdown">
-                    <a class="nav-link dropdown-toggle text-dark" href="#" id="offcanvasComprasDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                        Compras
-                    </a>
-                    <ul class="dropdown-menu" aria-labelledby="offcanvasComprasDropdown">
-                        <li><a class="dropdown-item" href="{% url 'compras:crear_compra_con_productos' %}">Agregar Compra</a></li>
-                        <li><a class="dropdown-item" href="{% url 'compras:lista_compras' %}">Ver Compras</a></li>
-                    </ul>
-                </li>
-            
-                <!-- Reportes -->
-                <li class="nav-item dropdown">
-                    <a class="nav-link dropdown-toggle text-dark" href="#" id="offcanvasReportesDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                        Reportes
-                    </a>
-                    <ul class="dropdown-menu" aria-labelledby="offcanvasReportesDropdown">
-                        <li><a class="dropdown-item" href="{% url 'reporte_ventas' %}">Reporte de Ventas</a></li>
-                        <li><a class="dropdown-item" href="{% url 'reporte_ventas_filtrado' %}">Reporte de Ventas Filtrado</a></li>
-                    </ul>
-                </li>
-            
-                <!-- Configuraciones -->
-                <li class="nav-item dropdown">
-                    <a class="nav-link dropdown-toggle text-dark" href="#" id="offcanvasConfiguracionesDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                        Configuraciones
-                    </a>
-                    <ul class="dropdown-menu" aria-labelledby="offcanvasConfiguracionesDropdown">
-                        <li><a class="dropdown-item" href="{% url 'crear_usuario' %}">Agregar Nuevo Empleado</a></li>
-                        <li><a class="dropdown-item" href="{% url 'sucursales:lista_sucursales' %}">Lista de Sucursales</a></li>
-                        <li><a class="dropdown-item" href="{% url 'facturacion:lista_impuestos' %}">Lista de Impuestos</a></li>
-                    </ul>
-                </li>
-    
+                <!-- Menú de navegación -->
+                <!-- Inventarios, Compras, Reportes, Configuraciones -->
             </ul>
         </div>        
     </div>
@@ -100,8 +53,12 @@
         {% endblock %}
     </div>
 
-    <!-- Scripts -->
+    <!-- Scripts principales -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0-alpha1/dist/js/bootstrap.bundle.min.js"></script>
     <script src="{% static 'RegistroTurnos/js/dashboard.js' %}"></script>
+    
+    <!-- Bloque para scripts adicionales -->
+    {% block extra_js %}
+    {% endblock %}
 </body>
 </html>

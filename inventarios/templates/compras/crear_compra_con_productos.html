@@ -1,12 +1,33 @@
 {% extends 'base_administrador.html' %}
 
 {% block content %}
-    <div class="container mt-5">
+    <div class="mt-5">
         <h1 class="mb-4">Crear Compra</h1>
 
         <form method="post" id="compra-form">
             {% csrf_token %}
-            {{ compra_form.as_p }}
+            
+            <!-- Sobrescribimos solo el campo de proveedor para añadir el botón -->
+            <div class="mb-3 d-flex align-items-center">
+                <label for="id_proveedor" class="me-2">Proveedor:</label>
+                {{ compra_form.proveedor }}
+                <button type="button" class="btn btn-link ms-2" data-bs-toggle="modal" data-bs-target="#crearProveedorModal">
+                    + Agregar Proveedor
+                </button>
+            </div>
+
+            <!-- Renderizar el resto del formulario -->
+            {% for field in compra_form %}
+                {% if field.name != 'proveedor' %}
+                    <div class="mb-3">
+                        {{ field.label_tag }} {{ field }}
+                        {% if field.errors %}
+                            <div class="text-danger">{{ field.errors }}</div>
+                        {% endif %}
+                    </div>
+                {% endif %}
+            {% endfor %}
+
             {{ formset.management_form }}
 
             <!-- Mostrar errores si existen -->
@@ -65,102 +86,182 @@
         <a href="{% url 'compras:lista_compras' %}" class="btn btn-link mt-4">Volver a la lista de compras</a>
     </div>
 
-    {% block extra_js %}
-    <script>
-        var impuestoPorcentaje = parseFloat("{{ impuesto_activo|default:0 }}") || 0;
+    <!-- Modal para agregar un nuevo proveedor -->
+    <div class="modal fade" id="crearProveedorModal" tabindex="-1" aria-labelledby="crearProveedorModalLabel" aria-hidden="true">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="crearProveedorModalLabel">Crear Proveedor</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="crearProveedorForm">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <label for="nombre" class="form-label">Nombre</label>
+                            <input type="text" class="form-control" id="nombre" name="nombre" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="ruc" class="form-label">RUC</label>
+                            <input type="text" class="form-control" id="ruc" name="ruc" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="direccion" class="form-label">Dirección</label>
+                            <input type="text" class="form-control" id="direccion" name="direccion" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="telefono" class="form-label">Teléfono</label>
+                            <input type="text" class="form-control" id="telefono" name="telefono" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="email" class="form-label">Email</label>
+                            <input type="email" class="form-control" id="email" name="email" required>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Crear Proveedor</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}
 
-        function addEventListenersToInputs() {
-            document.querySelectorAll('input[name$="precio_unitario"], input[name$="cantidad"]').forEach((input) => {
-                if (!input.dataset.listenerAdded) {
-                    input.addEventListener('input', function() {
-                        const index = this.name.match(/detalles-(\d+)-/)[1];
-                        const precioUnitario = parseFloat(document.querySelector(`input[name="detalles-${index}-precio_unitario"]`).value) || 0;
-                        const cantidad = parseFloat(document.querySelector(`input[name="detalles-${index}-cantidad"]`).value) || 0;
+{% block extra_js %}
+<script>
+    var impuestoPorcentaje = parseFloat("{{ impuesto_activo|default:0 }}") || 0;
 
-                        const totalSinImpuesto = precioUnitario * cantidad;
-                        const totalConImpuesto = totalSinImpuesto + (totalSinImpuesto * (impuestoPorcentaje / 100));
+    function addEventListenersToInputs() {
+        document.querySelectorAll('input[name$="precio_unitario"], input[name$="cantidad"]').forEach((input) => {
+            if (!input.dataset.listenerAdded) {
+                input.addEventListener('input', function() {
+                    const index = this.name.match(/detalles-(\d+)-/)[1];
+                    const precioUnitario = parseFloat(document.querySelector(`input[name="detalles-${index}-precio_unitario"]`).value) || 0;
+                    const cantidad = parseFloat(document.querySelector(`input[name="detalles-${index}-cantidad"]`).value) || 0;
 
-                        document.getElementById(`total-con-impuesto-${index}`).value = totalConImpuesto.toFixed(2);
+                    const totalSinImpuesto = precioUnitario * cantidad;
+                    const totalConImpuesto = totalSinImpuesto + (totalSinImpuesto * (impuestoPorcentaje / 100));
 
-                        calculateTotals();
-                    });
-                    input.dataset.listenerAdded = 'true';
-                }
-            });
-        }
+                    document.getElementById(`total-con-impuesto-${index}`).value = totalConImpuesto.toFixed(2);
 
-        function calculateTotals() {
-            let totalSinImpuestos = 0;
-            let totalConImpuestos = 0;
-
-            document.querySelectorAll('.producto-form').forEach((row, index) => {
-                const precioUnitarioInput = row.querySelector(`input[name="detalles-${index}-precio_unitario"]`);
-                const cantidadInput = row.querySelector(`input[name="detalles-${index}-cantidad"]`);
-
-                const precioUnitario = parseFloat(precioUnitarioInput.value) || 0;
-                const cantidad = parseFloat(cantidadInput.value) || 0;
-
-                const totalLineaSinImpuesto = precioUnitario * cantidad;
-                const totalLineaConImpuesto = totalLineaSinImpuesto + (totalLineaSinImpuesto * (impuestoPorcentaje / 100));
-
-                totalSinImpuestos += totalLineaSinImpuesto;
-                totalConImpuestos += totalLineaConImpuesto;
-
-                const totalConImpuestoInput = row.querySelector(`input[id^="total-con-impuesto-"]`);
-                if (totalConImpuestoInput) {
-                    totalConImpuestoInput.value = totalLineaConImpuesto.toFixed(2);
-                }
-            });
-
-            const totalSinImpuestosInput = document.getElementById('id_total_sin_impuestos');
-            const totalConImpuestosInput = document.getElementById('id_total_con_impuestos');
-
-            if (totalSinImpuestosInput) {
-                totalSinImpuestosInput.value = totalSinImpuestos.toFixed(2);
+                    calculateTotals();
+                });
+                input.dataset.listenerAdded = 'true';
             }
-            if (totalConImpuestosInput) {
-                totalConImpuestosInput.value = totalConImpuestos.toFixed(2);
-            }
-        }
-
-        document.getElementById('add-more-products').addEventListener('click', function() {
-            const formCount = parseInt(document.getElementById('id_detalles-TOTAL_FORMS').value);
-            const newForm = document.querySelector('.producto-form:last-of-type').cloneNode(true);
-
-            newForm.querySelectorAll('input, select, textarea').forEach(input => {
-                const name = input.getAttribute('name');
-                const id = input.getAttribute('id');
-                if (name) {
-                    const newName = name.replace(/detalles-(\d+)-/, `detalles-${formCount}-`);
-                    input.setAttribute('name', newName);
-                }
-                if (id) {
-                    const newId = id.replace(/id_detalles-(\d+)-/, `id_detalles-${formCount}-`);
-                    input.setAttribute('id', newId);
-                }
-                if (input.type !== 'hidden') {
-                    input.value = '';
-                }
-
-                delete input.dataset.listenerAdded;
-            });
-
-            const totalConImpuestoInput = newForm.querySelector('input[id^="total-con-impuesto-"]');
-            if (totalConImpuestoInput) {
-                const newId = 'total-con-impuesto-' + formCount;
-                totalConImpuestoInput.setAttribute('id', newId);
-                totalConImpuestoInput.value = '';
-            }
-
-            document.querySelector('#productos-table tbody').appendChild(newForm);
-            document.getElementById('id_detalles-TOTAL_FORMS').value = formCount + 1;
-
-            addEventListenersToInputs();
-            calculateTotals();
         });
+    }
+
+    function calculateTotals() {
+        let totalSinImpuestos = 0;
+        let totalConImpuestos = 0;
+
+        document.querySelectorAll('.producto-form').forEach((row, index) => {
+            const precioUnitarioInput = row.querySelector(`input[name="detalles-${index}-precio_unitario"]`);
+            const cantidadInput = row.querySelector(`input[name="detalles-${index}-cantidad"]`);
+
+            const precioUnitario = parseFloat(precioUnitarioInput.value) || 0;
+            const cantidad = parseFloat(cantidadInput.value) || 0;
+
+            const totalLineaSinImpuesto = precioUnitario * cantidad;
+            const totalLineaConImpuesto = totalLineaSinImpuesto + (totalLineaSinImpuesto * (impuestoPorcentaje / 100));
+
+            totalSinImpuestos += totalLineaSinImpuesto;
+            totalConImpuestos += totalLineaConImpuesto;
+
+            const totalConImpuestoInput = row.querySelector(`input[id^="total-con-impuesto-"]`);
+            if (totalConImpuestoInput) {
+                totalConImpuestoInput.value = totalLineaConImpuesto.toFixed(2);
+            }
+        });
+
+        const totalSinImpuestosInput = document.getElementById('id_total_sin_impuestos');
+        const totalConImpuestosInput = document.getElementById('id_total_con_impuestos');
+
+        if (totalSinImpuestosInput) {
+            totalSinImpuestosInput.value = totalSinImpuestos.toFixed(2);
+        }
+        if (totalConImpuestosInput) {
+            totalConImpuestosInput.value = totalConImpuestos.toFixed(2);
+        }
+    }
+
+    document.getElementById('add-more-products').addEventListener('click', function() {
+        const formCount = parseInt(document.getElementById('id_detalles-TOTAL_FORMS').value);
+        const newForm = document.querySelector('.producto-form:last-of-type').cloneNode(true);
+
+        newForm.querySelectorAll('input, select, textarea').forEach(input => {
+            const name = input.getAttribute('name');
+            const id = input.getAttribute('id');
+            if (name) {
+                const newName = name.replace(/detalles-(\d+)-/, `detalles-${formCount}-`);
+                input.setAttribute('name', newName);
+            }
+            if (id) {
+                const newId = id.replace(/id_detalles-(\d+)-/, `id_detalles-${formCount}-`);
+                input.setAttribute('id', newId);
+            }
+            if (input.type !== 'hidden') {
+                input.value = '';
+            }
+
+            delete input.dataset.listenerAdded;
+        });
+
+        const totalConImpuestoInput = newForm.querySelector('input[id^="total-con-impuesto-"]');
+        if (totalConImpuestoInput) {
+            const newId = 'total-con-impuesto-' + formCount;
+            totalConImpuestoInput.setAttribute('id', newId);
+            totalConImpuestoInput.value = '';
+        }
+
+        document.querySelector('#productos-table tbody').appendChild(newForm);
+        document.getElementById('id_detalles-TOTAL_FORMS').value = formCount + 1;
 
         addEventListenersToInputs();
         calculateTotals();
-    </script>
-    {% endblock %}
+    });
+
+    addEventListenersToInputs();
+    calculateTotals();
+
+    // Lógica de AJAX para crear un nuevo proveedor
+    document.getElementById('crearProveedorForm').addEventListener('submit', function(event) {
+        event.preventDefault();  // Evita el envío normal del formulario
+
+        // Obtiene los datos del formulario de proveedor
+        const formData = new FormData(this);
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+
+        // Realiza la solicitud AJAX para crear un nuevo proveedor
+        fetch("{% url 'compras:crear_proveedor_ajax' %}", {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': csrfToken
+            },
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                // Agregar el nuevo proveedor al selector
+                const proveedorSelect = document.getElementById('id_proveedor');
+                const newOption = document.createElement('option');
+                newOption.value = data.proveedor_id;
+                newOption.text = data.nombre;
+                proveedorSelect.add(newOption);
+                proveedorSelect.value = data.proveedor_id;  // Seleccionar el nuevo proveedor
+
+                // Cerrar el modal y limpiar el formulario
+                var crearProveedorModal = new bootstrap.Modal(document.getElementById('crearProveedorModal'));
+                crearProveedorModal.hide();
+                this.reset();
+            } else {
+                // Mostrar errores en el formulario
+                alert('Error al crear el proveedor: ' + JSON.stringify(data.errors));
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Hubo un error al intentar crear el proveedor.');
+        });
+    });
+</script>
 {% endblock %}

@@ -9,6 +9,7 @@ from django import forms
 from facturacion.models import Impuesto
 from django.core.exceptions import ValidationError
 from decimal import Decimal, ROUND_HALF_UP, getcontext
+from .forms import ProveedorForm
 
 
 
@@ -312,3 +313,23 @@ def cargar_productos(request):
         form = UploadFileForm()
 
     return render(request, 'compras/cargar_productos.html', {'form': form})
+
+
+def crear_proveedor_ajax(request):
+    if request.method == 'POST':
+        form = ProveedorForm(request.POST)
+        if form.is_valid():
+            proveedor = form.save()
+            response = {
+                'success': True,
+                'proveedor_id': proveedor.id,
+                'nombre': proveedor.nombre,
+                'ruc': proveedor.ruc  # Campo corregido
+            }
+            return JsonResponse(response)
+        else:
+            errors = form.errors.get_json_data()
+            formatted_errors = {field: [error['message'] for error in error_list] for field, error_list in errors.items()}
+            return JsonResponse({'success': False, 'errors': formatted_errors}, status=400)
+    else:
+        return JsonResponse({'success': False, 'error': 'Método HTTP no permitido.'}, status=405)
