@@ -1,6 +1,7 @@
 from django import forms
 from .models import Compra, Producto, Categoria, Transferencia, Presentacion, DetalleCompra
 from sucursales.models import Sucursal
+from facturacion.models import Impuesto
 
 class CompraForm(forms.ModelForm):
     class Meta:
@@ -25,7 +26,17 @@ class DetalleCompraForm(forms.ModelForm):
             'cantidad': forms.NumberInput(attrs={'class': 'form-control'}),
             'precio_unitario': forms.NumberInput(attrs={'class': 'form-control'}),
         }
+    
+    def clean_precio_unitario(self):
+        precio_unitario = self.cleaned_data.get('precio_unitario')
 
+        # Obtener el impuesto activo
+        impuesto_activo = Impuesto.objects.filter(activo=True).first()
+        if impuesto_activo:
+            # Calcular el precio con impuesto
+            precio_unitario += precio_unitario * (impuesto_activo.porcentaje / 100)
+
+        return precio_unitario
 
 
 class ProductoForm(forms.ModelForm):

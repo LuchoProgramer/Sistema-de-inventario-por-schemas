@@ -6,15 +6,16 @@
 
         <form method="post" id="compra-form">
             {% csrf_token %}
-            {{ compra_form.as_p }}  <!-- Renderizamos los campos de la compra -->
-            {{ formset.management_form }}  <!-- Incluimos el management form -->
+            {{ compra_form.as_p }}
+            {{ formset.management_form }}
 
             <table id="productos-table" class="table table-striped mt-4">
                 <thead class="table-dark">
                     <tr>
                         <th>Producto</th>
                         <th>Cantidad</th>
-                        <th>Precio Unitario</th>
+                        <th>Precio Unitario (sin Impuesto)</th>
+                        <th>Precio Unitario (con Impuesto)</th>
                     </tr>
                 </thead>
                 <tbody id="productos-rows">
@@ -23,6 +24,9 @@
                         <td>{{ form.producto }}</td>
                         <td>{{ form.cantidad }}</td>
                         <td>{{ form.precio_unitario }}</td>
+                        <td>
+                            <input type="text" class="form-control" id="precio-con-impuesto-{{ forloop.counter }}" readonly>
+                        </td>
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -35,40 +39,43 @@
         <a href="{% url 'compras:lista_compras' %}" class="btn btn-link mt-4">Volver a la lista de compras</a>
     </div>
 
-    <!-- Script para agregar dinámicamente más filas de productos -->
     {% block extra_js %}
     <script>
+        // Asignar el porcentaje de impuesto desde una variable de Django a una variable global de JS
+        var impuestoPorcentaje = parseFloat("{{ impuesto_activo.porcentaje|default:0 }}");
+
         document.getElementById('add-more-products').addEventListener('click', function() {
-            // Obtener el conteo actual de formularios desde el management_form
             const formCount = parseInt(document.getElementById('id_detalles-TOTAL_FORMS').value);
-            // Clonar la última fila del formulario
             const newForm = document.querySelector('.producto-form:last-of-type').cloneNode(true);
-            
-            // Actualizar los nombres y IDs de los inputs
+
             newForm.querySelectorAll('input, select, textarea').forEach(input => {
                 const name = input.getAttribute('name');
                 const id = input.getAttribute('id');
                 if (name) {
-                    // Reemplazar el número en el nombre
                     const newName = name.replace(/detalles-(\d+)-/, `detalles-${formCount}-`);
                     input.setAttribute('name', newName);
                 }
                 if (id) {
-                    // Reemplazar el número en el id
                     const newId = id.replace(/id_detalles-(\d+)-/, `id_detalles-${formCount}-`);
                     input.setAttribute('id', newId);
                 }
-                // Limpiar el valor si no es un campo oculto
                 if (input.type !== 'hidden') {
                     input.value = '';
                 }
             });
 
-            // Agregar el nuevo formulario al DOM
             document.querySelector('#productos-table tbody').appendChild(newForm);
-
-            // Incrementar TOTAL_FORMS en el management_form
             document.getElementById('id_detalles-TOTAL_FORMS').value = formCount + 1;
+        });
+
+        // Calcular el precio con impuesto en tiempo real
+        document.querySelectorAll('input[name$="precio_unitario"]').forEach((input, index) => {
+            input.addEventListener('input', function() {
+                const precioSinImpuesto = parseFloat(this.value) || 0;
+                const precioConImpuesto = precioSinImpuesto + (precioSinImpuesto * (impuestoPorcentaje / 100));
+                
+                document.getElementById(`precio-con-impuesto-${index + 1}`).value = precioConImpuesto.toFixed(2);
+            });
         });
     </script>
     {% endblock %}

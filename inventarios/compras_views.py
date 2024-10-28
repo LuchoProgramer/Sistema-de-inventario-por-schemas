@@ -6,6 +6,9 @@ from django.forms import inlineformset_factory
 from django.http import JsonResponse
 import pandas as pd
 from django import forms
+from facturacion.models import Impuesto
+from django.core.exceptions import ValidationError
+
 
 
 def lista_compras(request):
@@ -13,45 +16,41 @@ def lista_compras(request):
     return render(request, 'compras/lista_compras.html', {'compras': compras})
 
 def crear_compra_con_productos(request):
-    # Especificamos el prefijo 'detalles' al crear el formset
     DetalleCompraFormSet = inlineformset_factory(
         Compra, DetalleCompra, form=DetalleCompraForm, extra=1
     )
+
+    # Obtener el impuesto activo (suponiendo que hay un único impuesto activo)
+    impuesto_activo = Impuesto.objects.filter(activo=True).first()
+    if not impuesto_activo:
+        raise ValidationError("No hay un impuesto activo definido.")
     
     if request.method == 'POST':
-        print("Método POST recibido")
-        print(f"Datos POST: {request.POST}")
-        
         compra_form = CompraForm(request.POST)
-        # Añadimos el prefijo al instanciar el formset con los datos POST
         formset = DetalleCompraFormSet(request.POST, prefix='detalles')
-        
+
         if compra_form.is_valid() and formset.is_valid():
-            print("Formulario de compra válido")
             compra = compra_form.save()
-            
+
             detalles = formset.save(commit=False)
-            print(f"Se están procesando {len(detalles)} detalles")
             for detalle in detalles:
-                print(f"Guardando detalle: Producto {detalle.producto}, Cantidad: {detalle.cantidad}")
                 detalle.compra = compra
+                precio_sin_impuesto = detalle.precio_unitario
+                detalle.precio_unitario = precio_sin_impuesto + (
+                    precio_sin_impuesto * (impuesto_activo.porcentaje / 100)
+                )
                 detalle.save()
-            
+
             return redirect('compras:lista_compras')
-        else:
-            print("Errores en la validación de los formularios")
-            print(f"Errores en el formulario de compra: {compra_form.errors}")
-            print(f"Errores en el formset: {formset.errors}")
     
     else:
-        print("Método GET recibido")
         compra_form = CompraForm()
-        # Añadimos el prefijo al instanciar el formset vacío
         formset = DetalleCompraFormSet(prefix='detalles')
 
     return render(request, 'compras/crear_compra_con_productos.html', {
         'compra_form': compra_form,
-        'formset': formset
+        'formset': formset,
+        'impuesto_activo': impuesto_activo,  # Pasar el impuesto activo al contexto
     })
 
 
